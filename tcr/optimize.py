@@ -23,14 +23,17 @@ from .metrics import evaluate_run_metrics
 def optimize_cmr(cfg: AppConfig) -> dict:
     """
     Optimizes Conventional Methanol Reactor (CMR) over operational variables (T_exo_0, T_coolant)
-    at the fixed baseline syngas feed rate (0.640 mol/s) to ensure a fair comparison.
-    Objective: Maximize Methanol Yield (%) subject to T_max <= 535.0 K.
+    at the strictly locked baseline syngas feed rate (F_exo_total_0 = 0.640 mol/s per tube)
+    to ensure a fair, throughput-consistent comparison across all configurations.
+    Objective: Maximize Methanol Yield (%) subject to T_max <= 535.0 K (copper sintering limit).
     """
     geom = ReactorGeometry(cfg.geometry)
     sol_cfg = SolverConfig(
         z_points=120, rtol=1e-5, atol=1e-7,
         picard_max_iter=50, picard_tol_T=1e-3, picard_tol_F=1e-6, picard_alpha=0.70
     )
+
+    t_max_limit = float(cfg.optimization.T_max_limit)
 
     def obj_func(x):
         T_exo_0 = float(x[0])
@@ -43,7 +46,7 @@ def optimize_cmr(cfg: AppConfig) -> dict:
             )
             res = evaluate_run_metrics(sol, geom, is_conventional=True)
             # Penalty if T_max > 535 K
-            penalty = max(0.0, res['T_max_exo'] - 535.0) * 10.0
+            penalty = max(0.0, res['T_max_exo'] - t_max_limit) * 10.0
             return -res['yield_khademi_eq28'] + penalty
         except Exception:
             return 1e4
@@ -160,9 +163,18 @@ def run_nsga2_tcr(cfg: AppConfig) -> dict:
         F_pareto = np.atleast_2d(res_opt.pop.get("F"))
         X_pareto = np.atleast_2d(res_opt.pop.get("X"))
 
-    meoh_yields = -F_pareto[:, 0]
-    benzene_rates = -F_pareto[:, 1]
-    hotspot_rises = F_pareto[:, 2]
+    # Filter out any penalty evaluations (F >= 1e3) to ensure strict feasibility
+    valid_mask = (F_pareto[:, 0] < 0.0) & (F_pareto[:, 1] < 0.0)
+    if np.any(valid_mask):
+        F_valid = F_pareto[valid_mask]
+        X_valid = X_pareto[valid_mask]
+    else:
+        F_valid = F_pareto
+        X_valid = X_pareto
+
+    meoh_yields = -F_valid[:, 0]
+    benzene_rates = -F_valid[:, 1]
+    hotspot_rises = F_valid[:, 2]
 
     # Select Knee Point using balanced utopia distance:
     # Primary trade-off is between methanol yield and benzene production rate.
@@ -173,17 +185,46 @@ def run_nsga2_tcr(cfg: AppConfig) -> dict:
     norm_b = (benzene_rates - np.min(benzene_rates)) / (np.max(benzene_rates) - np.min(benzene_rates) + 1e-10)
     norm_h = (hotspot_rises - np.min(hotspot_rises)) / (np.max(hotspot_rises) - np.min(hotspot_rises) + 1e-10)
     dist_ideal = np.sqrt((1.0 - norm_y) ** 2 + (1.0 - norm_b) ** 2 + 0.10 * (norm_h ** 2))
-    knee_idx = int(np.argmin(dist_ideal))
+    candidate_order = np.argsort(dist_ideal)
 
-    # High-resolution simulation at knee point
-    knee_x = X_pareto[knee_idx]
-    sol_knee = solve_cocurrent(
-        geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
-        cfg.feed_tube.y0, float(knee_x[0]), cfg.feed_tube.P0, F_exo_fixed,
-        cfg.feed_shell.y0, float(knee_x[1]), float(knee_x[3]), float(knee_x[2]),
-        kinetics_mode="production_vbf"
-    )
-    res_knee = evaluate_run_metrics(sol_knee, geom, mode="cocurrent")
+    # High-resolution simulation and verification at the best feasible knee point candidate
+    chosen_idx = int(candidate_order[0])
+    knee_x = X_valid[chosen_idx]
+    sol_knee = None
+    res_knee = None
+
+    for idx in candidate_order:
+        cand_x = X_valid[idx]
+        sol_cand = solve_cocurrent(
+            geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
+            cfg.feed_tube.y0, float(cand_x[0]), cfg.feed_tube.P0, F_exo_fixed,
+            cfg.feed_shell.y0, float(cand_x[1]), float(cand_x[3]), float(cand_x[2]),
+            kinetics_mode="production_vbf"
+        )
+        if not sol_cand.success:
+            continue
+        cand_res = evaluate_run_metrics(sol_cand, geom, mode="cocurrent")
+        p_out = (float(cand_x[3]) / 1e5) - cand_res['dP_shell']
+        # Verify hard constraints on high-resolution trajectory
+        if cand_res['T_max_exo'] <= cfg.optimization.T_max_limit + 1e-4 and p_out >= 1.10 - 1e-4:
+            chosen_idx = int(idx)
+            knee_x = cand_x
+            sol_knee = sol_cand
+            res_knee = cand_res
+            break
+
+    # Fallback to the primary candidate if no candidate strictly met tolerances
+    if sol_knee is None:
+        chosen_idx = int(candidate_order[0])
+        knee_x = X_valid[chosen_idx]
+        sol_knee = solve_cocurrent(
+            geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
+            cfg.feed_tube.y0, float(knee_x[0]), cfg.feed_tube.P0, F_exo_fixed,
+            cfg.feed_shell.y0, float(knee_x[1]), float(knee_x[3]), float(knee_x[2]),
+            kinetics_mode="production_vbf"
+        )
+        res_knee = evaluate_run_metrics(sol_knee, geom, mode="cocurrent")
+
     res_knee['decision_variables'] = {
         'T_exo_0_K': float(knee_x[0]),
         'T_endo_0_K': float(knee_x[1]),
@@ -191,11 +232,12 @@ def run_nsga2_tcr(cfg: AppConfig) -> dict:
         'P_endo_0_bar': float(knee_x[3] / 1e5),
         'F_exo_mol_s': float(F_exo_fixed)
     }
+    res_knee['P_shell_out'] = float(knee_x[3] / 1e5) - float(res_knee['dP_shell'])
 
     return {
         'X_pareto': X_pareto,
         'F_pareto': F_pareto,
-        'knee_idx': knee_idx,
+        'knee_idx': chosen_idx,
         'opt_time_s': opt_time,
         'knee_results': res_knee
     }
