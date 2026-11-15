@@ -205,7 +205,7 @@ $$\text{Yield}_{\text{MeOH}} = \frac{F_{\text{MeOH},\text{out}} - F_{\text{MeOH}
 | **Peak Catalyst Temp ($T_{\text{max}}$)** | $524.4\text{ K}$ | $535.0\text{ K}$ | $540.9\text{ K}$ | $552.5\text{ K}$ | $527.5\text{ K}$ |
 | **Tube Pressure Drop ($\Delta P$, bar)** | $0.45\text{ bar}$ | $0.45\text{ bar}$ | $0.46\text{ bar}$ | $0.47\text{ bar}$ | $0.45\text{ bar}$ |
 | **Shell Pressure Drop ($\Delta P$, bar)** | — | — | $0.68\text{ bar}$ | $0.72\text{ bar}$ | $1.79\text{ bar}$ |
-| **Shell Exit Pressure ($P_{\text{out}}$, bar)** | — | — | $1.32\text{ bar}$ | $1.28\text{ bar}$ | $1.16\text{ bar}$ |
+| **Shell Exit Pressure ($P_{\text{out}}$, bar)** | — | — | $1.82\text{ bar}$ | $1.78\text{ bar}$ | $1.16\text{ bar}$ |
 | **Reaction Zone Cooling Utility** | $5.58\text{ MW}$ | $5.50\text{ MW}$ | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** |
 
 ### 5.2 Key Engineering Insights
