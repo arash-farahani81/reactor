@@ -90,9 +90,9 @@ feed:
         unit: "K"
         source: "Realistic pure cyclohexane feed preventing co-current entrance quenching"
       P0:
-        value: 2.0e5
+        value: 2.5e5
         unit: "Pa"
-        source: "Physical baseline ensuring shell effluent exits above atmospheric pressure (> 1.013 bar)"
+        source: "Elevated baseline inlet pressure (2.5 bar) ensuring shell effluent exits above 1.10 bar across all modes"
       F_total0:
         value: 0.040
         unit: "mol/s"
