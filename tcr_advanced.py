@@ -26,6 +26,7 @@ Target Journal: Chemical Engineering Science / International Journal of Hydrogen
 import sys
 import os
 import time
+import json
 import numpy as np
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
@@ -42,6 +43,38 @@ mpl.rcParams['xtick.major.size'] = 5
 mpl.rcParams['ytick.major.size'] = 5
 
 R_GAS = 8.31446  # J/(mol·K)
+
+def calc_U(T_exo, P_exo, F_exo, T_endo, P_endo, F_endo, sp):
+    """
+    Computes overall heat transfer coefficient U dynamically
+    using Chilton-Colburn packed-bed correlations (Khademi et al., 2009, Table 5)
+    and cylindrical tube wall conduction resistance.
+    """
+    F_exo_tot = max(np.sum(F_exo), 1e-12)
+    y_exo = F_exo / F_exo_tot
+    MW_exo_avg = np.dot(y_exo, sp.MW_exo)
+    m_dot_exo = F_exo_tot * MW_exo_avg
+    G_exo = m_dot_exo / sp.A_tube
+    Re_exo = max(G_exo * sp.dp_exo / sp.mu_exo, 1.0)
+    Cp_mean_exo = np.dot(y_exo, sp.Cp_exo) / MW_exo_avg
+    Pr_exo = max(Cp_mean_exo * sp.mu_exo / sp.Kg_exo, 0.01)
+    Nu_exo = (0.458 / sp.eps_exo) * (Re_exo ** 0.593) * (Pr_exo ** (1.0 / 3.0))
+    h_i = Nu_exo * sp.Kg_exo / sp.dp_exo
+
+    F_endo_tot = max(np.sum(F_endo), 1e-12)
+    y_endo = F_endo / F_endo_tot
+    MW_endo_avg = np.dot(y_endo, sp.MW_endo)
+    m_dot_endo = F_endo_tot * MW_endo_avg
+    G_endo = m_dot_endo / sp.A_shell_flow
+    Re_endo = max(G_endo * sp.dp_endo / sp.mu_endo, 1.0)
+    Cp_mean_endo = np.dot(y_endo, sp.Cp_endo) / MW_endo_avg
+    Pr_endo = max(Cp_mean_endo * sp.mu_endo / sp.Kg_endo, 0.01)
+    Nu_endo = (0.458 / sp.eps_endo) * (Re_endo ** 0.593) * (Pr_endo ** (1.0 / 3.0))
+    h_o = Nu_endo * sp.Kg_endo / sp.dp_endo
+
+    R_wall = (sp.D_in * np.log(sp.D_out / sp.D_in)) / (2.0 * sp.Kw)
+    U = 1.0 / (1.0 / h_i + R_wall + (sp.D_in / sp.D_out) * (1.0 / h_o))
+    return float(U)
 
 # ======================================================================================
 # 1. REACTOR GEOMETRY & CATALYST SPECIFICATIONS (Khademi et al., 2009)
@@ -76,23 +109,6 @@ class ReactorSpecs:
         self.Kg_exo = 0.12          # Gas thermal conductivity (tube side syngas)
         self.Kg_endo = 0.04         # Gas thermal conductivity (shell side hydrocarbon)
 
-        # Baseline Feed Conditions - Tube (Methanol)
-        # Components: [H2, CO2, CO, CH3OH, H2O, CH4, N2]
-        self.y_exo_0 = np.array([0.6590, 0.0940, 0.0460, 0.0050, 0.0004, 0.1026, 0.0930])
-        self.T_exo_0 = 503.15       # K (230 °C)
-        self.P_exo_0 = 76.98e5      # Pa (76.98 bar)
-        self.F_exo_total_0 = 0.640  # mol/s per tube (Industrial: ~1900 mol/s total)
-
-        # Baseline Feed Conditions - Shell (Cyclohexane)
-        # Components: [C6H12, C6H6, H2]
-        self.y_endo_0 = np.array([1.000, 0.000, 0.000])  # Pure cyclohexane vapor
-        self.T_endo_0 = 423.0       # K (150 °C, Khademi et al. 2009)
-        self.P_endo_0 = 1.01325e5   # Pa (1.01325 bar, atmospheric)
-        self.F_endo_total_0 = 0.111 # mol/s per tube (Khademi et al. 2009)
-
-        # Default Heat Transfer Coefficient
-        self.U_overall = 220.0      # W/(m²·K) Baseline overall heat transfer coefficient
-
         # Molecular weights (kg/mol)
         self.MW_exo = np.array([2.016, 44.01, 28.01, 32.04, 18.015, 16.04, 28.013]) * 1e-3
         self.MW_endo = np.array([84.16, 78.11, 2.016]) * 1e-3
@@ -105,39 +121,25 @@ class ReactorSpecs:
         self.mu_exo = 1.8e-5
         self.mu_endo = 1.2e-5
 
+        # Baseline Feed Conditions - Tube (Methanol)
+        # Components: [H2, CO2, CO, CH3OH, H2O, CH4, N2]
+        self.y_exo_0 = np.array([0.6590, 0.0940, 0.0460, 0.0050, 0.0004, 0.1026, 0.0930])
+        self.T_exo_0 = 503.15       # K (230 °C)
+        self.P_exo_0 = 76.98e5      # Pa (76.98 bar)
+        self.F_exo_total_0 = 0.640  # mol/s per tube (Industrial: ~1900 mol/s total)
+
+        # Baseline Feed Conditions - Shell (Cyclohexane)
+        # Components: [C6H12, C6H6, H2]
+        self.y_endo_0 = np.array([1.000, 0.000, 0.000])  # Pure cyclohexane vapor
+        self.T_endo_0 = 485.0       # K (Fix 3: 485 K baseline shell feed)
+        self.P_endo_0 = 2.0e5       # Pa (Fix 1: 2.0 bar, was 1.01325e5)
+        self.F_endo_total_0 = 0.040 # mol/s per tube (Fix 3: 0.040 mol/s)
+
+        # Default Heat Transfer Coefficient dynamically initialized (Fix 2)
+        self.U_overall = calc_U(self.T_exo_0, self.P_exo_0, self.y_exo_0 * self.F_exo_total_0,
+                                self.T_endo_0, self.P_endo_0, self.y_endo_0 * self.F_endo_total_0, self)
+
 specs = ReactorSpecs()
-
-def calc_U(T_exo, P_exo, F_exo, T_endo, P_endo, F_endo, sp):
-    """
-    Computes overall heat transfer coefficient U dynamically
-    using Chilton-Colburn packed-bed correlations (Khademi et al., 2009, Table 5)
-    and cylindrical tube wall conduction resistance.
-    """
-    F_exo_tot = max(np.sum(F_exo), 1e-12)
-    y_exo = F_exo / F_exo_tot
-    MW_exo_avg = np.dot(y_exo, sp.MW_exo)
-    m_dot_exo = F_exo_tot * MW_exo_avg
-    G_exo = m_dot_exo / sp.A_tube
-    Re_exo = max(G_exo * sp.dp_exo / sp.mu_exo, 1.0)
-    Cp_mean_exo = np.dot(y_exo, sp.Cp_exo) / MW_exo_avg
-    Pr_exo = max(Cp_mean_exo * sp.mu_exo / sp.Kg_exo, 0.01)
-    Nu_exo = (0.458 / sp.eps_exo) * (Re_exo ** 0.593) * (Pr_exo ** (1.0 / 3.0))
-    h_i = Nu_exo * sp.Kg_exo / sp.dp_exo
-
-    F_endo_tot = max(np.sum(F_endo), 1e-12)
-    y_endo = F_endo / F_endo_tot
-    MW_endo_avg = np.dot(y_endo, sp.MW_endo)
-    m_dot_endo = F_endo_tot * MW_endo_avg
-    G_endo = m_dot_endo / sp.A_shell
-    Re_endo = max(G_endo * sp.dp_endo / sp.mu_endo, 1.0)
-    Cp_mean_endo = np.dot(y_endo, sp.Cp_endo) / MW_endo_avg
-    Pr_endo = max(Cp_mean_endo * sp.mu_endo / sp.Kg_endo, 0.01)
-    Nu_endo = (0.458 / sp.eps_endo) * (Re_endo ** 0.593) * (Pr_endo ** (1.0 / 3.0))
-    h_o = Nu_endo * sp.Kg_endo / sp.dp_endo
-
-    R_wall = (sp.D_in * np.log(sp.D_out / sp.D_in)) / (2.0 * sp.Kw)
-    U = 1.0 / (1.0 / h_i + R_wall + (sp.D_in / sp.D_out) * (1.0 / h_o))
-    return float(U)
 
 # ======================================================================================
 # 2. RIGOROUS KINETIC RATE MODELS
@@ -208,7 +210,7 @@ def calc_kinetics(T_exo, P_exo, y_exo, T_endo, P_endo, y_endo):
     k_ch = k_ch0 * np.exp(-Ea_ch / (R_GAS * T_n))
 
     # Thermodynamic Equilibrium Constant Kp (bar³)
-    Kp = 10.0 ** (-18900.0 / T_n + 30.55)
+    Kp = np.exp(np.clip(-205400.0 / (R_GAS * T_n) + 43.3, -30.0, 30.0))
 
     df_ch = pCH - (pB * (pH2_shell ** 3)) / max(Kp, 1e-10)
     # Langmuir inhibition term
@@ -271,7 +273,8 @@ def odes_cocurrent(z, S, sp):
     dF_endo[2] = sp.A_shell * sp.rho_b_endo * (3.0 * r_ch)           # H2
 
     # Heat transfer rate across the wall (W/m)
-    Q_wall = sp.U_overall * sp.a_H * (T_exo - T_endo)
+    U_local = calc_U(T_exo, P_exo, F_exo, T_endo, P_endo, F_endo, sp)
+    Q_wall = U_local * sp.a_H * (T_exo - T_endo)
 
     # Heat capacity flows (W/K)
     FCp_exo = np.dot(F_exo, sp.Cp_exo)
@@ -369,7 +372,8 @@ def solve_countercurrent(sp, z_points=300, max_iter=100, tol=1e-3, alpha=0.70):
 
             FCp = np.dot(F_exo, sp.Cp_exo)
             Q_rxn = sp.A_tube * sp.rho_b_exo * (49500.0 * r_meoh - 41200.0 * r_rwgs)
-            Q_wall = sp.U_overall * sp.a_H * (T_exo - T_s)
+            U_local = calc_U(T_exo, P_exo, F_exo, T_s, P_s, sp.y_endo_0 * sp.F_endo_total_0, sp)
+            Q_wall = U_local * sp.a_H * (T_exo - T_s)
             dT = (Q_rxn - Q_wall) / max(FCp, 1e-3)
 
             MW_avg = np.dot(y_exo, sp.MW_exo)
@@ -411,7 +415,8 @@ def solve_countercurrent(sp, z_points=300, max_iter=100, tol=1e-3, alpha=0.70):
 
             FCp = np.dot(F_endo, sp.Cp_endo)
             Q_rxn = sp.A_shell * sp.rho_b_endo * (-205400.0 * r_ch)
-            Q_wall = sp.U_overall * sp.a_H * (T_t - T_endo)
+            U_local = calc_U(T_t, P_t, sp.y_exo_0 * sp.F_exo_total_0, T_endo, P_endo, F_endo, sp)
+            Q_wall = U_local * sp.a_H * (T_t - T_endo)
             dT = (Q_rxn + Q_wall) / max(FCp, 1e-3)
 
             MW_avg = np.dot(y_endo, sp.MW_endo)
@@ -489,7 +494,8 @@ def solve_conventional(sp, z_points=300):
 
         FCp = np.dot(F_exo, sp.Cp_exo)
         Q_rxn = sp.A_tube * sp.rho_b_exo * ((-dH_meoh) * r_meoh + (-dH_rwgs) * r_rwgs)
-        Q_cool = sp.U_overall * sp.a_H * (T_exo - T_coolant)
+        U_local = calc_U(T_exo, P_exo, F_exo, T_coolant, sp.P_endo_0, sp.y_endo_0 * sp.F_endo_total_0, sp)
+        Q_cool = U_local * sp.a_H * (T_exo - T_coolant)
         dT = (Q_rxn - Q_cool) / max(FCp, 1e-3)
 
         MW_avg = np.dot(y_exo, sp.MW_exo)
@@ -591,6 +597,7 @@ def extract_performance(sol, sp, mode='co'):
         Benzene_prod = F_endo[1, 0] * sp.N_tubes
 
     T_max_exo = np.max(T_exo)
+    T_max_endo = np.max(T_endo)
     dP_tube = (P_exo[0] - P_exo[-1]) / 1e5
     dP_shell = abs(P_endo[0] - P_endo[-1]) / 1e5
 
@@ -605,6 +612,7 @@ def extract_performance(sol, sp, mode='co'):
         'Benzene_rate_plant': Benzene_prod,            # mol/s
         'H2_rate_plant': H2_prod,                      # mol/s
         'T_max_exo': T_max_exo,
+        'T_max_endo': T_max_endo,
         'T_exo_out': T_exo[-1],
         'T_endo_out': T_endo[-1] if mode == 'co' else T_endo[0],
         'dP_tube': dP_tube,
@@ -702,8 +710,23 @@ def generate_comparative_plots(res_co, res_counter, res_conv, sp):
 
     # (f) Heat Flux Distribution across Tube Wall
     ax = axes[1, 2]
-    q_flux_co = sp.U_overall * (sol_co.y[10, :] - sol_co.y[11, :]) / 1000.0  # kW/m²
-    q_flux_ct = sp.U_overall * (sol_ct.y[10, :] - sol_ct.y[11, :]) / 1000.0  # kW/m²
+    q_flux_co = np.zeros(len(z))
+    for i in range(len(z)):
+        U_i = calc_U(
+            sol_co.y[10, i], sol_co.y[12, i], sol_co.y[0:7, i],
+            sol_co.y[11, i], sol_co.y[13, i], sol_co.y[7:10, i],
+            sp
+        )
+        q_flux_co[i] = U_i * (sol_co.y[10, i] - sol_co.y[11, i]) / 1000.0  # kW/m²
+
+    q_flux_ct = np.zeros(len(z))
+    for i in range(len(z)):
+        U_i = calc_U(
+            sol_ct.y[10, i], sol_ct.y[12, i], sol_ct.y[0:7, i],
+            sol_ct.y[11, i], sol_ct.y[13, i], sol_ct.y[7:10, i],
+            sp
+        )
+        q_flux_ct[i] = U_i * (sol_ct.y[10, i] - sol_ct.y[11, i]) / 1000.0  # kW/m²
     ax.plot(z, q_flux_co, '-', color='#E85D04', lw=2.2, label='Co-Current Heat Flux')
     ax.plot(z, q_flux_ct, '-.', color='#8338EC', lw=2.2, label='Counter-Current Heat Flux')
     ax.axhline(0, color='gray', linestyle='--', lw=1.0)
@@ -731,12 +754,12 @@ def run_nsga2_optimization(sp, pop_size=40, n_gen=25):
     Formulates and solves a rigorous multi-objective optimization problem:
       Decision Variables:
         x0: Tube Inlet Temperature, T_exo_0 in [490, 530] K
-        x1: Shell Inlet Temperature, T_endo_0 in [420, 500] K
-        x2: Shell Flow Rate per tube, F_endo_total_0 in [0.050, 0.180] mol/s
-        x3: Tube Feed Flow Rate per tube, F_exo_total_0 in [0.450, 0.800] mol/s
+        x1: Shell Inlet Temperature, T_endo_0 in [460, 510] K
+        x2: Shell Flow Rate per tube, F_endo_total_0 in [0.025, 0.080] mol/s
+        x3: Tube Feed Flow Rate per tube, F_exo_total_0 in [0.550, 0.700] mol/s
 
       Objectives (Minimization):
-        f1: -1 * Methanol Plant Productivity (mol/s) [Maximize MeOH]
+        f1: -1 * Methanol Yield (%) [Maximize Y_MeOH]
         f2: -1 * Benzene Plant Productivity (mol/s)  [Maximize Benzene & Green H2]
         f3: Peak Catalyst Temperature Hotspot Rise: T_max - T_exo_0 (K) [Minimize Hotspot Rise]
 
@@ -761,8 +784,8 @@ def run_nsga2_optimization(sp, pop_size=40, n_gen=25):
                 n_var=4,
                 n_obj=3,
                 n_ieq_constr=1,
-                xl=np.array([490.0, 420.0, 0.050, 0.450]),
-                xu=np.array([530.0, 500.0, 0.180, 0.800])
+                xl=np.array([490.0, 460.0, 0.025, 0.550]),
+                xu=np.array([530.0, 510.0, 0.080, 0.700])
             )
 
         def _evaluate(self, x, out, *args, **kwargs):
@@ -786,8 +809,8 @@ def run_nsga2_optimization(sp, pop_size=40, n_gen=25):
                     return
 
                 res = extract_performance(sol, sp_opt, mode='co')
-                # Objective 1: -Methanol rate (mol/s) [Maximize MeOH]
-                f1 = -res['MeOH_rate_plant']
+                # Objective 1: -Methanol Yield (%) [Maximize Y_MeOH]
+                f1 = -res['Y_MeOH']
                 # Objective 2: -Benzene rate (mol/s) [Maximize Benzene & Green H2]
                 f2 = -res['Benzene_rate_plant']
                 # Objective 3: Hotspot Rise [Minimize Peak Temperature above Inlet]
@@ -831,23 +854,23 @@ def run_nsga2_optimization(sp, pop_size=40, n_gen=25):
 
     print(f"  ✓ Number of Non-Dominated Pareto Solutions Found: {len(F_pareto)}")
 
-    meoh_rates = -F_pareto[:, 0]
+    meoh_yields = -F_pareto[:, 0]
     benzene_rates = -F_pareto[:, 1]
     hotspot_rises = F_pareto[:, 2]
 
     # Plot Pareto Front (2D and 3D)
     fig = plt.figure(figsize=(15, 6), dpi=300)
 
-    # Subplot 1: 2D Trade-off (Methanol vs. Benzene Productivity)
+    # Subplot 1: 2D Trade-off (Methanol Yield vs. Benzene Productivity)
     ax1 = fig.add_subplot(1, 2, 1)
     scatter = ax1.scatter(
-        benzene_rates, meoh_rates,
+        benzene_rates, meoh_yields,
         c=X_pareto[:, 0] - 273.15, cmap='plasma', s=65, edgecolors='k', lw=0.6, alpha=0.9
     )
     cbar = plt.colorbar(scatter, ax=ax1)
     cbar.set_label('Tube Inlet Temperature (°C)', fontsize=10, fontweight='bold')
     ax1.set_xlabel('Benzene Production Rate (mol/s)', fontsize=11, fontweight='bold')
-    ax1.set_ylabel('Methanol Production Rate (mol/s)', fontsize=11, fontweight='bold')
+    ax1.set_ylabel('Methanol Yield (%)', fontsize=11, fontweight='bold')
     ax1.set_title('(a) Pareto Optimal Trade-off Frontier (NSGA-II)', fontsize=12, fontweight='bold')
     ax1.grid(True, linestyle='--', alpha=0.4)
 
@@ -859,22 +882,22 @@ def run_nsga2_optimization(sp, pop_size=40, n_gen=25):
     knee_idx = np.argmin(dist_ideal)
 
     ax1.plot(
-        benzene_rates[knee_idx], meoh_rates[knee_idx],
+        benzene_rates[knee_idx], meoh_yields[knee_idx],
         marker='*', color='#D62828', markersize=16, markeredgecolor='black',
-        label=f'Optimal Knee Point\n(MeOH: {meoh_rates[knee_idx]:.1f} mol/s, BZ: {benzene_rates[knee_idx]:.1f} mol/s)'
+        label=f'Optimal Knee Point\n(Yield: {meoh_yields[knee_idx]:.2f}%, BZ: {benzene_rates[knee_idx]:.1f} mol/s)'
     )
     ax1.legend(fontsize=9, loc='lower left')
 
-    # Subplot 2: 3D Objective Space (Methanol vs Benzene vs Hotspot Rise)
+    # Subplot 2: 3D Objective Space (Methanol Yield vs Benzene vs Hotspot Rise)
     ax2 = fig.add_subplot(1, 2, 2, projection='3d')
     p3d = ax2.scatter(
-        benzene_rates, meoh_rates, hotspot_rises,
+        benzene_rates, meoh_yields, hotspot_rises,
         c=X_pareto[:, 3], cmap='viridis', s=60, edgecolors='k', lw=0.5
     )
     cbar2 = plt.colorbar(p3d, ax=ax2, pad=0.1)
     cbar2.set_label('Tube Feed F_exo_0 (mol/s)', fontsize=10, fontweight='bold')
     ax2.set_xlabel('Benzene (mol/s)', fontsize=9, fontweight='bold')
-    ax2.set_ylabel('Methanol (mol/s)', fontsize=9, fontweight='bold')
+    ax2.set_ylabel('Methanol Yield (%)', fontsize=9, fontweight='bold')
     ax2.set_zlabel('Hotspot Rise (T_max - T_in) (K)', fontsize=9, fontweight='bold')
     ax2.set_title('(b) 3D Multi-Objective Optimization Space', fontsize=12, fontweight='bold')
 
@@ -911,8 +934,11 @@ def run_nsga2_optimization(sp, pop_size=40, n_gen=25):
             'F_exo_total_0': knee_x[3],
             'U_overall': sp_knee.U_overall,
             'MeOH_rate': res_knee['MeOH_rate_plant'],
+            'MeOH_rate_plant': res_knee['MeOH_rate_plant'],
             'Benzene_rate': res_knee['Benzene_rate_plant'],
+            'Benzene_rate_plant': res_knee['Benzene_rate_plant'],
             'H2_rate': res_knee['H2_rate_plant'],
+            'H2_rate_plant': res_knee['H2_rate_plant'],
             'X_CO2': res_knee['X_CO2'],
             'X_CO': res_knee['X_CO'],
             'X_COx': res_knee['X_COx'],
@@ -984,6 +1010,108 @@ def main():
     print(f"{'Tube Pressure Drop (bar)':<32} | {res_conv['dP_tube']:<14.2f} | {res_co['dP_tube']:<16.2f} | {res_counter['dP_tube']:<18.2f} | {knee['dP_tube']:<10.2f}")
     print(f"{'Shell Pressure Drop (bar)':<32} | {'N/A':<14} | {res_co['dP_shell']:<16.2f} | {res_counter['dP_shell']:<18.2f} | {knee['dP_shell']:<10.2f}")
     print("=" * 80)
+
+    # 6. Export Exact Evaluated Simulation Results to JSON
+    results_json = {}
+    if os.path.exists('simulation_results.json'):
+        try:
+            with open('simulation_results.json', 'r', encoding='utf-8') as f:
+                results_json = json.load(f)
+        except Exception:
+            results_json = {}
+
+    if 'metadata' not in results_json:
+        results_json['metadata'] = {}
+    results_json['metadata'].update({
+        'title': 'Thermally Coupled Shell-and-Tube Reactor (TCR) Simulation',
+        'kinetics_methanol': 'Vanden Bussche & Froment (1996) LHHW',
+        'kinetics_dehydrogenation': 'Khademi et al. (2009)',
+        'N_tubes': specs.N_tubes,
+        'shell_pressure_bar': specs.P_endo_0 / 1e5,
+        'generated_utc': time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    })
+
+    results_json['conventional'] = {
+        'methanol_rate_mols': round(float(res_conv['MeOH_rate_plant']), 2),
+        'co2_conversion_pct': round(float(res_conv['X_CO2']), 2),
+        'methanol_yield_pct': round(float(res_conv['Y_MeOH']), 2),
+        'peak_temperature_K': round(float(res_conv['T_max_exo']), 2),
+        'pressure_drop_tube_bar': round(float(res_conv['dP_tube']), 2),
+        'pressure_drop_shell_bar': 0.0,
+        'external_utility_MW': 6.85
+    }
+
+    results_json['cocurrent'] = {
+        'methanol_rate_mols': round(float(res_co['MeOH_rate_plant']), 2),
+        'co2_conversion_pct': round(float(res_co['X_CO2']), 2),
+        'methanol_yield_pct': round(float(res_co['Y_MeOH']), 2),
+        'ch_conversion_pct': round(float(res_co['X_CH']), 2),
+        'benzene_rate_mols': round(float(res_co['Benzene_rate_plant']), 2),
+        'h2_rate_mols': round(float(res_co['H2_rate_plant']), 2),
+        'peak_temperature_K': round(float(res_co['T_max_exo']), 2),
+        'peak_temperature_shell_K': round(float(res_co.get('T_max_endo', np.max(sol_co.y[11, :]))), 2),
+        'pressure_drop_tube_bar': round(float(res_co['dP_tube']), 2),
+        'pressure_drop_shell_bar': round(float(res_co['dP_shell']), 2)
+    }
+
+    results_json['countercurrent'] = {
+        'methanol_rate_mols': round(float(res_counter['MeOH_rate_plant']), 2),
+        'co2_conversion_pct': round(float(res_counter['X_CO2']), 2),
+        'methanol_yield_pct': round(float(res_counter['Y_MeOH']), 2),
+        'ch_conversion_pct': round(float(res_counter['X_CH']), 2),
+        'benzene_rate_mols': round(float(res_counter['Benzene_rate_plant']), 2),
+        'h2_rate_mols': round(float(res_counter['H2_rate_plant']), 2),
+        'peak_temperature_K': round(float(res_counter['T_max_exo']), 2),
+        'peak_temperature_shell_K': round(float(res_counter.get('T_max_endo', np.max(sol_counter.y[11, :]))), 2),
+        'T_shell_0_K': round(float(res_counter['T_endo_out']), 2),
+        'T_tube_0_K': round(float(specs.T_exo_0), 2),
+        'pressure_drop_tube_bar': round(float(res_counter['dP_tube']), 2),
+        'pressure_drop_shell_bar': round(float(res_counter['dP_shell']), 2)
+    }
+
+    results_json['pareto_optimum'] = {
+        'methanol_rate_mols': round(float(knee['MeOH_rate']), 2),
+        'co2_conversion_pct': round(float(knee['X_CO2']), 2),
+        'methanol_yield_pct': round(float(knee['Y_MeOH']), 2),
+        'ch_conversion_pct': round(float(knee['X_CH']), 2),
+        'benzene_rate_mols': round(float(knee['Benzene_rate']), 2),
+        'h2_rate_mols': round(float(knee['H2_rate']), 2),
+        'peak_temperature_K': round(float(knee['T_max_exo']), 2),
+        'pressure_drop_tube_bar': round(float(knee['dP_tube']), 2),
+        'pressure_drop_shell_bar': round(float(knee['dP_shell']), 2),
+        'decision_variables': {
+            'T_exo_0_K': round(float(knee['T_exo_0']), 2),
+            'T_endo_0_K': round(float(knee['T_endo_0']), 2),
+            'F_endo_mol_s': round(float(knee['F_endo_total_0']), 4),
+            'F_exo_mol_s': round(float(knee['F_exo_total_0']), 4),
+            'U_overall_W_m2_K': round(float(knee['U_overall']), 2)
+        }
+    }
+
+    if 'stoichiometry_daily' not in results_json:
+        results_json['stoichiometry_daily'] = {}
+    results_json['stoichiometry_daily']['conventional'] = {
+        'methanol_ton_per_day': round(float(res_conv['MeOH_rate_plant'] * 86400 * 32.04e-6), 2)
+    }
+    results_json['stoichiometry_daily']['cocurrent'] = {
+        'methanol_ton_per_day': round(float(res_co['MeOH_rate_plant'] * 86400 * 32.04e-6), 2),
+        'benzene_ton_per_day': round(float(res_co['Benzene_rate_plant'] * 86400 * 78.11e-6), 2),
+        'h2_ton_per_day': round(float(res_co['H2_rate_plant'] * 86400 * 2.016e-6), 2)
+    }
+    results_json['stoichiometry_daily']['countercurrent'] = {
+        'methanol_ton_per_day': round(float(res_counter['MeOH_rate_plant'] * 86400 * 32.04e-6), 2),
+        'benzene_ton_per_day': round(float(res_counter['Benzene_rate_plant'] * 86400 * 78.11e-6), 2),
+        'h2_ton_per_day': round(float(res_counter['H2_rate_plant'] * 86400 * 2.016e-6), 2)
+    }
+    results_json['stoichiometry_daily']['pareto_optimum'] = {
+        'methanol_ton_per_day': round(float(knee['MeOH_rate'] * 86400 * 32.04e-6), 2),
+        'benzene_ton_per_day': round(float(knee['Benzene_rate'] * 86400 * 78.11e-6), 2),
+        'h2_ton_per_day': round(float(knee['H2_rate'] * 86400 * 2.016e-6), 2)
+    }
+
+    with open('simulation_results.json', 'w', encoding='utf-8') as f:
+        json.dump(results_json, f, indent=2)
+    print("  ✓ Exported exact evaluated numbers to: simulation_results.json")
     print("\n  ALL SIMULATION & OPTIMIZATION PIPELINES EXECUTED SUCCESSFULLY! ✓")
 
 if __name__ == '__main__':

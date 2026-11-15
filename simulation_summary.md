@@ -4,19 +4,19 @@ Generated from authentic Single Source of Truth simulation pipeline (`tcr_simula
 
 | Performance Indicator | Conventional Jacketed | TCR Co-Current | TCR Counter-Current | NSGA-II Optimum |
 | :--- | :--- | :--- | :--- | :--- |
-| **Methanol Production (mol/s)** | 108.99 | 87.20 | 84.42 | **88.54** |
-| **Methanol Production (ton/day)** | 301.70 | 241.38 | 233.69 | **245.11** |
-| **CO₂ Single-Pass Conversion (%)** | 23.11% | 24.19% | 22.26% | **24.29%** |
-| **Methanol Yield based on CO₂ (%)** | 55.84% | 48.93% | 47.37% | **49.69%** |
-| **Cyclohexane Conversion (%)** | N/A | 24.36% | 28.96% | **21.26%** |
-| **Benzene Production (mol/s)** | 0.00 | 18.04 | 21.45 | **16.62** |
-| **Benzene Production (ton/day)** | 0.00 | 121.75 | 144.74 | **112.19** |
-| **Coproduced H₂ Rate (mol/s)** | 0.00 | 54.12 | 64.34 | **49.87** |
-| **Coproduced H₂ Rate (ton/day)** | 0.00 | 9.43 | 11.21 | **8.69** |
-| **Peak Bed Temperature (K)** | 536.35 | 540.61 | 559.05 | **535.29** |
-| **Tube Pressure Drop (bar)** | 0.43 | 0.45 | 0.47 | **0.45** |
-| **Shell Pressure Drop (bar)** | N/A | 3.58 | 4.19 | **3.89** |
-| **Exothermic Heat Generated (MW)** | — | 6.321 | 6.210 | — |
-| **Endothermic Heat Absorbed (MW)** | 0.00 | 3.705 | 4.385 | — |
-| **Reaction Thermal Coupling (%)** | 0.0% | 58.62% | 70.62% | — |
-| **Reaction-Stage Utility Required** | Boiling Water (6.85 MW) | **0.0 kW (Autothermal)** | **0.0 kW (Autothermal)** | **0.0 kW (Autothermal)** |
+| **Methanol Production (mol/s)** | 109.48 | 87.78 | 88.79 | **98.45** |
+| **Methanol Production (ton/day)** | 303.06 | 242.99 | 245.80 | **272.53** |
+| **CO₂ Single-Pass Conversion (%)** | 23.38% | 24.29% | 21.97% | **25.14%** |
+| **Methanol Yield based on CO₂ (%)** | 56.12% | 49.26% | 49.83% | **55.25%** |
+| **Cyclohexane Conversion (%)** | N/A | 14.62% | 20.16% | **11.17%** |
+| **Benzene Production (mol/s)** | 0.00 | 17.32 | 23.88 | **26.38** |
+| **Benzene Production (ton/day)** | 0.00 | 116.86 | 161.19 | **178.03** |
+| **Coproduced H₂ Rate (mol/s)** | 0.00 | 51.95 | 71.65 | **79.14** |
+| **Coproduced H₂ Rate (ton/day)** | 0.00 | 9.05 | 12.48 | **13.78** |
+| **Peak Bed Temperature (K)** | 539.44 | 537.68 | 557.76 | **533.23** |
+| **Tube Pressure Drop (bar)** | 0.43 | 0.45 | 0.46 | **0.44** |
+| **Shell Pressure Drop (bar)** | N/A | 0.03 | 0.03 | **0.09** |
+| **Exothermic Heat Generated (MW)** | — | 6.366 | 6.628 | — |
+| **Endothermic Heat Absorbed (MW)** | 0.00 | 3.557 | 4.874 | — |
+| **Reaction Thermal Coupling (%)** | 0.0% | 55.87% | 73.53% | — |
+| **Reaction-Stage Utility Required** | Boiling Water (7.09 MW) | **0.0 kW (Autothermal)** | **0.0 kW (Autothermal)** | **0.0 kW (Autothermal)** |

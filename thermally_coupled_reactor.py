@@ -48,8 +48,10 @@ dp_endo = 3.55e-3      # m          Catalyst particle diameter
 rho_b_endo = 1077.0    # kg/m³      Bulk catalyst density
 eps_endo = 0.39         # -          Bed void fraction
 
-# --- Heat Transfer ---
-U_overall = 666.0      # W/(m²·K)   Dynamic overall heat transfer coefficient (Khademi Table 5)
+# --- Heat Transfer Properties ---
+Kw = 48.0              # W/(m·K)    Tube wall thermal conductivity
+Kg_exo = 0.12          # W/(m·K)    Gas thermal conductivity (tube side syngas)
+Kg_endo = 0.04         # W/(m·K)    Gas thermal conductivity (shell side hydrocarbon)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -74,9 +76,9 @@ F_exo_0 = y_exo_0 * F_exo_total_0
 y_endo_0 = np.array([1.0, 0.0, 0.0])  # Pure cyclohexane feed
 comp_endo_names = ['C₆H₁₂', 'C₆H₆', 'H₂']
 
-T_endo_0 = 423.0       # K          Inlet temperature (shell side)
-P_endo_0 = 1.01325e5   # Pa         Inlet pressure (1.01325 bar, atmospheric)
-F_endo_total_0 = 0.111 # mol/s      Total molar flow rate per tube (Khademi et al. 2009)
+T_endo_0 = 485.0       # K          Inlet temperature (shell side)
+P_endo_0 = 2.0e5       # Pa         Inlet pressure (2.0 bar)
+F_endo_total_0 = 0.040 # mol/s      Total molar flow rate per tube
 
 # Initial molar flow rates (mol/s)
 F_endo_0 = y_endo_0 * F_endo_total_0
@@ -107,6 +109,51 @@ dH_cyclohexane = 205400.0      # C6H12 -> C6H6 + 3H2
 # Gas viscosity (Pa·s) - approximate
 mu_exo = 1.5e-5    # Pa·s
 mu_endo = 1.0e-5   # Pa·s
+
+# Component heat capacity arrays (J/(mol·K))
+Cp_exo_arr = np.array([29.0, 37.1, 29.1, 44.0, 33.6, 35.3, 29.1])
+Cp_endo_arr = np.array([156.0, 82.0, 29.0])
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SECTION 3.1: OVERALL HEAT TRANSFER COEFFICIENT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def calc_U(T_exo, P_exo, F_exo, T_endo, P_endo, F_endo):
+    """
+    Computes overall heat transfer coefficient U dynamically
+    using Chilton-Colburn packed-bed correlations (Khademi et al., 2009, Table 5)
+    and cylindrical tube wall conduction resistance.
+    """
+    F_exo_tot = max(np.sum(F_exo), 1e-12)
+    y_exo = F_exo / F_exo_tot
+    MW_exo_avg = np.dot(y_exo, MW_exo) / 1000.0  # kg/mol
+    m_dot_exo = F_exo_tot * MW_exo_avg            # kg/s
+    G_exo = m_dot_exo / A_tube                    # kg/(m²·s)
+    Re_exo = max(G_exo * dp_exo / mu_exo, 1.0)
+    Cp_mean_exo = np.dot(y_exo, Cp_exo_arr) / MW_exo_avg  # J/(kg·K)
+    Pr_exo = max(Cp_mean_exo * mu_exo / Kg_exo, 0.01)
+    Nu_exo = (0.458 / eps_exo) * (Re_exo ** 0.593) * (Pr_exo ** (1.0 / 3.0))
+    h_i = Nu_exo * Kg_exo / dp_exo
+
+    F_endo_tot = max(np.sum(F_endo), 1e-12)
+    y_endo = F_endo / F_endo_tot
+    MW_endo_avg = np.dot(y_endo, MW_endo) / 1000.0  # kg/mol
+    m_dot_endo = F_endo_tot * MW_endo_avg           # kg/s
+    G_endo = m_dot_endo / A_shell_flow              # kg/(m²·s) (consistent with Ergun flow area)
+    Re_endo = max(G_endo * dp_endo / mu_endo, 1.0)
+    Cp_mean_endo = np.dot(y_endo, Cp_endo_arr) / MW_endo_avg  # J/(kg·K)
+    Pr_endo = max(Cp_mean_endo * mu_endo / Kg_endo, 0.01)
+    Nu_endo = (0.458 / eps_endo) * (Re_endo ** 0.593) * (Pr_endo ** (1.0 / 3.0))
+    h_o = Nu_endo * Kg_endo / dp_endo
+
+    R_wall = (D_tube_in * np.log(D_tube_out / D_tube_in)) / (2.0 * Kw)
+    U = 1.0 / (1.0 / h_i + R_wall + (D_tube_in / D_tube_out) * (1.0 / h_o))
+    return float(U)
+
+# Baseline overall heat transfer coefficient (W/(m²·K))
+U_overall = calc_U(T_exo_0, P_exo_0, F_exo_0, T_endo_0, P_endo_0, F_endo_0)
+U_override = None  # Used for parametric sensitivity analysis if specified
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -214,7 +261,7 @@ def cyclohexane_kinetics(T, P_total, y):
     k_CH = 2.45e4 * np.exp(-68500.0 / (R_gas * T))
     
     # Thermodynamic equilibrium constant Kp (bar³)
-    Kp = 10.0**(-18900.0 / T + 30.55)
+    Kp = np.exp(np.clip(-205400.0 / (R_gas * T) + 43.3, -30.0, 30.0))
     
     # Benzene adsorption constant (bar^-1)
     K_Bz = 0.85 * np.exp(12000.0 / (R_gas * T))
@@ -312,10 +359,12 @@ def coupled_reactor_odes(z, state):
     sum_FCp_endo = np.dot(F_endo, Cp_endo_arr)
     
     # ── Heat transfer between tube and shell ──
-    # Q = U * a_H * (T_exo - T_endo)   per unit length
     # a_H = π * D_tube_in (inner perimeter per tube)
     a_H = np.pi * D_tube_in  # m²/m (heat transfer area per unit length)
-    Q_per_length = U_overall * a_H * (T_exo - T_endo)  # W/m
+    U_local = calc_U(T_exo, P_exo, F_exo, T_endo, P_endo, F_endo)
+    if U_override is not None:
+        U_local = U_override
+    Q_per_length = U_local * a_H * (T_exo - T_endo)  # W/m
     
     # ── Energy balances ──
     # Tube side (exothermic): gains heat from reaction, loses heat to shell
@@ -593,7 +642,7 @@ def sensitivity_analysis():
     print("  PARAMETRIC SENSITIVITY ANALYSIS")
     print(f"{'=' * 70}")
     
-    global T_exo_0, F_endo_total_0, U_overall, F_endo_0
+    global T_exo_0, F_endo_total_0, U_overall, F_endo_0, U_override
     
     # Save original values
     T_exo_orig = T_exo_0
@@ -634,7 +683,7 @@ def sensitivity_analysis():
     ax.grid(True, alpha=0.3)
     
     # --- Effect of Shell Feed Flow Rate ---
-    F_range = np.arange(0.02, 0.22, 0.02)
+    F_range = np.arange(0.015, 0.085, 0.010)
     X_CO2_final2 = []
     X_CH_final2 = []
     
@@ -665,7 +714,7 @@ def sensitivity_analysis():
     ax.grid(True, alpha=0.3)
     
     # --- Effect of Overall Heat Transfer Coefficient ---
-    U_range = np.arange(300, 950, 60)
+    U_range = np.arange(150, 450, 30)
     X_CO2_final3 = []
     X_CH_final3 = []
     T_exo_out3 = []
@@ -673,6 +722,7 @@ def sensitivity_analysis():
     print("  [3/3] Varying heat transfer coefficient...")
     for U_val in U_range:
         U_overall = U_val
+        U_override = U_val
         sol = solve_ivp(coupled_reactor_odes, (0, L),
                        np.concatenate([F_exo_0, F_endo_0, [T_exo_orig, T_endo_0, P_exo_0, P_endo_0]]),
                        method='Radau', t_eval=[L], rtol=1e-6, atol=1e-8, max_step=0.1)
@@ -685,6 +735,7 @@ def sensitivity_analysis():
             X_CH_final3.append(np.nan)
             T_exo_out3.append(np.nan)
     
+    U_override = None
     U_overall = U_orig  # Reset
     
     ax = axes[2]
@@ -739,7 +790,8 @@ def conventional_reactor_odes(z, state):
     
     T_coolant = 503.0  # K — boiling water coolant
     a_H = np.pi * D_tube_in
-    Q_per_length = U_overall * a_H * (T_exo - T_coolant)
+    U_local = calc_U(T_exo, P_exo, F_exo, T_coolant, 2.0e5, F_endo_0)
+    Q_per_length = U_local * a_H * (T_exo - T_coolant)
     
     heat_rxn = A_tube * rho_b_exo * ((-dH_methanol_CO2) * r1 + (-dH_RWGS) * r2)
     dT = (heat_rxn - Q_per_length) / sum_FCp
