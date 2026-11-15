@@ -17,9 +17,14 @@ def calc_ergun_dp(u_s: float, rho_g: float, mu: float, dp: float, eps: float) ->
     Ergun equation for packed-bed pressure drop (Pa/m).
     dP/dz = - [ 150 * mu * (1 - eps)^2 / (eps^3 * dp^2) * u_s + 1.75 * (1 - eps) / (eps^3 * dp) * rho_g * u_s^2 ]
     """
-    u_s_abs = abs(u_s)
-    term_visc = 150.0 * mu * ((1.0 - eps) ** 2) / ((eps ** 3) * (dp ** 2)) * u_s_abs
-    term_turb = 1.75 * (1.0 - eps) / ((eps ** 3) * dp) * rho_g * (u_s_abs ** 2)
+    eps_safe = float(np.clip(eps, 0.05, 0.95))
+    dp_safe = max(float(dp), 1e-6)
+    mu_safe = max(float(mu), 1e-7)
+    rho_safe = max(float(rho_g), 1e-4)
+
+    u_s_abs = abs(float(u_s))
+    term_visc = 150.0 * mu_safe * ((1.0 - eps_safe) ** 2) / ((eps_safe ** 3) * (dp_safe ** 2)) * u_s_abs
+    term_turb = 1.75 * (1.0 - eps_safe) / ((eps_safe ** 3) * dp_safe) * rho_safe * (u_s_abs ** 2)
     return -(term_visc + term_turb)
 
 def calc_hw_tube(T: float, P: float, F_arr: np.ndarray, species_list: list,
@@ -70,6 +75,7 @@ def calc_U_tcr(T_exo: float, P_exo: float, F_exo: np.ndarray, species_exo: list,
     """
     Computes overall heat transfer coefficient U_i (based on inner tube area) for TCR:
     1 / U_i = 1 / h_w,i + R_wall + (D_in / D_out) * (1 / h_w,o)
+    where R_wall = (D_in / (2 * Kw)) * ln(D_out / D_in)
     """
     h_i = calc_hw_tube(T_exo, P_exo, F_exo, species_exo, geom, cat_exo, trans)
     h_o = calc_hw_shell(T_endo, P_endo, F_endo, species_endo, geom, cat_endo, trans)
@@ -83,6 +89,7 @@ def calc_U_cmr(T_exo: float, P_exo: float, F_exo: np.ndarray, species_exo: list,
     """
     Computes overall heat transfer coefficient U_i for conventional boiling water reactor (CMR):
     1 / U_i = 1 / h_w,i + R_wall + (D_in / D_out) * (1 / h_cool)
+    where R_wall = (D_in / (2 * Kw)) * ln(D_out / D_in)
     """
     h_i = calc_hw_tube(T_exo, P_exo, F_exo, species_exo, geom, cat_exo, trans)
     R_wall = (geom.D_in * np.log(geom.D_out / geom.D_in)) / (2.0 * geom.Kw)
