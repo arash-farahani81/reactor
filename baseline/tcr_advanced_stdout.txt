@@ -1,0 +1,44 @@
+﻿================================================================================
+  THERMALLY COUPLED SHELL-AND-TUBE REACTOR (TCR) SIMULATION
+  Exothermic Methanol Synthesis + Endothermic Cyclohexane Dehydrogenation
+================================================================================
+
+[Step 1/4] Simulating Co-Current Thermally Coupled Configuration...
+  ✓ Co-Current solved in 0.05s | CO2 Conv: 18.48% | MeOH Yield: 22.79% | CH Conv: 9.41% | T_max: 523.4 K
+
+[Step 2/4] Simulating Counter-Current BVP via Under-Relaxed Picard Fixed-Point Iteration...
+  ✓ Counter-Current solved in 2.48s | CO2 Conv: 19.79% | MeOH Yield: 28.74% | CH Conv: 17.68% | T_max: 554.6 K
+
+[Step 3/4] Simulating Conventional Single-Bed Industrial Methanol Reactor...
+  ✓ Conventional solved in 0.04s | CO2 Conv: 17.72% | MeOH Yield: 26.20% | T_out: 508.6 K
+
+[Step 4/4] Generating Multiphysics Performance Figures...
+  ✓ Comprehensive multiphysics figure saved to: tcr_multiphysics_profiles.png
+
+================================================================================
+  LAUNCHING NSGA-II MULTI-OBJECTIVE PARETO OPTIMIZATION
+================================================================================
+  Population Size: 36 | Generations: 20
+  ✓ NSGA-II Completed in 31.07 seconds.
+  ✓ Number of Non-Dominated Pareto Solutions Found: 31
+  ✓ NSGA-II Pareto Front figure saved to: nsga2_pareto_front.png
+
+================================================================================
+  TECHNICAL SUMMARY & BENCHMARK COMPARISON TABLE
+================================================================================
+Performance Metric               | Conventional   | TCR Co-Current   | TCR Counter-Current | NSGA-II Optimum
+---------------------------------------------------------------------------------------------------------
+CO₂ Conversion (%)               | 17.72          | 18.48            | 19.79              | 22.34     
+Total COx Conversion (%)         | 26.20          | 22.79            | 28.74              | 31.44     
+Methanol Yield (Eq. 28) (%)      | 26.20          | 22.79            | 28.74              | 31.44     
+Cyclohexane Conversion (%)       | N/A            | 9.41             | 17.68              | 11.26     
+Methanol Production (mol/s)      | 79.02          | 69.96            | 85.74              | 86.52     
+Benzene Production (mol/s)       | N/A            | 11.15            | 20.94              | 26.09     
+Green H₂ Produced (mol/s)        | N/A            | 33.46            | 62.83              | 78.27     
+Peak Bed Temperature (K)         | 517.8          | 523.4            | 554.6              | 529.8     
+Tube Pressure Drop (bar)         | 0.45           | 0.45             | 0.46               | 0.39      
+Shell Pressure Drop (bar)        | N/A            | 0.02             | 0.03               | 0.08      
+================================================================================
+  ✓ Exported exact evaluated numbers to: simulation_results.json
+
+  ALL SIMULATION & OPTIMIZATION PIPELINES EXECUTED SUCCESSFULLY! ✓

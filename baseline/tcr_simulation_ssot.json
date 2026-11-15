@@ -1,0 +1,111 @@
+{
+  "metadata": {
+    "title": "Thermally Coupled Shell-and-Tube Reactor (TCR) Simulation",
+    "kinetics_methanol": "Vanden Bussche & Froment (1996) LHHW",
+    "kinetics_dehydrogenation": "Sinfelt (1960) / Khademi et al. (2009)",
+    "N_tubes": 2962,
+    "shell_pressure_bar": 2.0,
+    "generated_utc": "2026-11-15T18:24:05Z"
+  },
+  "conventional": {
+    "methanol_rate_mols": 109.48,
+    "co2_conversion_pct": 23.38,
+    "methanol_yield_pct": 56.12,
+    "peak_temperature_K": 539.44,
+    "pressure_drop_tube_bar": 0.43,
+    "pressure_drop_shell_bar": 0.0,
+    "external_utility_MW": 7.09
+  },
+  "cocurrent": {
+    "methanol_rate_mols": 87.78,
+    "co2_conversion_pct": 24.29,
+    "methanol_yield_pct": 49.26,
+    "ch_conversion_pct": 14.62,
+    "benzene_rate_mols": 17.32,
+    "h2_rate_mols": 51.95,
+    "peak_temperature_K": 537.68,
+    "peak_temperature_shell_K": 530.79,
+    "pressure_drop_tube_bar": 0.45,
+    "pressure_drop_shell_bar": 0.03
+  },
+  "countercurrent": {
+    "methanol_rate_mols": 88.79,
+    "co2_conversion_pct": 21.97,
+    "methanol_yield_pct": 49.83,
+    "ch_conversion_pct": 20.16,
+    "benzene_rate_mols": 23.88,
+    "h2_rate_mols": 71.65,
+    "peak_temperature_K": 557.76,
+    "peak_temperature_shell_K": 548.19,
+    "T_shell_0_K": 532.35,
+    "T_tube_0_K": 503.15,
+    "pressure_drop_tube_bar": 0.46,
+    "pressure_drop_shell_bar": 0.03
+  },
+  "pareto_optimum": {
+    "methanol_rate_mols": 98.45,
+    "co2_conversion_pct": 25.14,
+    "methanol_yield_pct": 55.25,
+    "ch_conversion_pct": 11.17,
+    "benzene_rate_mols": 26.38,
+    "h2_rate_mols": 79.14,
+    "peak_temperature_K": 533.23,
+    "pressure_drop_tube_bar": 0.44,
+    "pressure_drop_shell_bar": 0.09,
+    "decision_variables": {
+      "T_exo_0_K": 522.05,
+      "T_endo_0_K": 478.07,
+      "F_endo_mol_s": 0.0797,
+      "U_overall_W_m2_K": 336.14
+    }
+  },
+  "enthalpy_balance": {
+    "cocurrent": {
+      "Q_exo_MW": 6.366,
+      "Q_endo_MW": 3.557,
+      "dH_sensible_tube_MW": 1.894,
+      "dH_sensible_shell_MW": 0.915,
+      "reaction_coupling_pct": 55.87,
+      "sensible_pct": 44.13,
+      "closure_error_pct": 0.0
+    },
+    "countercurrent": {
+      "Q_exo_MW": 6.628,
+      "Q_endo_MW": 4.874,
+      "dH_sensible_tube_MW": 0.759,
+      "dH_sensible_shell_MW": 0.995,
+      "reaction_coupling_pct": 73.53,
+      "sensible_pct": 26.47,
+      "closure_error_pct": 0.0
+    }
+  },
+  "stoichiometry_daily": {
+    "conventional": {
+      "methanol_ton_per_day": 303.06
+    },
+    "cocurrent": {
+      "methanol_ton_per_day": 242.99,
+      "benzene_ton_per_day": 116.86,
+      "h2_ton_per_day": 9.05
+    },
+    "countercurrent": {
+      "methanol_ton_per_day": 245.8,
+      "benzene_ton_per_day": 161.19,
+      "h2_ton_per_day": 12.48
+    },
+    "pareto_optimum": {
+      "methanol_ton_per_day": 272.53,
+      "benzene_ton_per_day": 178.03,
+      "h2_ton_per_day": 13.78
+    }
+  },
+  "thermodynamics": {
+    "shell_pressure_bar": 2.0,
+    "equilibrium_conversion_pure_500K_pct": 6.35,
+    "equilibrium_conversion_pure_528K_pct": 13.59,
+    "equilibrium_conversion_pure_530K_pct": 14.34,
+    "equilibrium_conversion_diluted_528K_pct": 32.94,
+    "equilibrium_conversion_diluted_530K_pct": 34.47,
+    "diluent_ratio_inert_to_ch": 0.0
+  }
+}

@@ -1,0 +1,73 @@
+﻿======================================================================
+  THERMALLY COUPLED REACTOR - CO-CURRENT SIMULATION
+======================================================================
+
+  Reactor Length: 7.022 m
+  Tube ID/OD: 38.0/42.0 mm
+  Number of Tubes: 2962
+
+  --- Tube Side (Methanol Synthesis) ---
+  T_inlet = 503.0 K (229.9 °C)
+  P_inlet = 76.98 bar
+  F_total = 0.6400 mol/s per tube
+
+  --- Shell Side (Cyclohexane Dehydrogenation) ---
+  T_inlet = 485.0 K (211.9 °C)
+  P_inlet = 2.00 bar
+  F_total = 0.0400 mol/s per tube
+
+  Solving ODEs...
+  ✓ Solution converged successfully!
+
+======================================================================
+  SIMULATION RESULTS (at z = 7.02 m)
+======================================================================
+
+  --- Tube Side (Methanol Synthesis) ---
+  CO₂ Conversion:     18.52%
+  CO Conversion:      31.03%
+  Total COx Conv:     22.63%
+  Methanol Yield:     22.63% (Eq. 28: based on CO+CO₂)
+  T_outlet:           524.0 K (250.8 °C)
+  P_outlet:           76.53 bar
+  F_CH3OH (outlet):   23.475 mmol/s
+
+  --- Shell Side (Cyclohexane Dehydrogenation) ---
+  C₆H₁₂ Conversion:  9.50%
+  T_outlet:           517.5 K (244.4 °C)
+  P_outlet:           1.9810 bar
+  H₂ produced:        11.405 mmol/s
+
+  --- Temperature Change ---
+  ΔT_tube:  +21.0 K
+  ΔT_shell: +32.5 K
+
+  ✓ Plot saved to: reactor_results.png
+
+======================================================================
+  PARAMETRIC SENSITIVITY ANALYSIS
+======================================================================
+
+  [1/3] Varying tube inlet temperature...
+  [2/3] Varying shell feed flow rate...
+  [3/3] Varying heat transfer coefficient...
+
+  ✓ Sensitivity analysis plot saved to: sensitivity_analysis.png
+
+======================================================================
+  COMPARISON: COUPLED vs. CONVENTIONAL REACTOR
+======================================================================
+
+  Coupled Reactor — CO₂ Conv: 18.52%, T_out: 524.0 K
+  Conventional   — CO₂ Conv: 17.75%, T_out: 508.5 K
+
+  ✓ Comparison plot saved to: comparison_coupled_vs_conventional.png
+
+======================================================================
+  ALL SIMULATIONS COMPLETE ✓
+======================================================================
+
+  Output files:
+    - reactor_results.png
+    - sensitivity_analysis.png
+    - comparison_coupled_vs_conventional.png

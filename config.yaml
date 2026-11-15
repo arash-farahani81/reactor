@@ -1,0 +1,168 @@
+# Configuration for Thermally Coupled Reactor (TCR) Simulation & Optimization
+# Every physical parameter includes an explicit 'source' citation.
+
+geometry:
+  L:
+    value: 7.022
+    unit: "m"
+    source: "Khademi et al. (2009), Table 6"
+  D_in:
+    value: 0.038
+    unit: "m"
+    source: "Khademi et al. (2009), Table 6"
+  D_out:
+    value: 0.042
+    unit: "m"
+    source: "Khademi et al. (2009), Table 6"
+  D_shell_eff:
+    value: 0.058
+    unit: "m"
+    source: "Khademi et al. (2009), Table 6 (effective shell diameter per tube)"
+  N_tubes:
+    value: 2962
+    unit: "-"
+    source: "Khademi et al. (2009), Table 6"
+  Kw:
+    value: 48.0
+    unit: "W/(m·K)"
+    source: "Incropera & DeWitt (2007), standard carbon steel tube wall"
+
+catalyst:
+  tube:
+    # Methanol synthesis (CuO/ZnO/Al2O3)
+    dp:
+      value: 0.00547
+      unit: "m"
+      source: "Khademi et al. (2009), Table 6"
+    rho_b:
+      value: 1140.0
+      unit: "kg/m^3"
+      source: "Khademi et al. (2009), Table 6"
+    eps:
+      value: 0.39
+      unit: "-"
+      source: "Khademi et al. (2009), Table 6"
+    eta:
+      value: 0.35
+      unit: "-"
+      source: "Vanden Bussche & Froment (1996); Froment et al. (2011) for 5.5 mm commercial pellets"
+  shell:
+    # Cyclohexane dehydrogenation (Pt/Al2O3)
+    dp:
+      value: 0.00355
+      unit: "m"
+      source: "Khademi et al. (2009), Table 6"
+    rho_b:
+      value: 1077.0
+      unit: "kg/m^3"
+      source: "Khademi et al. (2009), Table 6"
+    eps:
+      value: 0.40
+      unit: "-"
+      source: "Khademi et al. (2009), Table 6"
+    eta:
+      value: 1.0
+      unit: "-"
+      source: "Khademi et al. (2009), Table 6"
+
+feed:
+  production:
+    tube:
+      # Components: [H2, CO2, CO, CH3OH, H2O, CH4, N2]
+      y0: [0.6590, 0.0940, 0.0460, 0.0050, 0.0004, 0.1026, 0.0930]
+      T0:
+        value: 503.15
+        unit: "K"
+        source: "Khademi et al. (2009), Table 7"
+      P0:
+        value: 76.98e5
+        unit: "Pa"
+        source: "Khademi et al. (2009), Table 7"
+      F_total0:
+        value: 0.640
+        unit: "mol/s"
+        source: "Khademi et al. (2009), Table 7"
+    shell:
+      # Components: [C6H12, C6H6, H2]
+      y0: [1.0, 0.0, 0.0]
+      T0:
+        value: 485.0
+        unit: "K"
+        source: "Realistic pure cyclohexane feed preventing co-current entrance quenching"
+      P0:
+        value: 2.0e5
+        unit: "Pa"
+        source: "Physical baseline ensuring shell effluent exits above atmospheric pressure (> 1.013 bar)"
+      F_total0:
+        value: 0.040
+        unit: "mol/s"
+        source: "Balanced thermal capacity matching exothermic tube heat release per tube"
+
+  benchmark_khademi:
+    tube:
+      y0: [0.6590, 0.0940, 0.0460, 0.0050, 0.0004, 0.1026, 0.0930]
+      T0:
+        value: 527.8
+        unit: "K"
+        source: "Khademi et al. (2009), Table 7"
+      P0:
+        value: 76.98e5
+        unit: "Pa"
+        source: "Khademi et al. (2009), Table 7"
+      F_total0:
+        value: 0.640
+        unit: "mol/s"
+        source: "Khademi et al. (2009), Table 7"
+    shell:
+      # Components: [C6H12, C6H6, H2, Ar]
+      y0: [0.10, 0.0, 0.0, 0.90]
+      T0:
+        value: 423.0
+        unit: "K"
+        source: "Khademi et al. (2009), Table 7"
+      P0:
+        value: 1.01325e5
+        unit: "Pa"
+        source: "Khademi et al. (2009), Table 7"
+      F_total0:
+        value: 0.111
+        unit: "mol/s"
+        source: "Khademi et al. (2009), Table 7"
+
+transport:
+  conventional:
+    h_cool:
+      value: 6000.0
+      unit: "W/(m^2·K)"
+      source: "Perry's Chemical Engineers' Handbook, Section 5; boiling water film"
+    T_coolant:
+      value: 503.15
+      unit: "K"
+      source: "Lurgi commercial boiling water reactor temperature"
+  wall_heat_transfer:
+    correlation: "Dixon_Li_Finlayson"
+    source: "Froment, Bischoff, De Wilde (2011), Chemical Reactor Analysis & Design"
+    Kg_exo: 0.12
+    Kg_endo: 0.04
+    mu_exo: 1.8e-5
+    mu_endo: 1.2e-5
+
+solver:
+  z_points: 300
+  rtol: 1.0e-7
+  atol: 1.0e-9
+  picard_max_iter: 300
+  picard_tol_T: 1.0e-3
+  picard_tol_F: 1.0e-6
+  picard_alpha: 0.70
+
+optimization:
+  seed: 42
+  pop_size: 36
+  n_gen: 20
+  bounds:
+    T_exo_0: [490.0, 530.0]
+    T_endo_0: [460.0, 510.0]
+    F_endo_0: [0.025, 0.080]
+    F_exo_0: [0.550, 0.700]
+  T_max_limit: 535.0
