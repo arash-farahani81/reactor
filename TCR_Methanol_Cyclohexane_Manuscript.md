@@ -192,6 +192,7 @@ $$\text{Yield}_{\text{MeOH}} = \frac{F_{\text{MeOH},\text{out}} - F_{\text{MeOH}
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Inlet Tube Temp $T_{\text{exo},0}$ (K)** | $503.15\text{ K}$ | $503.2\text{ K}$ | $503.15\text{ K}$ | $503.15\text{ K}$ | $507.2\text{ K}$ |
 | **Coolant / Shell Temp (K)** | $503.15\text{ K}$ | $511.7\text{ K}$ | $485.00\text{ K}$ | $485.00\text{ K}$ | $463.1\text{ K}$ |
+| **Syngas Feed Rate $F_{\text{exo},0}$ (mol/s)** | $0.640\text{ mol/s}$ | $0.640\text{ mol/s}$ | $0.640\text{ mol/s}$ | $0.640\text{ mol/s}$ | $0.640\text{ mol/s}$ |
 | **Methanol Production Rate (mol/s)** | $75.78\text{ mol/s}$ | $81.99\text{ mol/s}$ | $75.25\text{ mol/s}$ | $73.68\text{ mol/s}$ | $77.42\text{ mol/s}$ |
 | **Methanol Daily Output (t/d)** | $209.79\text{ t/d}$ | $226.98\text{ t/d}$ | $208.33\text{ t/d}$ | $203.97\text{ t/d}$ | $214.33\text{ t/d}$ |
 | **CO₂ Conversion (%)** | $19.08\%$ | $21.43\%$ | $22.91\%$ | $21.93\%$ | $21.59\%$ |

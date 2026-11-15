@@ -2,8 +2,8 @@
   "metadata": {
     "title": "Thermally Coupled Shell-and-Tube Reactor (TCR) Single Source of Truth",
     "version": "2.0.0",
-    "generated_utc": "2026-11-15T20:38:26Z",
-    "execution_time_total_s": 45.86,
+    "generated_utc": "2026-11-15T21:21:39Z",
+    "execution_time_total_s": 45.92,
     "N_tubes": 2962,
     "shell_inlet_pressure_bar": 2.5
   },
@@ -30,7 +30,8 @@
     },
     "enthalpy_err_tube_pct": 0.0013954040520454808,
     "Q_wall_total_MW": 5.578433884810495,
-    "clamp_violations": 0
+    "clamp_violations": 0,
+    "F_exo_total_0": 0.64
   },
   "conventional_optimized": {
     "mode": "conventional",
@@ -57,7 +58,8 @@
     "Q_wall_total_MW": 5.4974085624745594,
     "clamp_violations": 0,
     "T_exo_0": 503.1721410926612,
-    "T_coolant": 511.6962081547547
+    "T_coolant": 511.6962081547547,
+    "F_exo_total_0": 0.64
   },
   "cocurrent_baseline": {
     "mode": "cocurrent",
@@ -99,7 +101,9 @@
     "Q_wall_total_MW": 3.620998484459271,
     "delta_H_tube_MW": -3.6210237196539445,
     "delta_H_shell_MW": 3.6210237204367783,
-    "clamp_violations": 0
+    "clamp_violations": 0,
+    "F_exo_total_0": 0.64,
+    "P_shell_out": 1.8233
   },
   "countercurrent_baseline": {
     "mode": "countercurrent",
@@ -141,7 +145,9 @@
     "Q_wall_total_MW": 3.886236264273166,
     "delta_H_tube_MW": -3.886232682513144,
     "delta_H_shell_MW": 3.886110236226037,
-    "clamp_violations": 0
+    "clamp_violations": 0,
+    "F_exo_total_0": 0.64,
+    "P_shell_out": 1.7798
   },
   "tcr_nsga2_optimum": {
     "mode": "cocurrent",
@@ -191,7 +197,8 @@
       "P_endo_0_bar": 2.953257731773217,
       "F_exo_mol_s": 0.64
     },
-    "P_shell_out": 1.160552951419923
+    "P_shell_out": 1.160552951419923,
+    "F_exo_total_0": 0.64
   },
   "benchmark_khademi_2009": {
     "khademi_published": {

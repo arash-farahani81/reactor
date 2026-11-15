@@ -103,6 +103,7 @@ reactor/
 
 | Performance Metric | CMR Baseline | CMR Optimized | TCR Co-Current | TCR Counter-Current | TCR NSGA-II Optimum |
 |---|---|---|---|---|---|
+| **Syngas Feed Rate (mol/s)** | 0.640 | 0.640 | 0.640 | 0.640 | **0.640** |
 | **Methanol Production (t/d)** | 209.79 | **226.98** | 208.33 | 203.97 | **214.33** |
 | **Methanol Yield (%)** | 28.55% | **30.89%** | 28.36% | 27.76% | **29.17%** |
 | **Benzene Coproduct (t/d)** | 0.00 | 0.00 | **88.45** | **97.75** | **105.56** |

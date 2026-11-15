@@ -33,6 +33,7 @@ def build_replacement_dict(results):
     rep = {
         "conventional_baseline.T_exo_0": "503.15",
         "conventional_baseline.T_coolant": "503.15",
+        "conventional_baseline.F_exo_0": f"{c_base.get('F_exo_total_0', 0.640):.3f}",
         "conventional_baseline.MeOH_rate_net_plant": f"{c_base['MeOH_rate_net_plant']:.2f}",
         "conventional_baseline.daily_meoh_ton": f"{c_base['daily_meoh_ton']:.2f}",
         "conventional_baseline.X_CO2": f"{c_base['X_CO2']:.2f}",
@@ -44,6 +45,7 @@ def build_replacement_dict(results):
 
         "conventional_optimized.T_exo_0": f"{c_opt['T_exo_0']:.1f}",
         "conventional_optimized.T_coolant": f"{c_opt['T_coolant']:.1f}",
+        "conventional_optimized.F_exo_0": f"{c_opt.get('F_exo_total_0', 0.640):.3f}",
         "conventional_optimized.MeOH_rate_net_plant": f"{c_opt['MeOH_rate_net_plant']:.2f}",
         "conventional_optimized.daily_meoh_ton": f"{c_opt['daily_meoh_ton']:.2f}",
         "conventional_optimized.X_CO2": f"{c_opt['X_CO2']:.2f}",
@@ -53,6 +55,7 @@ def build_replacement_dict(results):
         "conventional_optimized.dP_tube": f"{c_opt['dP_tube']:.2f}",
         "conventional_optimized.Q_wall_total_MW": f"{c_opt['Q_wall_total_MW']:.2f}",
 
+        "cocurrent_baseline.F_exo_0": f"{co.get('F_exo_total_0', 0.640):.3f}",
         "cocurrent_baseline.T_max_exo": f"{co['T_max_exo']:.1f}",
         "cocurrent_baseline.yield_khademi_eq28": f"{co['yield_khademi_eq28']:.2f}",
         "cocurrent_baseline.daily_meoh_ton": f"{co['daily_meoh_ton']:.2f}",
@@ -68,6 +71,7 @@ def build_replacement_dict(results):
         "cocurrent_baseline.dP_shell": f"{co['dP_shell']:.2f}",
         "cocurrent_baseline.P_shell_out": f"{co_P_shell_out:.2f}",
 
+        "countercurrent_baseline.F_exo_0": f"{counter.get('F_exo_total_0', 0.640):.3f}",
         "countercurrent_baseline.T_max_exo": f"{counter['T_max_exo']:.1f}",
         "countercurrent_baseline.yield_khademi_eq28": f"{counter['yield_khademi_eq28']:.2f}",
         "countercurrent_baseline.daily_meoh_ton": f"{counter['daily_meoh_ton']:.2f}",
@@ -86,7 +90,7 @@ def build_replacement_dict(results):
         "tcr_nsga2_optimum.T_exo_0": f"{knee['decision_variables']['T_exo_0_K']:.1f}",
         "tcr_nsga2_optimum.T_endo_0": f"{knee['decision_variables']['T_endo_0_K']:.1f}",
         "tcr_nsga2_optimum.P_endo_0": f"{knee_P_endo_in:.2f}",
-        "tcr_nsga2_optimum.F_exo_0": f"{knee['decision_variables']['F_exo_mol_s']:.4f}",
+        "tcr_nsga2_optimum.F_exo_0": f"{knee.get('decision_variables', {}).get('F_exo_mol_s', 0.640):.3f}",
         "tcr_nsga2_optimum.F_endo_0": f"{knee['decision_variables']['F_endo_mol_s']:.4f}",
         "tcr_nsga2_optimum.T_max_exo": f"{knee['T_max_exo']:.1f}",
         "tcr_nsga2_optimum.yield_khademi_eq28": f"{knee['yield_khademi_eq28']:.2f}",

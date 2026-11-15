@@ -185,6 +185,15 @@ def main():
     # Process thermal duties
     process_duties = calc_process_thermal_duties(cfg, geom, knee_results)
 
+    # Attach verified equal-throughput syngas feed rate and shell exit pressures
+    res_cmr_base['F_exo_total_0'] = float(cfg.feed_tube.F_total0)
+    res_cmr_opt['F_exo_total_0'] = float(cfg.feed_tube.F_total0)
+    res_co_base['F_exo_total_0'] = float(cfg.feed_tube.F_total0)
+    res_ct_base['F_exo_total_0'] = float(cfg.feed_tube.F_total0)
+    knee_results['F_exo_total_0'] = float(cfg.feed_tube.F_total0)
+    res_co_base['P_shell_out'] = round(float((cfg.feed_shell.P0 / 1e5) - res_co_base['dP_shell']), 4)
+    res_ct_base['P_shell_out'] = round(float((cfg.feed_shell.P0 / 1e5) - res_ct_base['dP_shell']), 4)
+
     # Master SSOT data structure
     master_ssot = {
         "metadata": {

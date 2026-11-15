@@ -17,4 +17,6 @@ Generated from Single Source of Truth architecture (`tcr/` package).
 | **Peak Bed Temperature (K)** | 524.37 | 535.00 | 540.88 | 552.50 | **527.51** |
 | **Tube Pressure Drop (bar)** | 0.45 | 0.45 | 0.46 | 0.47 | **0.45** |
 | **Shell Pressure Drop (bar)** | N/A | N/A | 0.68 | 0.72 | **1.79** |
+| **Shell Exit Pressure (bar)** | N/A | N/A | 1.82 | 1.78 | **1.16** |
+| **Syngas Feed Rate (mol/s)** | 0.640 | 0.640 | 0.640 | 0.640 | **0.640** |
 | **Reaction Cooling Utility Required** | Boiling Water (5.58 MW) | Boiling Water (5.50 MW) | **0.0 kW (Autothermal)** | **0.0 kW (Autothermal)** | **0.0 kW (Autothermal)** |
