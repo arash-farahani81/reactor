@@ -35,6 +35,7 @@ N_tubes = 2962         # -          Number of tubes (industrial scale, but we mo
 
 A_tube = np.pi / 4 * D_tube_in**2        # m²  Cross-sectional area of tube
 A_shell = np.pi / 4 * (D_shell_in**2 - D_tube_out**2)  # m²  Annular shell area per tube
+A_shell_flow = A_shell * 6.5             # m²  Effective bundle pitch flow area per tube
 
 # --- Catalyst Properties ---
 # Methanol synthesis (tube side)
@@ -48,7 +49,7 @@ rho_b_endo = 1077.0    # kg/m³      Bulk catalyst density
 eps_endo = 0.39         # -          Bed void fraction
 
 # --- Heat Transfer ---
-U_overall = 150.0      # W/(m²·K)   Overall heat transfer coefficient
+U_overall = 666.0      # W/(m²·K)   Dynamic overall heat transfer coefficient (Khademi Table 5)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -74,8 +75,8 @@ y_endo_0 = np.array([1.0, 0.0, 0.0])  # Pure cyclohexane feed
 comp_endo_names = ['C₆H₁₂', 'C₆H₆', 'H₂']
 
 T_endo_0 = 423.0       # K          Inlet temperature (shell side)
-P_endo_0 = 1.013e5     # Pa         Inlet pressure (~1 atm)
-F_endo_total_0 = 0.1   # mol/s      Total molar flow rate per tube (adjustable)
+P_endo_0 = 1.01325e5   # Pa         Inlet pressure (1.01325 bar, atmospheric)
+F_endo_total_0 = 0.111 # mol/s      Total molar flow rate per tube (Khademi et al. 2009)
 
 # Initial molar flow rates (mol/s)
 F_endo_0 = y_endo_0 * F_endo_total_0
@@ -145,45 +146,46 @@ def methanol_kinetics(T, P_total, y):
     pH2O  = max(p[4], 1e-10)
     
     # --- Rate constants (Arrhenius form: k = A * exp(B/RT)) ---
-    # Note: B values include sign, T in Kelvin
+    # Vanden Bussche & Froment (1996)
     k1  = 1.07   * np.exp(36696.0 / (R_gas * T))      # Methanol synthesis
     k2  = 1.22e10 * np.exp(-94765.0 / (R_gas * T))     # RWGS
     
     # --- Adsorption constants ---
-    KCO2  = 3.45e-3  * np.exp(46800.0 / (R_gas * T))   # CO2 adsorption  (note: positive B → exothermic adsorption)
-    KCO   = 2.16e-5  * np.exp(14936.0 / (R_gas * T))   # CO adsorption   (note: sign adjusted to match original)
-    KH2_sqrt = 0.499 * np.exp(-17197.0 / (R_gas * T))  # sqrt(KH2) parameter
-    KH2O_KH2 = 6.37e-11 * np.exp(99735.0 / (R_gas * T))  # KH2O / sqrt(KH2)
+    sqrt_KH2 = 0.499 * np.exp(17197.0 / (R_gas * T))   # sqrt(KH2) parameter (positive exponent: exothermic adsorption)
+    KH2O = 6.62e-11 * np.exp(124119.0 / (R_gas * T))  # KH2O adsorption parameter
     
     # --- Equilibrium constants ---
     # Methanol synthesis equilibrium: CO2 + 3H2 <-> CH3OH + H2O
     # log10(Keq1) correlation (bar^-2)
     Keq1 = 10.0**(3066.0 / T - 10.592)
     
-    # RWGS equilibrium: CO2 + H2 <-> CO + H2O
-    Keq2 = 10.0**(2073.0 / T - 2.029)
+    # RWGS equilibrium: CO2 + H2 <-> CO + H2O (Endothermic: Keq2 increases with T)
+    Keq2 = 10.0**(-2073.0 / T + 2.029)
     
     # --- Driving force terms ---
     # Methanol synthesis
-    driving1 = pCO2 * pH2 * (1.0 - (1.0 / Keq1) * (pMeOH * pH2O) / (pCO2 * pH2**3))
+    driving1 = pCO2 * pH2 - (1.0 / Keq1) * (pMeOH * pH2O / (pH2**2))
     
     # RWGS
-    driving2 = pCO2 * (1.0 - (1.0 / Keq2) * (pCO * pH2O) / (pCO2 * pH2))
+    driving2 = pCO2 - (1.0 / Keq2) * (pCO * pH2O / pH2)
     
-    # --- Denominator (adsorption terms) ---
-    denom_ads = (1.0 + KCO * pCO + KCO2 * pCO2)
-    denom_H = (1.0 + KH2O_KH2 * pH2O / pH2 + KH2_sqrt * np.sqrt(pH2))
+    # --- Exact Vanden Bussche & Froment (1996) Denominator ---
+    denom = 1.0 + 3453.38 * (pH2O / pH2) + sqrt_KH2 * np.sqrt(pH2) + KH2O * pH2O
+    
+    # Catalyst internal diffusion effectiveness factor (5.47 mm pellets)
+    eta_exo = 0.35
     
     # --- Reaction rates (mol / kg_cat / s) ---
-    r1 = k1 * driving1 / (denom_ads * denom_H**3)   # Methanol synthesis from CO2
-    r2 = k2 * driving2 / (denom_ads * denom_H)       # RWGS
+    r1 = eta_exo * k1 * driving1 / (denom**3)   # Methanol synthesis from CO2
+    r2 = eta_exo * k2 * driving2 / denom       # RWGS
     
     return r1, r2
 
 
 def cyclohexane_kinetics(T, P_total, y):
     """
-    Cyclohexane dehydrogenation kinetics (Power-law reversible model)
+    Cyclohexane dehydrogenation kinetics (Temkin/Langmuir reversible model)
+    Based on Khademi et al. (2009) and Sinfelt (1960)
     
     Reaction: C6H12 <-> C6H6 + 3H2
     
@@ -199,39 +201,30 @@ def cyclohexane_kinetics(T, P_total, y):
     Returns
     -------
     r_CH : float
-        Rate of cyclohexane consumption (mol/(kg_cat·s))
+        Rate of cyclohexane consumption (mol/(kg_cat·s)) - fully reversible
     """
-    # Partial pressures (Pa)
-    p = y * P_total
-    pCH  = max(p[0], 1e-6)  # Cyclohexane
-    pBz  = max(p[1], 1e-6)  # Benzene
-    pH2  = max(p[2], 1e-6)  # Hydrogen
+    # Partial pressures (bar)
+    P_bar = P_total / 1e5
+    p = y * P_bar
+    pCH = max(p[0], 1e-10)   # Cyclohexane
+    pBz = max(p[1], 1e-10)   # Benzene
+    pH2 = max(p[2], 1e-10)   # Hydrogen
     
-    # Convert to kPa for rate expression
-    pCH_kPa = pCH / 1e3
-    pBz_kPa = pBz / 1e3
-    pH2_kPa = pH2 / 1e3
+    # Rate constant (Arrhenius): mol/(kg_cat·s·bar)
+    k_CH = 2.45e4 * np.exp(-68500.0 / (R_gas * T))
     
-    # Rate constant (Arrhenius)
-    # k = k0 * exp(-Ea / RT)
-    Ea = 209000.0      # J/mol   Activation energy
-    k0 = 1.8e15        # mol/(kg_cat·s·kPa)  Pre-exponential factor
+    # Thermodynamic equilibrium constant Kp (bar³)
+    Kp = 10.0**(-18900.0 / T + 30.55)
     
-    k = k0 * np.exp(-Ea / (R_gas * T))
+    # Benzene adsorption constant (bar^-1)
+    K_Bz = 0.85 * np.exp(12000.0 / (R_gas * T))
     
-    # Equilibrium constant (thermodynamic)
-    # ln(Keq) = -dG/RT, using van't Hoff:
-    # Keq(T) = Keq_ref * exp(-dH/R * (1/T - 1/T_ref))
-    # At 600K, Keq ~ 0.143 kPa³ (approximate)
-    Keq_ref = 0.143       # kPa³  at T_ref
-    T_ref = 600.0         # K
-    dH_rxn = 205400.0     # J/mol
-    Keq = Keq_ref * np.exp(-dH_rxn / R_gas * (1.0/T - 1.0/T_ref))
+    # Reversible driving force and Temkin denominator (no artificial clamping)
+    df_CH = pCH - (pBz * (pH2**3)) / max(Kp, 1e-10)
+    denom_CH = 1.0 + K_Bz * pBz
+    r_CH = k_CH * df_CH / denom_CH
     
-    # Rate expression (reversible first-order in cyclohexane)
-    r_CH = k * (pCH_kPa - pBz_kPa * pH2_kPa**3 / Keq)
-    
-    return max(r_CH, 0.0)
+    return r_CH
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -343,7 +336,7 @@ def coupled_reactor_odes(z, state):
     # Shell side
     MW_avg_endo = np.dot(y_endo, MW_endo) / 1000.0  # kg/mol
     rho_g_endo = P_endo * MW_avg_endo / (R_gas * T_endo)  # kg/m³
-    u_s_endo = F_endo_total * R_gas * T_endo / (P_endo * A_shell)
+    u_s_endo = F_endo_total * R_gas * T_endo / (P_endo * A_shell_flow)
     dP_endo = ergun_pressure_drop(u_s_endo, rho_g_endo, mu_endo, dp_endo, eps_endo)
     
     # ── Assemble derivatives ──
@@ -424,13 +417,24 @@ def compute_results(sol):
     P_exo = sol.y[12, :]
     P_endo = sol.y[13, :]
     
-    # --- Conversions ---
+    # --- Conversions & Yields ---
     # CO2 conversion in methanol synthesis
-    X_CO2 = (F_exo[1, 0] - F_exo[1, :]) / F_exo[1, 0] * 100.0
+    CO2_in = F_exo[1, 0]
+    CO2_out = F_exo[1, :]
+    X_CO2 = (CO2_in - CO2_out) / CO2_in * 100.0
     
-    # CO conversion (CO is produced by RWGS, so negative "conversion")
-    # Better: track methanol yield
-    Y_MeOH = (F_exo[3, :] - F_exo[3, 0]) / F_exo[1, 0] * 100.0  # Methanol yield based on CO2
+    # CO conversion
+    CO_in = F_exo[2, 0]
+    CO_out = F_exo[2, :]
+    X_CO = (CO_in - CO_out) / CO_in * 100.0
+    
+    # Total carbon oxide conversion (CO + CO2)
+    X_COx = ((CO2_in + CO_in) - (CO2_out + CO_out)) / (CO2_in + CO_in) * 100.0
+    
+    # Methanol yield based on total carbon oxides fed (Khademi et al. 2009, Eq. 28)
+    MeOH_in = F_exo[3, 0]
+    MeOH_out = F_exo[3, :]
+    Y_MeOH = (MeOH_out - MeOH_in) / (CO2_in + CO_in) * 100.0
     
     # Cyclohexane conversion
     X_CH = (F_endo[0, 0] - F_endo[0, :]) / F_endo[0, 0] * 100.0
@@ -444,7 +448,9 @@ def compute_results(sol):
     print(f"{'=' * 70}")
     print(f"\n  --- Tube Side (Methanol Synthesis) ---")
     print(f"  CO₂ Conversion:     {X_CO2[-1]:.2f}%")
-    print(f"  Methanol Yield:     {Y_MeOH[-1]:.2f}% (based on CO₂)")
+    print(f"  CO Conversion:      {X_CO[-1]:.2f}%")
+    print(f"  Total COx Conv:     {X_COx[-1]:.2f}%")
+    print(f"  Methanol Yield:     {Y_MeOH[-1]:.2f}% (Eq. 28: based on CO+CO₂)")
     print(f"  T_outlet:           {T_exo[-1]:.1f} K ({T_exo[-1]-273.15:.1f} °C)")
     print(f"  P_outlet:           {P_exo[-1]/1e5:.2f} bar")
     print(f"  F_CH3OH (outlet):   {F_exo[3,-1]*1000:.3f} mmol/s")
@@ -464,7 +470,7 @@ def compute_results(sol):
         'F_exo': F_exo, 'F_endo': F_endo,
         'T_exo': T_exo, 'T_endo': T_endo,
         'P_exo': P_exo, 'P_endo': P_endo,
-        'X_CO2': X_CO2, 'Y_MeOH': Y_MeOH,
+        'X_CO2': X_CO2, 'X_CO': X_CO, 'X_COx': X_COx, 'Y_MeOH': Y_MeOH,
         'X_CH': X_CH, 'F_H2_produced': F_H2_produced
     }
 
@@ -659,7 +665,7 @@ def sensitivity_analysis():
     ax.grid(True, alpha=0.3)
     
     # --- Effect of Overall Heat Transfer Coefficient ---
-    U_range = np.arange(50, 350, 30)
+    U_range = np.arange(300, 950, 60)
     X_CO2_final3 = []
     X_CH_final3 = []
     T_exo_out3 = []

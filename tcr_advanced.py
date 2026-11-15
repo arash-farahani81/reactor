@@ -11,7 +11,7 @@ Systems Modeled:
 
 Configurations:
   1. Co-Current Flow (Initial Value Problem via Radau IIA)
-  2. Counter-Current Flow (Boundary Value Problem via Shooting Method & Levenberg-Marquardt)
+  2. Counter-Current Flow (Boundary Value Problem via Under-Relaxed Picard Fixed-Point Iteration)
   3. Conventional Reactor with Isothermal Boiling Water Coolant
   4. Multi-Objective Optimization via NSGA-II (pymoo):
        - Maximize Methanol Yield (%)
@@ -28,7 +28,6 @@ import os
 import time
 import numpy as np
 from scipy.integrate import solve_ivp
-from scipy.optimize import root
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
@@ -59,6 +58,7 @@ class ReactorSpecs:
         # Cross-sectional areas per tube
         self.A_tube = (np.pi / 4.0) * (self.D_in ** 2)
         self.A_shell = (np.pi / 4.0) * (self.D_shell_eff ** 2 - self.D_out ** 2)
+        self.A_shell_flow = self.A_shell * 6.5  # Effective bundle pitch flow area per tube
         self.a_H = np.pi * self.D_in  # m²/m, Heat transfer perimeter per tube
 
         # Catalyst: Methanol Synthesis (CuO/ZnO/Al2O3)
@@ -71,8 +71,10 @@ class ReactorSpecs:
         self.rho_b_endo = 1077.0    # kg/m³, Bulk bed density
         self.eps_endo = 0.40        # Bed void fraction
 
-        # Default Heat Transfer Coefficient
-        self.U_overall = 220.0      # W/(m²·K)
+        # Thermal conductivities (W/(m·K))
+        self.Kw = 48.0              # Tube wall thermal conductivity
+        self.Kg_exo = 0.12          # Gas thermal conductivity (tube side syngas)
+        self.Kg_endo = 0.04         # Gas thermal conductivity (shell side hydrocarbon)
 
         # Baseline Feed Conditions - Tube (Methanol)
         # Components: [H2, CO2, CO, CH3OH, H2O, CH4, N2]
@@ -84,9 +86,12 @@ class ReactorSpecs:
         # Baseline Feed Conditions - Shell (Cyclohexane)
         # Components: [C6H12, C6H6, H2]
         self.y_endo_0 = np.array([1.000, 0.000, 0.000])  # Pure cyclohexane vapor
-        self.T_endo_0 = 473.15      # K (200 °C)
-        self.P_endo_0 = 2.50e5       # Pa (2.5 bar)
-        self.F_endo_total_0 = 0.025  # mol/s per tube
+        self.T_endo_0 = 423.0       # K (150 °C, Khademi et al. 2009)
+        self.P_endo_0 = 1.01325e5   # Pa (1.01325 bar, atmospheric)
+        self.F_endo_total_0 = 0.111 # mol/s per tube (Khademi et al. 2009)
+
+        # Default Heat Transfer Coefficient
+        self.U_overall = 220.0      # W/(m²·K) Baseline overall heat transfer coefficient
 
         # Molecular weights (kg/mol)
         self.MW_exo = np.array([2.016, 44.01, 28.01, 32.04, 18.015, 16.04, 28.013]) * 1e-3
@@ -101,6 +106,38 @@ class ReactorSpecs:
         self.mu_endo = 1.2e-5
 
 specs = ReactorSpecs()
+
+def calc_U(T_exo, P_exo, F_exo, T_endo, P_endo, F_endo, sp):
+    """
+    Computes overall heat transfer coefficient U dynamically
+    using Chilton-Colburn packed-bed correlations (Khademi et al., 2009, Table 5)
+    and cylindrical tube wall conduction resistance.
+    """
+    F_exo_tot = max(np.sum(F_exo), 1e-12)
+    y_exo = F_exo / F_exo_tot
+    MW_exo_avg = np.dot(y_exo, sp.MW_exo)
+    m_dot_exo = F_exo_tot * MW_exo_avg
+    G_exo = m_dot_exo / sp.A_tube
+    Re_exo = max(G_exo * sp.dp_exo / sp.mu_exo, 1.0)
+    Cp_mean_exo = np.dot(y_exo, sp.Cp_exo) / MW_exo_avg
+    Pr_exo = max(Cp_mean_exo * sp.mu_exo / sp.Kg_exo, 0.01)
+    Nu_exo = (0.458 / sp.eps_exo) * (Re_exo ** 0.593) * (Pr_exo ** (1.0 / 3.0))
+    h_i = Nu_exo * sp.Kg_exo / sp.dp_exo
+
+    F_endo_tot = max(np.sum(F_endo), 1e-12)
+    y_endo = F_endo / F_endo_tot
+    MW_endo_avg = np.dot(y_endo, sp.MW_endo)
+    m_dot_endo = F_endo_tot * MW_endo_avg
+    G_endo = m_dot_endo / sp.A_shell
+    Re_endo = max(G_endo * sp.dp_endo / sp.mu_endo, 1.0)
+    Cp_mean_endo = np.dot(y_endo, sp.Cp_endo) / MW_endo_avg
+    Pr_endo = max(Cp_mean_endo * sp.mu_endo / sp.Kg_endo, 0.01)
+    Nu_endo = (0.458 / sp.eps_endo) * (Re_endo ** 0.593) * (Pr_endo ** (1.0 / 3.0))
+    h_o = Nu_endo * sp.Kg_endo / sp.dp_endo
+
+    R_wall = (sp.D_in * np.log(sp.D_out / sp.D_in)) / (2.0 * sp.Kw)
+    U = 1.0 / (1.0 / h_i + R_wall + (sp.D_in / sp.D_out) * (1.0 / h_o))
+    return float(U)
 
 # ======================================================================================
 # 2. RIGOROUS KINETIC RATE MODELS
@@ -128,11 +165,10 @@ def calc_kinetics(T_exo, P_exo, y_exo, T_endo, P_endo, y_endo):
     k1 = 1.07 * np.exp(36696.0 / (R_GAS * T_e))
     k2 = 1.22e10 * np.exp(-94765.0 / (R_GAS * T_e))
 
-    # Adsorption coefficients
-    KCO2 = 3.45e-3 * np.exp(46800.0 / (R_GAS * T_e))
-    KCO  = 2.16e-5 * np.exp(14936.0 / (R_GAS * T_e))
-    KH2_sqrt = 0.499 * np.exp(-17197.0 / (R_GAS * T_e))
-    KH2O_KH2 = 6.37e-11 * np.exp(99735.0 / (R_GAS * T_e))
+    # Adsorption coefficients (Vanden Bussche & Froment, 1996)
+    # Positive exponent for exothermic dissociative hydrogen adsorption
+    sqrt_KH2 = 0.499 * np.exp(17197.0 / (R_GAS * T_e))
+    KH2O = 6.62e-11 * np.exp(124119.0 / (R_GAS * T_e))
 
     # Equilibrium constants
     log10_Keq1 = 3066.0 / T_e - 10.592
@@ -144,14 +180,14 @@ def calc_kinetics(T_exo, P_exo, y_exo, T_endo, P_endo, y_endo):
     df1 = pCO2 * pH2 - (1.0 / Keq1) * (pMeOH * pH2O / (pH2 ** 2))
     df2 = pCO2 - (1.0 / Keq2) * (pCO * pH2O / pH2)
 
-    denom_site = 1.0 + KCO * pCO + KCO2 * pCO2
-    denom_H = 1.0 + KH2O_KH2 * (pH2O / pH2) + KH2_sqrt * np.sqrt(pH2)
+    # Exact Vanden Bussche & Froment (1996) denominator
+    denom = 1.0 + 3453.38 * (pH2O / pH2) + sqrt_KH2 * np.sqrt(pH2) + KH2O * pH2O
 
-    denom1 = (denom_site ** 1) * (denom_H ** 3)
-    denom2 = (denom_site ** 1) * (denom_H ** 1)
+    # Catalyst pellet pore-diffusion effectiveness factor (5.47 mm pellets)
+    eta_exo = 0.35
 
-    r_meoh = k1 * df1 / max(denom1, 1e-12)
-    r_rwgs = k2 * df2 / max(denom2, 1e-12)
+    r_meoh = eta_exo * k1 * df1 / (denom ** 3)
+    r_rwgs = eta_exo * k2 * df2 / denom
 
     # ── Shell Side: Cyclohexane Dehydrogenation ──
     # Reaction: C6H12 <-> C6H6 + 3 H2
@@ -172,9 +208,7 @@ def calc_kinetics(T_exo, P_exo, y_exo, T_endo, P_endo, y_endo):
     k_ch = k_ch0 * np.exp(-Ea_ch / (R_GAS * T_n))
 
     # Thermodynamic Equilibrium Constant Kp (bar³)
-    # ln(Kp) = -dH/RT + dS/R; dH = 205.4 kJ/mol, dS = 360 J/(mol·K)
-    ln_Kp = -205400.0 / (R_GAS * T_n) + 43.3
-    Kp = np.exp(np.clip(ln_Kp, -20.0, 20.0))
+    Kp = 10.0 ** (-18900.0 / T_n + 30.55)
 
     df_ch = pCH - (pB * (pH2_shell ** 3)) / max(Kp, 1e-10)
     # Langmuir inhibition term
@@ -182,7 +216,7 @@ def calc_kinetics(T_exo, P_exo, y_exo, T_endo, P_endo, y_endo):
     denom_ch = 1.0 + K_ads_B * pB
 
     r_ch = k_ch * df_ch / denom_ch
-    r_ch = max(r_ch, 0.0)  # Dehydrogenation forward rate
+    # Note: Artificial clamp removed to preserve microscopic reversibility (R2)
 
     return r_meoh, r_rwgs, r_ch
 
@@ -258,76 +292,8 @@ def odes_cocurrent(z, S, sp):
 
     MW_avg_endo = np.dot(y_endo, sp.MW_endo)
     rho_g_endo = (P_endo * MW_avg_endo) / (R_GAS * T_endo)
-    u_s_endo = (F_endo_tot * R_GAS * T_endo) / (P_endo * sp.A_shell)
+    u_s_endo = (F_endo_tot * R_GAS * T_endo) / (P_endo * sp.A_shell_flow)
     dP_endo = calc_ergun_dp(u_s_endo, rho_g_endo, sp.mu_endo, sp.dp_endo, sp.eps_endo)
-
-    return np.concatenate([dF_exo, dF_endo, [dT_exo, dT_endo, dP_exo, dP_endo]])
-
-def odes_countercurrent(z, S, sp):
-    """
-    Differential equations for Counter-Current Flow integrated from z = 0 to z = L:
-    - Tube stream flows in +z direction (enters at z = 0).
-    - Shell stream flows in -z direction (enters at z = L, exits at z = 0).
-    Hence, spatial derivatives for shell variables carry negative physical flow signs:
-      dF_shell/dz = - (generation)
-      dT_shell/dz = - (heat input / FCp)
-      dP_shell/dz = + |dP/dz_ergun|
-    """
-    F_exo = np.maximum(S[0:7], 1e-12)
-    F_endo = np.maximum(S[7:10], 1e-12)
-    T_exo = max(S[10], 250.0)
-    T_endo = max(S[11], 250.0)
-    P_exo = max(S[12], 1e4)
-    P_endo = max(S[13], 1e4)
-
-    F_exo_tot = np.sum(F_exo)
-    F_endo_tot = np.sum(F_endo)
-    y_exo = F_exo / F_exo_tot
-    y_endo = F_endo / F_endo_tot
-
-    r_meoh, r_rwgs, r_ch = calc_kinetics(T_exo, P_exo, y_exo, T_endo, P_endo, y_endo)
-
-    dH_meoh = -49500.0
-    dH_rwgs = 41200.0
-    dH_ch = 205400.0
-
-    # Tube (+z direction)
-    dF_exo = np.zeros(7)
-    dF_exo[0] = sp.A_tube * sp.rho_b_exo * (-3.0 * r_meoh - r_rwgs)
-    dF_exo[1] = sp.A_tube * sp.rho_b_exo * (-r_meoh - r_rwgs)
-    dF_exo[2] = sp.A_tube * sp.rho_b_exo * (r_rwgs)
-    dF_exo[3] = sp.A_tube * sp.rho_b_exo * (r_meoh)
-    dF_exo[4] = sp.A_tube * sp.rho_b_exo * (r_meoh + r_rwgs)
-    dF_exo[5] = 0.0
-    dF_exo[6] = 0.0
-
-    # Shell (-z flow direction, so derivative wrt +z is inverted)
-    dF_endo = np.zeros(3)
-    dF_endo[0] = -sp.A_shell * sp.rho_b_endo * (-r_ch)
-    dF_endo[1] = -sp.A_shell * sp.rho_b_endo * (r_ch)
-    dF_endo[2] = -sp.A_shell * sp.rho_b_endo * (3.0 * r_ch)
-
-    Q_wall = sp.U_overall * sp.a_H * (T_exo - T_endo)
-    FCp_exo = np.dot(F_exo, sp.Cp_exo)
-    FCp_endo = np.dot(F_endo, sp.Cp_endo)
-
-    Q_rxn_exo = sp.A_tube * sp.rho_b_exo * ((-dH_meoh) * r_meoh + (-dH_rwgs) * r_rwgs)
-    dT_exo = (Q_rxn_exo - Q_wall) / max(FCp_exo, 1e-3)
-
-    Q_rxn_endo = sp.A_shell * sp.rho_b_endo * (-dH_ch) * r_ch
-    # In counter-current: stream moves backwards, so dT/dz = -(gain)/FCp
-    dT_endo = -(Q_rxn_endo + Q_wall) / max(FCp_endo, 1e-3)
-
-    MW_avg_exo = np.dot(y_exo, sp.MW_exo)
-    rho_g_exo = (P_exo * MW_avg_exo) / (R_GAS * T_exo)
-    u_s_exo = (F_exo_tot * R_GAS * T_exo) / (P_exo * sp.A_tube)
-    dP_exo = calc_ergun_dp(u_s_exo, rho_g_exo, sp.mu_exo, sp.dp_exo, sp.eps_exo)
-
-    MW_avg_endo = np.dot(y_endo, sp.MW_endo)
-    rho_g_endo = (P_endo * MW_avg_endo) / (R_GAS * T_endo)
-    u_s_endo = (F_endo_tot * R_GAS * T_endo) / (P_endo * sp.A_shell)
-    # Fluid flows from L to 0, so pressure increases along +z towards the inlet
-    dP_endo = -calc_ergun_dp(u_s_endo, rho_g_endo, sp.mu_endo, sp.dp_endo, sp.eps_endo)
 
     return np.concatenate([dF_exo, dF_endo, [dT_exo, dT_endo, dP_exo, dP_endo]])
 
@@ -352,7 +318,7 @@ def solve_cocurrent(sp, z_points=300):
     )
     return sol
 
-def solve_countercurrent(sp, z_points=300, max_iter=25, tol=1e-3, alpha=0.5):
+def solve_countercurrent(sp, z_points=300, max_iter=100, tol=1e-3, alpha=0.70):
     """
     Solves the Counter-Current reactor BVP via Successive Under-Relaxation (Picard iteration).
     In each iteration:
@@ -366,15 +332,17 @@ def solve_countercurrent(sp, z_points=300, max_iter=25, tol=1e-3, alpha=0.5):
     # Initial guess for shell temperature profile: linear from T_endo_0 (at z=L) to T_exo_0-20 (at z=0)
     T_shell_profile = np.linspace(sp.T_exo_0 - 20.0, sp.T_endo_0, z_points)
     P_shell_profile = np.full(z_points, sp.P_endo_0)
-    y_shell_profile = np.tile(sp.y_endo_0, (z_points, 1))
 
     # Flow rates initial setup
     F_exo_init = sp.y_exo_0 * sp.F_exo_total_0
     F_endo_init = sp.y_endo_0 * sp.F_endo_total_0
 
     # Initialize storage
-    sol_tube_history = None
-    sol_shell_history = None
+    sol_tube = None
+    T_shell_new = None
+    P_shell_new = None
+    F_shell_new = None
+    converged = False
 
     for iteration in range(max_iter):
         # ── 1. Integrate Tube Side Forward (z = 0 -> L) ──
@@ -386,13 +354,11 @@ def solve_countercurrent(sp, z_points=300, max_iter=25, tol=1e-3, alpha=0.5):
             F_tot = np.sum(F_exo)
             y_exo = F_exo / F_tot
 
-            # Interpolate shell conditions at z
+            # Continuous interpolation of shell conditions at z
             T_s = np.interp(z, z_grid, T_shell_profile)
             P_s = np.interp(z, z_grid, P_shell_profile)
-            idx = int(np.clip(z / sp.L * (z_points - 1), 0, z_points - 1))
-            y_s = y_shell_profile[idx]
 
-            r_meoh, r_rwgs, _ = calc_kinetics(T_exo, P_exo, y_exo, T_s, P_s, y_s)
+            r_meoh, r_rwgs, _ = calc_kinetics(T_exo, P_exo, y_exo, T_s, P_s, sp.y_endo_0)
 
             dF = np.zeros(7)
             dF[0] = sp.A_tube * sp.rho_b_exo * (-3.0 * r_meoh - r_rwgs)
@@ -432,12 +398,11 @@ def solve_countercurrent(sp, z_points=300, max_iter=25, tol=1e-3, alpha=0.5):
             F_tot = np.sum(F_endo)
             y_endo = F_endo / F_tot
 
+            # Continuous interpolation of tube conditions at z_actual
             T_t = np.interp(z_actual, z_grid, T_tube_profile)
             P_t = np.interp(z_actual, z_grid, P_tube_profile)
-            idx = int(np.clip(z_actual / sp.L * (z_points - 1), 0, z_points - 1))
-            y_t = sol_tube.y[0:7, idx] / np.sum(sol_tube.y[0:7, idx])
 
-            _, _, r_ch = calc_kinetics(T_t, P_t, y_t, T_endo, P_endo, y_endo)
+            _, _, r_ch = calc_kinetics(T_t, P_t, sp.y_exo_0, T_endo, P_endo, y_endo)
 
             dF = np.zeros(3)
             dF[0] = sp.A_shell * sp.rho_b_endo * (-r_ch)
@@ -451,7 +416,7 @@ def solve_countercurrent(sp, z_points=300, max_iter=25, tol=1e-3, alpha=0.5):
 
             MW_avg = np.dot(y_endo, sp.MW_endo)
             rho_g = (P_endo * MW_avg) / (R_GAS * T_endo)
-            u_s = (F_tot * R_GAS * T_endo) / (P_endo * sp.A_shell)
+            u_s = (F_tot * R_GAS * T_endo) / (P_endo * sp.A_shell_flow)
             dP = calc_ergun_dp(u_s, rho_g, sp.mu_endo, sp.dp_endo, sp.eps_endo)
 
             return np.concatenate([dF, [dT, dP]])
@@ -464,22 +429,19 @@ def solve_countercurrent(sp, z_points=300, max_iter=25, tol=1e-3, alpha=0.5):
         )
 
         # Invert xi back to z (xi = 0 corresponds to z = L; xi = L corresponds to z = 0)
-        # So array reversed gives values at z = 0 to L
         T_shell_new = sol_shell.y[3, :][::-1]
         P_shell_new = sol_shell.y[4, :][::-1]
         F_shell_new = sol_shell.y[0:3, :][:, ::-1]
 
         # Convergence test on maximum temperature difference
         max_err = np.max(np.abs(T_shell_new - T_shell_profile))
+        if max_err < tol:
+            converged = True
+            break
 
         # Under-relaxation update
         T_shell_profile = alpha * T_shell_new + (1.0 - alpha) * T_shell_profile
         P_shell_profile = alpha * P_shell_new + (1.0 - alpha) * P_shell_profile
-        for i in range(z_points):
-            y_shell_profile[i] = F_shell_new[:, i] / np.sum(F_shell_new[:, i])
-
-        if max_err < tol:
-            break
 
     # Assemble combined solution object matching sol structure for plotting
     class CounterSol:
@@ -491,11 +453,11 @@ def solve_countercurrent(sp, z_points=300, max_iter=25, tol=1e-3, alpha=0.5):
     sol_final.y[0:7, :] = sol_tube.y[0:7, :]
     sol_final.y[7:10, :] = F_shell_new
     sol_final.y[10, :] = sol_tube.y[7, :]
-    sol_final.y[11, :] = T_shell_profile
+    sol_final.y[11, :] = T_shell_new        # Unblended ODE-consistent shell temperature
     sol_final.y[12, :] = sol_tube.y[8, :]
-    sol_final.y[13, :] = P_shell_profile
+    sol_final.y[13, :] = P_shell_new        # Unblended ODE-consistent shell pressure
 
-    return sol_final, True
+    return sol_final, converged
 
 def solve_conventional(sp, z_points=300):
     """Solves conventional reactor with constant-temperature boiling water jacket (503 K)."""
@@ -555,6 +517,46 @@ def solve_conventional(sp, z_points=300):
 def extract_performance(sol, sp, mode='co'):
     """Calculates key technical metrics: conversions, yields, hot-spots, and hydrogen rate."""
     z = sol.t
+
+    # Support 9-state conventional reactor (mode='conventional' or 9 state variables)
+    if mode == 'conventional' or sol.y.shape[0] == 9:
+        F_exo = sol.y[0:7, :]
+        T_exo = sol.y[7, :]
+        P_exo = sol.y[8, :]
+
+        CO2_in = F_exo[1, 0]
+        CO_in = F_exo[2, 0]
+        CO2_out = F_exo[1, -1]
+        CO_out = F_exo[2, -1]
+        MeOH_in = F_exo[3, 0]
+        MeOH_out = F_exo[3, -1]
+
+        X_CO2 = (CO2_in - CO2_out) / CO2_in * 100.0
+        X_CO = (CO_in - CO_out) / CO_in * 100.0
+        X_COx = ((CO2_in + CO_in) - (CO2_out + CO_out)) / (CO2_in + CO_in) * 100.0
+        Y_MeOH = (MeOH_out - MeOH_in) / (CO2_in + CO_in) * 100.0  # Khademi et al. (2009) Eq. 28
+
+        T_max_exo = np.max(T_exo)
+        dP_tube = (P_exo[0] - P_exo[-1]) / 1e5
+
+        return {
+            'z': z,
+            'X_CO2': X_CO2,
+            'X_CO': X_CO,
+            'X_COx': X_COx,
+            'Y_MeOH': Y_MeOH,
+            'X_CH': 0.0,
+            'MeOH_rate_plant': MeOH_out * sp.N_tubes,      # mol/s
+            'Benzene_rate_plant': 0.0,                     # mol/s
+            'H2_rate_plant': 0.0,                          # mol/s
+            'T_max_exo': T_max_exo,
+            'T_exo_out': T_exo[-1],
+            'T_endo_out': 503.15,
+            'dP_tube': dP_tube,
+            'dP_shell': 0.0,
+            'sol': sol
+        }
+
     F_exo = sol.y[0:7, :]
     F_endo = sol.y[7:10, :]
     T_exo = sol.y[10, :]
@@ -562,13 +564,18 @@ def extract_performance(sol, sp, mode='co'):
     P_exo = sol.y[12, :]
     P_endo = sol.y[13, :]
 
-    # Conversions
+    # Conversions & Yields per Khademi et al. (2009) Eq. (28)
     CO2_in = F_exo[1, 0]
+    CO_in = F_exo[2, 0]
     CO2_out = F_exo[1, -1]
-    X_CO2 = (CO2_in - CO2_out) / CO2_in * 100.0
-
+    CO_out = F_exo[2, -1]
+    MeOH_in = F_exo[3, 0]
     MeOH_out = F_exo[3, -1]
-    Y_MeOH = (MeOH_out - F_exo[3, 0]) / CO2_in * 100.0
+
+    X_CO2 = (CO2_in - CO2_out) / CO2_in * 100.0
+    X_CO = (CO_in - CO_out) / CO_in * 100.0
+    X_COx = ((CO2_in + CO_in) - (CO2_out + CO_out)) / (CO2_in + CO_in) * 100.0
+    Y_MeOH = (MeOH_out - MeOH_in) / (CO2_in + CO_in) * 100.0
 
     if mode == 'co':
         CH_in = F_endo[0, 0]
@@ -576,7 +583,7 @@ def extract_performance(sol, sp, mode='co'):
         X_CH = (CH_in - CH_out) / CH_in * 100.0
         H2_prod = (F_endo[2, -1] - F_endo[2, 0]) * sp.N_tubes  # Total plant H2 (mol/s)
         Benzene_prod = F_endo[1, -1] * sp.N_tubes
-    else:  # counter-current (shell stream exits at z = 0)
+    else:  # counter-current (shell stream enters at z = L, exits at z = 0)
         CH_in = F_endo[0, -1]
         CH_out = F_endo[0, 0]
         X_CH = (CH_in - CH_out) / CH_in * 100.0
@@ -590,6 +597,8 @@ def extract_performance(sol, sp, mode='co'):
     return {
         'z': z,
         'X_CO2': X_CO2,
+        'X_CO': X_CO,
+        'X_COx': X_COx,
         'Y_MeOH': Y_MeOH,
         'X_CH': X_CH,
         'MeOH_rate_plant': MeOH_out * sp.N_tubes,      # mol/s
@@ -602,6 +611,8 @@ def extract_performance(sol, sp, mode='co'):
         'dP_shell': dP_shell,
         'sol': sol
     }
+
+extract_metrics = extract_performance
 
 # ======================================================================================
 # 6. HIGH-RESOLUTION PUBLICATION PLOTTING
@@ -616,7 +627,7 @@ def generate_comparative_plots(res_co, res_counter, res_conv, sp):
     z = res_co['z']
     sol_co = res_co['sol']
     sol_ct = res_counter['sol']
-    sol_cv = res_conv
+    sol_cv = res_conv['sol'] if isinstance(res_conv, dict) else res_conv
 
     c_exo_co = '#D62828'
     c_endo_co = '#0077B6'
@@ -720,14 +731,17 @@ def run_nsga2_optimization(sp, pop_size=40, n_gen=25):
     Formulates and solves a rigorous multi-objective optimization problem:
       Decision Variables:
         x0: Tube Inlet Temperature, T_exo_0 in [490, 530] K
-        x1: Shell Inlet Temperature, T_endo_0 in [440, 510] K
-        x2: Shell Flow Rate per tube, F_endo_total_0 in [0.010, 0.040] mol/s
-        x3: Overall Heat Transfer Coeff, U_overall in [120, 320] W/(m²·K)
+        x1: Shell Inlet Temperature, T_endo_0 in [420, 500] K
+        x2: Shell Flow Rate per tube, F_endo_total_0 in [0.050, 0.180] mol/s
+        x3: Tube Feed Flow Rate per tube, F_exo_total_0 in [0.450, 0.800] mol/s
 
       Objectives (Minimization):
         f1: -1 * Methanol Plant Productivity (mol/s) [Maximize MeOH]
         f2: -1 * Benzene Plant Productivity (mol/s)  [Maximize Benzene & Green H2]
-        f3: Peak Catalyst Temperature Margin: max(0, T_max - 535 K) [Hotspot Avoidance]
+        f3: Peak Catalyst Temperature Hotspot Rise: T_max - T_exo_0 (K) [Minimize Hotspot Rise]
+
+      Constraint:
+        g1: Catalyst sintering thermal margin: T_max_exo - 535.0 <= 0 (K) [Deactivation threshold]
     """
     print("\n" + "=" * 80)
     print("  LAUNCHING NSGA-II MULTI-OBJECTIVE PARETO OPTIMIZATION")
@@ -746,9 +760,9 @@ def run_nsga2_optimization(sp, pop_size=40, n_gen=25):
             super().__init__(
                 n_var=4,
                 n_obj=3,
-                n_ieq_constr=0,  # Hotspot is handled directly as objective f3
-                xl=np.array([490.0, 440.0, 0.010, 120.0]),
-                xu=np.array([530.0, 510.0, 0.040, 320.0])
+                n_ieq_constr=1,
+                xl=np.array([490.0, 420.0, 0.050, 0.450]),
+                xu=np.array([530.0, 500.0, 0.180, 0.800])
             )
 
         def _evaluate(self, x, out, *args, **kwargs):
@@ -757,12 +771,18 @@ def run_nsga2_optimization(sp, pop_size=40, n_gen=25):
             sp_opt.T_exo_0 = x[0]
             sp_opt.T_endo_0 = x[1]
             sp_opt.F_endo_total_0 = x[2]
-            sp_opt.U_overall = x[3]
+            sp_opt.F_exo_total_0 = x[3]
+            sp_opt.U_overall = calc_U(
+                sp_opt.T_exo_0, sp_opt.P_exo_0, sp_opt.y_exo_0 * sp_opt.F_exo_total_0,
+                sp_opt.T_endo_0, sp_opt.P_endo_0, sp_opt.y_endo_0 * sp_opt.F_endo_total_0,
+                sp_opt
+            )
 
             try:
                 sol = solve_cocurrent(sp_opt, z_points=120)
                 if not sol.success:
                     out["F"] = [1e4, 1e4, 1e4]
+                    out["G"] = [1e4]
                     return
 
                 res = extract_performance(sol, sp_opt, mode='co')
@@ -770,12 +790,16 @@ def run_nsga2_optimization(sp, pop_size=40, n_gen=25):
                 f1 = -res['MeOH_rate_plant']
                 # Objective 2: -Benzene rate (mol/s) [Maximize Benzene & Green H2]
                 f2 = -res['Benzene_rate_plant']
-                # Objective 3: Hotspot penalty [Minimize Peak Temperature above 528 K]
-                f3 = max(0.0, res['T_max_exo'] - 528.0)
+                # Objective 3: Hotspot Rise [Minimize Peak Temperature above Inlet]
+                f3 = res['T_max_exo'] - sp_opt.T_exo_0
+                # Inequality Constraint: T_max_exo <= 535.0 K
+                g1 = res['T_max_exo'] - 535.0
 
                 out["F"] = [f1, f2, f3]
+                out["G"] = [g1]
             except Exception:
                 out["F"] = [1e4, 1e4, 1e4]
+                out["G"] = [1e4]
 
     problem = TCROptimizationProblem()
     algorithm = NSGA2(
@@ -809,7 +833,7 @@ def run_nsga2_optimization(sp, pop_size=40, n_gen=25):
 
     meoh_rates = -F_pareto[:, 0]
     benzene_rates = -F_pareto[:, 1]
-    hotspot_margins = F_pareto[:, 2]
+    hotspot_rises = F_pareto[:, 2]
 
     # Plot Pareto Front (2D and 3D)
     fig = plt.figure(figsize=(15, 6), dpi=300)
@@ -827,10 +851,11 @@ def run_nsga2_optimization(sp, pop_size=40, n_gen=25):
     ax1.set_title('(a) Pareto Optimal Trade-off Frontier (NSGA-II)', fontsize=12, fontweight='bold')
     ax1.grid(True, linestyle='--', alpha=0.4)
 
-    # Highlight Knee-Point (Balanced Compromise)
-    norm_meoh = (meoh_rates - np.min(meoh_rates)) / (np.max(meoh_rates) - np.min(meoh_rates) + 1e-10)
-    norm_bz = (benzene_rates - np.min(benzene_rates)) / (np.max(benzene_rates) - np.min(benzene_rates) + 1e-10)
-    dist_ideal = np.sqrt((1.0 - norm_meoh) ** 2 + (1.0 - norm_bz) ** 2)
+    # Highlight Knee-Point (3D Euclidean Distance to Utopia across all 3 normalized objectives)
+    norm_f1 = (F_pareto[:, 0] - np.min(F_pareto[:, 0])) / (np.max(F_pareto[:, 0]) - np.min(F_pareto[:, 0]) + 1e-10)
+    norm_f2 = (F_pareto[:, 1] - np.min(F_pareto[:, 1])) / (np.max(F_pareto[:, 1]) - np.min(F_pareto[:, 1]) + 1e-10)
+    norm_f3 = (F_pareto[:, 2] - np.min(F_pareto[:, 2])) / (np.max(F_pareto[:, 2]) - np.min(F_pareto[:, 2]) + 1e-10)
+    dist_ideal = np.sqrt(norm_f1 ** 2 + norm_f2 ** 2 + norm_f3 ** 2)
     knee_idx = np.argmin(dist_ideal)
 
     ax1.plot(
@@ -840,17 +865,17 @@ def run_nsga2_optimization(sp, pop_size=40, n_gen=25):
     )
     ax1.legend(fontsize=9, loc='lower left')
 
-    # Subplot 2: 3D Objective Space (Methanol vs Benzene vs Hotspot)
+    # Subplot 2: 3D Objective Space (Methanol vs Benzene vs Hotspot Rise)
     ax2 = fig.add_subplot(1, 2, 2, projection='3d')
     p3d = ax2.scatter(
-        benzene_rates, meoh_rates, hotspot_margins,
+        benzene_rates, meoh_rates, hotspot_rises,
         c=X_pareto[:, 3], cmap='viridis', s=60, edgecolors='k', lw=0.5
     )
     cbar2 = plt.colorbar(p3d, ax=ax2, pad=0.1)
-    cbar2.set_label('Overall U (W/m²·K)', fontsize=10, fontweight='bold')
+    cbar2.set_label('Tube Feed F_exo_0 (mol/s)', fontsize=10, fontweight='bold')
     ax2.set_xlabel('Benzene (mol/s)', fontsize=9, fontweight='bold')
     ax2.set_ylabel('Methanol (mol/s)', fontsize=9, fontweight='bold')
-    ax2.set_zlabel('Hotspot ΔT > 528K', fontsize=9, fontweight='bold')
+    ax2.set_zlabel('Hotspot Rise (T_max - T_in) (K)', fontsize=9, fontweight='bold')
     ax2.set_title('(b) 3D Multi-Objective Optimization Space', fontsize=12, fontweight='bold')
 
     plt.suptitle('Multi-Objective Pareto Optimization of Thermally Coupled Reactor using NSGA-II',
@@ -860,18 +885,42 @@ def run_nsga2_optimization(sp, pop_size=40, n_gen=25):
     plt.close()
     print(f"  ✓ NSGA-II Pareto Front figure saved to: {pareto_path}")
 
+    # Rigorous full reactor simulation at knee point solution
+    knee_x = X_pareto[knee_idx]
+    sp_knee = ReactorSpecs()
+    sp_knee.T_exo_0 = knee_x[0]
+    sp_knee.T_endo_0 = knee_x[1]
+    sp_knee.F_endo_total_0 = knee_x[2]
+    sp_knee.F_exo_total_0 = knee_x[3]
+    sp_knee.U_overall = calc_U(
+        sp_knee.T_exo_0, sp_knee.P_exo_0, sp_knee.y_exo_0 * sp_knee.F_exo_total_0,
+        sp_knee.T_endo_0, sp_knee.P_endo_0, sp_knee.y_endo_0 * sp_knee.F_endo_total_0,
+        sp_knee
+    )
+    sol_knee = solve_cocurrent(sp_knee, z_points=300)
+    res_knee = extract_performance(sol_knee, sp_knee, mode='co')
+
     return {
         'X_pareto': X_pareto,
         'F_pareto': F_pareto,
         'knee_idx': knee_idx,
         'knee_solution': {
-            'T_exo_0': X_pareto[knee_idx, 0],
-            'T_endo_0': X_pareto[knee_idx, 1],
-            'F_endo_total_0': X_pareto[knee_idx, 2],
-            'U_overall': X_pareto[knee_idx, 3],
-            'MeOH_rate': meoh_rates[knee_idx],
-            'Benzene_rate': benzene_rates[knee_idx],
-            'H2_rate': benzene_rates[knee_idx] * 3.0
+            'T_exo_0': knee_x[0],
+            'T_endo_0': knee_x[1],
+            'F_endo_total_0': knee_x[2],
+            'F_exo_total_0': knee_x[3],
+            'U_overall': sp_knee.U_overall,
+            'MeOH_rate': res_knee['MeOH_rate_plant'],
+            'Benzene_rate': res_knee['Benzene_rate_plant'],
+            'H2_rate': res_knee['H2_rate_plant'],
+            'X_CO2': res_knee['X_CO2'],
+            'X_CO': res_knee['X_CO'],
+            'X_COx': res_knee['X_COx'],
+            'Y_MeOH': res_knee['Y_MeOH'],
+            'X_CH': res_knee['X_CH'],
+            'T_max_exo': res_knee['T_max_exo'],
+            'dP_tube': res_knee['dP_tube'],
+            'dP_shell': res_knee['dP_shell']
         }
     }
 
@@ -893,11 +942,11 @@ def main():
           f"MeOH Yield: {res_co['Y_MeOH']:.2f}% | CH Conv: {res_co['X_CH']:.2f}% | T_max: {res_co['T_max_exo']:.1f} K")
 
     # 2. Solve Counter-Current Configuration
-    print("\n[Step 2/4] Simulating Counter-Current BVP via Shooting Method...")
+    print("\n[Step 2/4] Simulating Counter-Current BVP via Under-Relaxed Picard Fixed-Point Iteration...")
     t0 = time.time()
     sol_counter, converged = solve_countercurrent(specs)
     if not converged:
-        print("  ⚠ BVP shooting warning: iterating to closest boundary convergence.")
+        print("  ⚠ Picard iteration warning: reached max iterations.")
     res_counter = extract_performance(sol_counter, specs, mode='counter')
     print(f"  ✓ Counter-Current solved in {time.time()-t0:.2f}s | CO2 Conv: {res_counter['X_CO2']:.2f}% | "
           f"MeOH Yield: {res_counter['Y_MeOH']:.2f}% | CH Conv: {res_counter['X_CH']:.2f}% | T_max: {res_counter['T_max_exo']:.1f} K")
@@ -906,30 +955,34 @@ def main():
     print("\n[Step 3/4] Simulating Conventional Single-Bed Industrial Methanol Reactor...")
     t0 = time.time()
     sol_conv = solve_conventional(specs)
-    X_conv_final = (specs.y_exo_0[1] * specs.F_exo_total_0 - sol_conv.y[1, -1]) / (specs.y_exo_0[1] * specs.F_exo_total_0) * 100.0
-    print(f"  ✓ Conventional solved in {time.time()-t0:.2f}s | CO2 Conv: {X_conv_final:.2f}% | T_out: {sol_conv.y[7, -1]:.1f} K")
+    res_conv = extract_performance(sol_conv, specs, mode='conventional')
+    print(f"  ✓ Conventional solved in {time.time()-t0:.2f}s | CO2 Conv: {res_conv['X_CO2']:.2f}% | "
+          f"MeOH Yield: {res_conv['Y_MeOH']:.2f}% | T_out: {res_conv['T_exo_out']:.1f} K")
 
     # 4. Generate Publication Figures
     print("\n[Step 4/4] Generating Multiphysics Performance Figures...")
-    generate_comparative_plots(res_co, res_counter, sol_conv, specs)
+    generate_comparative_plots(res_co, res_counter, res_conv, specs)
 
     # 5. Run NSGA-II Multi-Objective Optimization
     opt_results = run_nsga2_optimization(specs, pop_size=36, n_gen=20)
+    knee = opt_results['knee_solution']
 
-    # Summary Comparison Table
+    # Summary Comparison Table - 100% Dynamically Evaluated
     print("\n" + "=" * 80)
     print("  TECHNICAL SUMMARY & BENCHMARK COMPARISON TABLE")
     print("=" * 80)
     print(f"{'Performance Metric':<32} | {'Conventional':<14} | {'TCR Co-Current':<16} | {'TCR Counter-Current':<18} | {'NSGA-II Optimum'}")
     print("-" * 105)
-    print(f"{'CO₂ Conversion (%)':<32} | {X_conv_final:<14.2f} | {res_co['X_CO2']:<16.2f} | {res_counter['X_CO2']:<18.2f} | {'—'}")
-    print(f"{'Methanol Yield (%)':<32} | {'28.4 (Ref)':<14} | {res_co['Y_MeOH']:<16.2f} | {res_counter['Y_MeOH']:<18.2f} | {'38.5%'}")
-    print(f"{'Cyclohexane Conversion (%)':<32} | {'N/A':<14} | {res_co['X_CH']:<16.2f} | {res_counter['X_CH']:<18.2f} | {'42.1%'}")
-    print(f"{'Methanol Production (mol/s)':<32} | {'52.1':<14} | {res_co['MeOH_rate_plant']:<16.2f} | {res_counter['MeOH_rate_plant']:<18.2f} | {opt_results['knee_solution']['MeOH_rate']:<10.2f}")
-    print(f"{'Benzene Production (mol/s)':<32} | {'N/A':<14} | {res_co['Benzene_rate_plant']:<16.2f} | {res_counter['Benzene_rate_plant']:<18.2f} | {opt_results['knee_solution']['Benzene_rate']:<10.2f}")
-    print(f"{'Green H₂ Produced (mol/s)':<32} | {'N/A':<14} | {res_co['H2_rate_plant']:<16.2f} | {res_counter['H2_rate_plant']:<18.2f} | {opt_results['knee_solution']['H2_rate']:<10.2f}")
-    print(f"{'Peak Bed Temperature (K)':<32} | {np.max(sol_conv.y[7,:]):<14.1f} | {res_co['T_max_exo']:<16.1f} | {res_counter['T_max_exo']:<18.1f} | {'< 528 K'}")
-    print(f"{'Tube Pressure Drop (bar)':<32} | {0.41:<14.2f} | {res_co['dP_tube']:<16.2f} | {res_counter['dP_tube']:<18.2f} | {'~0.42'}")
+    print(f"{'CO₂ Conversion (%)':<32} | {res_conv['X_CO2']:<14.2f} | {res_co['X_CO2']:<16.2f} | {res_counter['X_CO2']:<18.2f} | {knee['X_CO2']:<10.2f}")
+    print(f"{'Total COx Conversion (%)':<32} | {res_conv['X_COx']:<14.2f} | {res_co['X_COx']:<16.2f} | {res_counter['X_COx']:<18.2f} | {knee['X_COx']:<10.2f}")
+    print(f"{'Methanol Yield (Eq. 28) (%)':<32} | {res_conv['Y_MeOH']:<14.2f} | {res_co['Y_MeOH']:<16.2f} | {res_counter['Y_MeOH']:<18.2f} | {knee['Y_MeOH']:<10.2f}")
+    print(f"{'Cyclohexane Conversion (%)':<32} | {'N/A':<14} | {res_co['X_CH']:<16.2f} | {res_counter['X_CH']:<18.2f} | {knee['X_CH']:<10.2f}")
+    print(f"{'Methanol Production (mol/s)':<32} | {res_conv['MeOH_rate_plant']:<14.2f} | {res_co['MeOH_rate_plant']:<16.2f} | {res_counter['MeOH_rate_plant']:<18.2f} | {knee['MeOH_rate']:<10.2f}")
+    print(f"{'Benzene Production (mol/s)':<32} | {'N/A':<14} | {res_co['Benzene_rate_plant']:<16.2f} | {res_counter['Benzene_rate_plant']:<18.2f} | {knee['Benzene_rate']:<10.2f}")
+    print(f"{'Green H₂ Produced (mol/s)':<32} | {'N/A':<14} | {res_co['H2_rate_plant']:<16.2f} | {res_counter['H2_rate_plant']:<18.2f} | {knee['H2_rate']:<10.2f}")
+    print(f"{'Peak Bed Temperature (K)':<32} | {res_conv['T_max_exo']:<14.1f} | {res_co['T_max_exo']:<16.1f} | {res_counter['T_max_exo']:<18.1f} | {knee['T_max_exo']:<10.1f}")
+    print(f"{'Tube Pressure Drop (bar)':<32} | {res_conv['dP_tube']:<14.2f} | {res_co['dP_tube']:<16.2f} | {res_counter['dP_tube']:<18.2f} | {knee['dP_tube']:<10.2f}")
+    print(f"{'Shell Pressure Drop (bar)':<32} | {'N/A':<14} | {res_co['dP_shell']:<16.2f} | {res_counter['dP_shell']:<18.2f} | {knee['dP_shell']:<10.2f}")
     print("=" * 80)
     print("\n  ALL SIMULATION & OPTIMIZATION PIPELINES EXECUTED SUCCESSFULLY! ✓")
 
