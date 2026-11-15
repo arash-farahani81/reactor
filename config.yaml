@@ -81,7 +81,7 @@ feed:
       F_total0:
         value: 0.640
         unit: "mol/s"
-        source: "Khademi et al. (2009), Table 7"
+        source: "Khademi et al. (2009), Table 7 (locked strictly at 0.640 mol/s across all baseline and optimized reactors for equal-throughput comparison)"
     shell:
       # Components: [C6H12, C6H6, H2]
       y0: [1.0, 0.0, 0.0]
@@ -112,7 +112,7 @@ feed:
       F_total0:
         value: 0.640
         unit: "mol/s"
-        source: "Khademi et al. (2009), Table 7"
+        source: "Khademi et al. (2009), Table 7 (locked strictly at 0.640 mol/s across all baseline and optimized reactors for equal-throughput comparison)"
     shell:
       # Components: [C6H12, C6H6, H2, Ar]
       y0: [0.10, 0.0, 0.0, 0.90]
