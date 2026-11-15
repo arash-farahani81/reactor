@@ -1,0 +1,1605 @@
+--- PAGE 1 ---
+Optimization of methanol synthesis and cyclohexane
+dehydrogenation in a thermally coupled reactor using
+differential evolution (DE) method
+M.H. Khademi, P. Setoodeh, M.R. Rahimpour*, A. Jahanmiri
+Department of Chemical Engineering, Shiraz University, Shiraz 71345, Iran
+article info
+Article history:
+Received 30 April 2009
+Received in revised form
+31 May 2009
+Accepted 8 June 2009
+Available online 13 July 2009
+Keywords:
+Recuperative coupling
+Co-current thermally coupled reactor
+Methanol synthesis
+Dehydrogenation of cyclohexane
+Optimization
+Differential evolution
+Exothermic and endothermic
+reactions
+Modeling
+abstract
+This paper presents a study on optimization of a methanol synthesis and cyclohexane
+dehydrogenation in a thermally coupled reactor. A theoretical investigation has been
+performed in order to evaluate the optimal operating conditions and enhancement of
+methanol and benzene production in a thermally coupled reactor. Coupling energy
+intensive endothermic reaction systems with suitable exothermic reactions improves the
+thermal efﬁciency of processes and reduces the size of the reactors. In this work, the
+catalytic methanol synthesis is coupled with the catalytic dehydrogenation of cyclo-
+hexane to benzene in a heat exchanger reactor formed of two ﬁxed beds separated by
+a wall, where heat is transferred across the surface of tube. A steady-state heterogeneous
+model of the two ﬁxed beds predicts the performance of this novel conﬁguration. The
+co-current mode is investigated and the optimization results are compared with corre-
+sponding predictions for a conventional (industrial) methanol ﬁxed bed reactor operated
+at the same feed conditions. The differential evolution (DE), an exceptionally simple
+evolution strategy, is applied to optimize methanol and benzene synthesis coupled
+reactor considering methanol and benzene mole fractions as the main objectives. The
+simulation results have been shown that there are optimum values of initial molar ﬂow
+rate of endothermic stream and inlet temperature of exothermic and endothermic sides
+to maximize the objective function. The optimization method has enhanced the meth-
+anol mole fraction by 3.67%. The results suggest that optimal coupling of these reactions
+could be feasible and beneﬁcial. Experimental proof-of-concept is needed to establish the
+validity and safe operation of the novel reactor.
+ª 2009 International Association for Hydrogen Energy. Published by Elsevier Ltd. All rights
+reserved.
+1. Introduction
+Multifunctional reactors integrate, in one vessel, one or more
+transport processes and a reaction system (Agar [1]; Zanﬁr and
+Gavriilidis [2]) and are widely used in industries as process
+intensiﬁcation tools. These multifunctional reactors make the
+process more efﬁcient and compact and result in large savings
+in the operational and capital costs (Dautzenberg and
+Mukherjee [3]). A multifunctional reactor can be used, for
+example, for coupling exothermic and endothermic reactions.
+In it, an exothermic reaction is used as the heat producing
+source to drive the endothermic reaction(s).
+In the last years promising concepts for the recuperative
+coupling of exothermic and endothermic reactions have been
+* Corresponding author. Tel.: þ98 711 2303071; fax: þ98 711 6287294.
+E-mail address: rahimpor@shirazu.ac.ir (M.R. Rahimpour).
+Available at www.sciencedirect.com
+journal homepage: www.elsevier.com/locate/he
+0360-3199/$ – see front matter ª 2009 International Association for Hydrogen Energy. Published by Elsevier Ltd. All rights reserved.
+doi:10.1016/j.ijhydene.2009.06.018
+international journal of hydrogen energy 34 (2009) 6930–6944
+
+--- PAGE 2 ---
+published. Hunter and McGuire [4] were among the ﬁrst to
+suggest the coupling of endothermic with exothermic reaction
+by means of indirect heat transfer. They considered heat
+exchangers where catalytic combustion or other highly
+exothermic reaction is used as a heat source for an endo-
+thermic reaction. Itoh and Wu [5] investigated an adiabatic
+type of palladium membrane reactor for coupling endo-
+thermic and exothermic reactions. On one side of membrane,
+dehydrogenation of cyclohexane as a model takes place in the
+catalyst-packed layer, and on the membrane surface of the
+other side hydrogen permeated react in situ with oxygen.
+They simulated a simple mathematical model for analyzing
+the reaction process. Eigenberger’s group ((Frauhammer et al.
+[6]; Kolios et al. [7,8])) studied the process of methane steam
+reforming coupled with methane combustion both experi-
+mentally and theoretically, mainly in counter-current
+conﬁguration utilizing a ceramic honeycomb monolith with
+specially designed reactor heads.
+Elnashaie et al. [9], Moustafa and Elnashaie [10] used
+a heterogeneous model to study the performance of the
+Nomenclature
+av speciﬁc surface area of catalyst pellet, m2 m/C03
+Ac cross-section area of each tube, m2
+Ai inside area of inner tube, m2
+Ao outside area of inner tube, m2
+c total concentration, mol m/C03
+Cp speciﬁc heat of the gas at constant pressure,
+Jmol/C01
+dp particle diameter, m
+Di tube inside diameter, m
+Dij binary diffusion coefﬁcient of component i in j,
+m2 s/C01
+Dim diffusion coefﬁcient of component i in the
+mixture, m2 s/C01
+Do tube outside diameter, m
+Dsh shell inside diameter, m
+fi partial fugacity of component i, bar
+F total molar ﬂow rate, mol s/C01
+G mass velocity, kg m/C02 s/C01
+hf gas–solid heat transfer coefﬁcient, W m/C02 K/C01
+hi heat transfer coefﬁcient between ﬂuid phase and
+reactor wall in exothermic side, W m/C02 K/C01
+ho heat transfer coefﬁcient between ﬂuid phase and
+reactor wall in endothermic side, W m/C02 K/C01
+DHf,i enthalpy of formation of component i,Jmol/C01
+k rate constant of dehydrogenation reaction,
+mol m/C03 Pa/C01 s/C01
+k1 rate constant for the 1st rate equation of methanol
+synthesis reaction, mol kg/C01 s/C01 bar/C01/2
+k2 rate constant for the 2nd rate equation of
+methanol synthesis reaction, mol kg/C01 s/C01 bar/C01/2
+k3 rate constant for the 3rd rate equation of
+methanol synthesis reaction, mol kg/C01 s/C01 bar/C01/2
+kg mass transfer coefﬁcient for component i,ms/C01
+K conductivity of ﬂuid phase, W m/C01 K/C01
+KB adsorption equilibrium constant for benzene,
+Pa/C01
+Ki Adsorption equilibrium constant for component i
+in methanol synthesis reaction, bar/C01
+Kp equilibrium constant for dehydrogenation
+reaction, Pa3
+Kpi equilibrium constant based on partial pressure for
+component i in methanol synthesis reaction
+Kw thermal conductivity of reactor wall, W m/C01 K/C01
+L reactor length, m
+Mi molecular weight of component i,gmol/C01
+N number of components, N ¼ 6 for methanol
+synthesis reaction, N ¼ 3 for dehydrogenation
+reaction
+P total pressure, for exothermic side: bar; for
+endothermic side: Pa
+Pi partial pressure of component i,Pa
+r1 rate of reaction for hydrogenation of CO,
+mol kg/C01 s/C01
+r2 rate of reaction for hydrogenation of CO2,
+mol kg/C01 s/C01
+r3 rate of reversed water-gas shift reaction,
+mol kg/C01 s/C01
+r4 rate of reaction for dehydrogenation of
+cyclohexane, mol m/C03 s/C01
+ri reaction rate of component i, for exothermic
+reaction: mol kg/C01 s/C01; for endothermic reaction:
+mol m/C03 s/C01
+R Universal gas constant, J mol/C01 K/C01
+Rp particle radius, m
+Re Reynolds number
+Sci Schmidt number of component i
+T temperature, K
+u superﬁcial velocity of ﬂuid phase, m s/C01
+ug linear velocity of ﬂuid phase, m s/C01
+U overall heat transfer coefﬁcient between
+exothermic and endothermic sides, W m/C02 K/C01
+vci critical volume of component i,cm3 mol/C01
+yi mole fraction of component i, mol mol/C01
+z axial reactor coordinate, m
+Greek letters
+m viscosity of ﬂuid phase, kg m/C01 s/C01
+r density of ﬂuid phase, kg m/C03
+rb density of catalytic bed, kg m/C03
+s tortuosity of catalyst
+Superscripts
+g in bulk gas phase
+s at surface catalyst
+Subscripts
+0 inlet conditions
+B benzene
+C cyclohexane
+i chemical species
+j reactor side, 1: exothermic side, 2: endothermic
+side
+k reaction number index
+international journal of hydrogen energy 34 (2009) 6930–6944 6931
+
+--- PAGE 3 ---
+membrane catalytic reactor for the dehydrogenation of ethyl-
+benzene to styrene. The mathematical model is extended to
+simulate a novel hybrid conﬁguration which is composed of
+two catalytic sections separated by hydrogen selective
+composite membrane for hydrogen separation. One side of the
+reactor is a dehydrogenation section in which ethylbenzene is
+dehydrogenated to styrene, while the other catalytic side is
+a hydrogenation section in which benzene is catalytically
+converted to cyclohexane. The effect of co-current and
+counter-current ﬂow pattern is investigated. A mathematical
+simulation and numerical method based on a two-dimen-
+sional model are developed by Fukuhara and Igarashi [11] to
+analyze the operation of coupling methanol decomposition
+and methane combustion. They compared the performance of
+a wall-type reactor with a ﬁxed bed reactor in which
+exothermic and endothermic reactions proceed simulta-
+neously. Ramachandran et al. [12] presented a one-dimen-
+sional pseudo-homogeneous plug ﬂow model to analyze and
+compare the performance of co-current and counter-current
+heat exchanger reactors.
+Ramaswamy et al. [13] analyzed the steady state and the
+dynamic behavior of coupling exothermic and endothermic
+reactions in directly coupled adiabatic packed bed reactors
+(DCARs) for the ﬁrst order reactions using one-dimensional
+pseudo-homogeneous plug ﬂow model. Abo-Ghander et al.
+[14] coupled the catalytic dehydrogenation of ethylbenzene to
+styrene with the catalytic hydrogenation of nitrobenzene to
+aniline in a simulated integrated reactor formed of two ﬁxed
+beds separated by a hydrogen selective membrane, where
+both hydrogen and heat are transferred across the surface of
+membrane tubes. Both co-current and counter-current oper-
+ating modes are investigated.
+Most of the traditional optimization techniques based on
+gradient methods have the possibility of getting trapped at
+local optimum depending upon the degree of non-linearity
+and initial guess. Hence, these traditional optimization tech-
+niques do not ensure global optimum and also have limited
+applications. In the recent past, some expert systems based on
+natural phenomena (evolutionary computation) such as
+simulated annealing (SA) [15], evolution strategies (ESs) [16],
+genetic algorithms (GAs) [17,18] and differential evolution (DE)
+[19] have been developed to overcome this problem. Among
+their advantages: (1) they do not require the objective function
+to be continuous and/or differentiable, (2) they do not require
+extensive problem formulation (in case of traditional methods
+such as Integer programming, geometric programming,
+branch and bound methods, etc., special mathematical
+formulation is required for solving a problem), (3) they are not
+sensitive to starting point, (4) they usually do not get stuck into
+so called local optima, and (5) they are more likely to ﬁnd out
+a function’s true global optimum. These advantages enhance
+their application to various ﬁelds. Some of the successful
+applications of DE include: batch fermentation process [20],
+estimation of heat transfer parameters in trickle bed reactor
+[21], synthesis and optimization of heat integrated distillation
+system [22], optimization of an alkylation reaction [23], opti-
+mization of thermal cracker operation [24], global optimiza-
+tion of MINLP problems [25], optimization of biomass pyrolysis
+[26], optimization of adiabatic styrene reactor [27], optimiza-
+tion of non-linear chemical processes [28], optimization of
+process synthesis and design problems [29], optimal design of
+shell and tube heat exchangers [30], etc.
+Previous studies have shown that DE is an exceptionally
+simple evolution strategy that is signiﬁcantly faster and
+robust at numerical optimization and is more likely to ﬁnd
+a function’s true global optimum [19]. Unlike simple GA that
+uses a binary coding for representing problem parameters, DE
+uses real coding of ﬂoating point numbers. The mutation
+operator here is addition instead of bit-wise ﬂipping used in
+GA. And DE uses non-uniform crossover and tournament
+selection operators to create new solution strings. Among the
+DE’s advantages are its simple structure, ease of use, speed,
+and robustness. It can be used for optimizing functions with
+real variables and many local optima.
+Methanol is an important multipurpose base chemical,
+a simple molecule which can be recovered from many
+resources, predominantly natural gas. It is produced from
+synthesis gas on a large scale worldwide. Synthesis gas
+consists of H2,CO2, CO and some inert components. Methanol
+conversion in a conventional ﬁxed bed methanol reactor is
+low due to the equilibrium nature of the reaction. Therefore,
+most of the synthesis gas must be circulated around the loop
+and this poses problems in operating costs. The methanol
+synthesis reaction is exothermic and the total moles reduce as
+the reaction proceeds. The temperature and pressure of
+reaction are 495–535 K and 5–8 MPa, respectively [31].
+A two-dimensional steady-state simulation of a single
+stage conventional type methanol reactor shows that
+properties of reactor are not varying in the radius of cata-
+lyst tube [32]. Rezaie et al. investigated the performance of
+the conventional methanol reactor using two different
+dynamic models: (a) a simple homogeneous model, (b)
+heterogeneous model, and similar predictions were repor-
+ted [33]. Rahimpour et al. have studied catalyst deactivation
+of methanol synthesis results in a deactivation model [34].
+Rahimpour et al. have presented strategies to enhance the
+ability of methanol synthesis reactor using a mixture of
+fresh and partially deactivated catalyst [35,36]. Velardi and
+Barresi proposed a multi-stage methanol reactor network
+with auto-thermal behavior to promote the reactor perfor-
+mance [37].
+One of the important key issues in methanol reactor
+conﬁgurations is implementing a higher temperature at ﬁrst
+parts of reactor for higher kinetics constants and then reducing
+temperature gradually at the end parts of reactor for increasing
+thermodynamic equilibrium. Recently, a dual-type reactor
+system instead of a single-type reactor was developed for
+methanol synthesis by Rahimpour et al. [38–41]. The dual-type
+methanol reactor is an advanced technology for converting
+natural gas to methanol at low cost and in large quantities.
+From these previous studies, coupling of endothermic and
+exothermic reactions may enable both the concentration and
+temperature proﬁles along the reactor to be manipulated,
+shifting the conversion of thermodynamically limited reac-
+tions to higher values, and efﬁciently using the heat liberated
+by an exothermic reaction to provide the endothermic heat
+requirements of the other reaction [42].
+Fig. 1 shows the schematic diagram of a conventional
+methanol synthesis reactor. A conventional methanol reactor
+is basically a vertical shell and tube heat exchanger. The
+international journal of hydrogen energy 34 (2009) 6930–69446932
+
+--- PAGE 4 ---
+catalyst is packed in vertical tubes and surrounded by the
+boiling water. The methanol synthesis reactions are carried
+out over a commercial CuO/ZnO/Al2O3 catalyst. The heat of
+exothermic reactions is transferred to the boiling water and
+steam is produced.
+In the present work, a catalytic dehydrogenation reaction
+in the shell side is used instead of the cooler-water in the
+methanol synthesis reactor. The dehydrogenation reaction
+chosen is the catalytic dehydrogenation of cyclohexane to
+benzene. Fig. 2 shows a schematic diagram of thermally
+coupled reactor conﬁguration. It consist of a shell compart-
+ment surrounding tube compartments. Catalytic dehydroge-
+nation of cyclohexane to benzene is assumed to take place in
+the shell, whereas methanol synthesis occurs inside the tube,
+with ﬁxed bed of different catalysts on both sides. Heat is
+transferred continuously from the exothermic reaction to the
+endothermic reaction. The clear advantages of this integrated
+catalytic reactor include: achieving a multiple reactants
+multiple products conﬁguration and possibility of achieving
+higher degree of in situ energy integration between the
+coupled endothermic dehydrogenation reaction and the
+exothermic synthesis reactions.
+As methanol and benzene are the important products, the
+capacity of the plant is usually very high, as a result the
+investment cost is also very high, and even a small enhance-
+ment in the plant operation can generate major income.
+Optimization of thermally coupled reactor involves many
+decision variables, which are conﬂicting in nature. Hence,
+optimization of various objective functions is of considerable
+interest for methanol and benzene manufacturing system.
+This study considers optimization of methanol and benzene
+synthesis coupled reactor using proposed algorithm, differ-
+ential evolution (DE). As a thermally coupled reactor is
+considered, reactor dimensions and catalyst data are gener-
+ally ﬁxed.
+Rigorous mathematical models are excellent tools for the
+exploration of the basic characteristics of such novel conﬁg-
+urations. Such an exploration can achieve considerable
+savings in money and time during the expensive stage of pilot
+plant development. The continuous development of the
+model in conjunction with the pilot plant optimal utilization
+can also achieve considerable beneﬁts on the road towards the
+successful commercialization of such efﬁcient novel
+conﬁgurations.
+The paper is organized as follows: reactions scheme and
+kinetics are shown in Section 2. Mathematical model and
+concepts about DE are explained in Sections 3 and 4, respec-
+tively, followed by optimization of thermally coupled reactor
+Benzene 
+Hydrogen 
+Pure
+Methanol  
+Product 
+Synthesis Gas
+from Reformer  
+Cyclohexane
+Separator
+To Distillation Unit 
+Fig. 2 – A schematic diagram of a thermally coupled reactor conﬁguration.
+Boiling
+Water  
+Pure
+Methanol  
+Product 
+Synthesis Gas
+from Reformer
+Steam
+Drum
+To Distillation Unit 
+Fig. 1 – A schematic diagram of a conventional methanol synthesis reactor.
+international journal of hydrogen energy 34 (2009) 6930–6944 6933
+
+--- PAGE 5 ---
+in Section 5. Numerical solution is presented in Section 6 with
+results and discussion in Section 7 and conclusions are drawn
+in Section 8.
+2. Reaction scheme and kinetics
+2.1. Methanol synthesis
+In the methanol synthesis, three overall reactions are
+possible: hydrogenation of carbon monoxide, hydrogenation
+of carbon dioxide and reverse water-gas shift reaction, which
+are as follows:
+CO þ 2H24CH3OH DH298 ¼/C090:55 kJ=mol (1)
+CO2 þ 3H24CH3OH þ H2O DH298 ¼/C049:43 kJ=mol (2)
+CO2 þ H24CO þ H2O DH298 ¼þ41:12 kJ=mol (3)
+Reactions (1)–(3) are not independent so that one is a linear
+combination of the other ones. In the current work, the rate
+expressions have been selected from Graaf et al. [43]. The rate
+equations combining with the equilibrium rate constants [44]
+provide enough information about kinetics of methanol
+synthesis. The corresponding rate expressions due to the
+hydrogenation of CO, CO2 and reversed water-gas shift reac-
+tions over commercial CuO/ZnO/Al2O3 catalysts are:
+r1 ¼
+k1KCO
+h
+fCOf 3=2 H2 /C0 fCH3 OH=f 1=2 H2 Kp1
+i
+/C16
+1 þ KCOfCO þ KCO2 fCO2
+/C17h
+f 1=2 H2 þ /C16 KH2 O =K1=2 H2 /C17 fH2 O i (4)
+r2 ¼
+k2KCO2
+h
+fCO2 f 3=2 H2 /C0 fCH3 OHfH2 O=f 3=2 H2 Kp2
+i
+/C16
+1 þ KCOfCO þ KCO2 fCO2
+/C17h
+f 1=2 H2 þ /C16 KH2 O =K1=2 H2 /C17 fH2 O i (5)
+r3 ¼
+k3 KCO2
+h
+fCO2 fH2 /C0 fH2 OfCO=Kp3
+i
+/C16
+1 þ KCOfCO þ KCO2 fCO2
+/C17h
+f 1=2 H2 þ /C16 KH2 O =K1=2 H2 /C17 fH2 O i (6)
+The reaction rate constants, adsorption equilibrium
+constants and reaction equilibrium constants which appear in
+kinetics expressions are tabulated in Tables 1–3, respectively.
+2.2. Dehydrogenation of cyclohexane
+Hydrogen is an optimum large scale fuel for the future,
+although there remain some problems in transport and long-
+term storage. One has to develop the use of alternative fuels
+that are easily transformed into hydrogen and that can be
+stored in liquid form, and, thus, more safely and economi-
+cally. One of these fuels is cyclohexane.
+The reaction scheme for the dehydrogenation of cyclo-
+hexane to benzene is as follows.
+C6H124C6H6 þ 3H2 DH298 ¼þ206:2kJ=mol (7)
+The following reaction rate equation of cyclohexane, r4,is
+used [45]:
+r4 ¼
+/C0k
+/C16
+KpPC=P3 H2 /C0 PB
+/C17
+1 þ
+/C16
+KBKpPC =P3 H2
+/C17 (8)
+where k, KB, and Kp are, respectively, the reaction rate
+constant, the adsorption equilibrium constant for benzene,
+and the reaction equilibrium constant that are tabulated in
+Table 4. pi is the partial pressure of component i in Pa. The
+reaction temperature is in the range of 423–523 K and the total
+pressure in the reactor is maintained at 101.3 kPa. The catalyst
+for this cyclohexane dehydrogenation reaction is Pt/Al2O3 [46].
+3. Mathematical model
+Fig. 3 shows a schematic diagram for the co-current mode of
+a heat exchanger reactor conﬁguration. A one-dimensional
+heterogeneous model, which is a conventional model for
+a catalytic reactor with heat and mass transfer resistances,
+has been developed in order to determine the concentration
+and temperature distributions inside the reactor. In this
+model the following assumptions are used:
+/C15 The gas mixture is an ideal gas in both catalytic reactor
+sections.
+/C15 Both sections of the reactor are operated at steady-state
+conditions.
+Table 2 – Adsorption equilibrium constants of methanol
+synthesis reactions.
+k ¼ AexpðB=RTÞ AB
+KCO (2.16 /C6 0.44) /C210/C05 46,800 /C6 800
+KCO2 (7.05 /C6 1.39) /C210/C07 61,700 /C6 800
+ðKH2 O =K1=2 H2 Þ (6.37 /C6 2.88) /C210/C09 84,000 /C6 1400
+Table 1 – Rate constants of methanol synthesis reactions.
+k ¼ AexpðB=RTÞ AB
+k1 (4.89 /C6 0.29) /C2 107 /C063,000 /C6 300
+k2 (1.09 /C6 0.07) /C2 105 /C087,500 /C6 300
+k3 (9.64 /C6 7.30) /C2 106 /C0152,900 /C6 6800
+Table 3 – Equilibrium constants of methanol synthesis
+reactions.
+KP ¼ 10ðA=T/C0BÞ AB
+Kp1 5139 12.621
+Kp2 3066 10.592
+Kp3 /C02073 /C02.029
+Table 4 – The reaction rate constant, the adsorption
+equilibrium constant, and the reaction equilibrium
+constant for dehydrogenation of cyclohexane reaction.
+k ¼ AexpðB=TÞ AB
+k 0.221 /C04270
+KB 2.03 /C2 10/C010 6270
+Kp 4.89 /C2 1035 3190
+international journal of hydrogen energy 34 (2009) 6930–69446934
+
+--- PAGE 6 ---
+/C15 Radial variations in both beds are negligible (one-dimen-
+sional model).
+/C15 Axial diffusion of mass and heat are negligible in both
+sections.
+/C15 Bed porosity in axial and radial directions is constant.
+/C15 Laminar plug ﬂow is employed in both endothermic and
+exothermic sides.
+/C15 The chemical reactions are assumed to take place only in
+the catalyst particles and homogenous reactions are
+neglected.
+/C15 Heat loss to surrounding is neglected.
+To obtain the mass and energy balance equations,
+a differential element along the axial direction inside the
+reactor was considered. The balances typically account for
+convection, transport to the solid-phase and reaction.
+3.1. Solid phase
+The mass and energy balances for the solid phase are
+expressed by:
+avcj kgi;j
+/C16
+yg i;j /C0 ys i;j
+/C17
+þ hri;jrb ¼ 0 (9)
+avhf
+/C16
+Tg j /C0 Ts j
+/C17
+þ rb
+XN
+i/C01
+hri;j
+/C0
+/C0DHf;i
+/C1
+¼ 0 (10)
+where ys i;j and Ts j are the solid-phase i-component mole frac-
+tion and temperature in j side of reactor, respectively, and h is
+effectiveness factor (the ratio of the reaction rate observed to
+the real rate of reaction), which is obtained from a dusty gas
+model calculations [43]. The detail of such a dusty gas model is
+given in Appendix A.
+3.2. Fluid phase
+The following mass and energy balances equations are
+written for the ﬂuid phase:
+/C0 Fj
+Ac
+dyg i;j
+dz þ avcjkgi;j
+/C16
+ys i;j /C0 yg i;j
+/C17
+¼ 0 (11)
+/C0 Fj
+Ac
+Cg pj dTg j dz þ avhf /C16 Ts j /C0 Tg j /C17 /C6 pDi Ac U /C0 Tg 2 /C0 Tg 1 /C1 ¼ 0 (12)
+where yg i;j and Tg j are the ﬂuid phase i-component mole fraction
+and temperature in j side of reactor, respectively. The energy
+equation (Eq. (12)) takes into account the heat transferred by
+convection, the heat exchanged between ﬂuid phase and solid
+particles, and the heat transferred between two sides,
+respectively. In this equation, the positive sign is used for the
+exothermic side and the negative sign for the endothermic
+side.
+3.3. Pressure drop
+The Ergun momentum balance equation is used to give the
+pressure drop along the reactor:
+dP
+dz ¼ 150ð1 /C0 eÞ2mug e3d2 p þ 1:75 ð1 /C0 eÞu2 g r e3dp (13)
+where the pressure drop is in Pa.
+3.4. Boundary conditions
+The boundary conditions applied to solve the model are dis-
+cussed in this section. At the entrance of the reactor, the inlet
+temperature, the inlet pressure and the inlet gas compositions
+of the reactant gas in the both sides are known. Therefore, the
+following boundary conditions are applied:
+z ¼ 0; yg i;j ¼ yg i0;j; Tg ¼ Tg 0 ; Pg ¼ Pg 0 (14)
+where yg i0;j , Tg 0 and Pg 0 are the ﬂuid phase mole fraction,
+temperature and pressure at the entrance of j side of reactor,
+respectively.
+3.5. Auxiliary correlations
+To complete the simulation, auxiliary correlations should be
+added to the model. In the heterogeneous model, because of
+transfer phenomena, the correlations of estimation of heat
+and mass transfer between two phases and estimation of
+physical properties of chemical species and overall heat
+transfer coefﬁcient between shell and tube sides should be
+considered. The correlations used for physical properties,
+mass and heat transfer coefﬁcient are summarized in Table 5.
+C6H12
+C6H6
+H2
+Ar
+C6H12
+Ar
+CH3OH
+CO2
+CO
+H2O
+H2
+N2
+CH4
+CH3OH
+CO2
+CO
+H2O
+H2
+N2
+CH4
+Heat transfer
+Endothermic side
+Endothermic side
+Exothermic side
+Fig. 3 – A schematic diagram of the co-current mode for a heat exchanger reactor conﬁguration.
+international journal of hydrogen energy 34 (2009) 6930–6944 6935
+
+--- PAGE 7 ---
+For the heat transfer coefﬁcient between bulk gas phase and
+solid phase (hf) in the exothermic and endothermic side, the
+heat transfer coefﬁcient between gas phase and reactor wall is
+applicable.
+4. Differential evolution
+Differential evolution (DE) method, a recent optimization
+technique, is an exceptionally simple and easy to use evolu-
+tion strategy, which is signiﬁcantly fast and robust in
+numerical optimization and is more likely to ﬁnd a function’s
+true global optimum [28]. Different strategies can be adopted
+in DE algorithm depending upon the type of problem for
+which DE is applied. The strategies can vary based on the
+vector to be perturbed, number of difference vectors consid-
+ered for perturbation, and ﬁnally the type of crossover used.
+Choosing NP, F, and CR depends on the speciﬁc problem
+applied, and is often difﬁcult. But some general guidelines are
+available. Normally, NP should be about 5–10 times the
+number of parameters in a vector. As for F, it lies in the range
+0.4–1.0. Initially F ¼ 0.5 can be tried then F and/or NP is
+increased if the population converges prematurely. A good
+ﬁrst choice for CR is 0.1, but in general CR should be as large as
+possible [30]. More details of basic version of DE (pseudo code),
+its strategies, and choosing of operating parameters are
+reported by Babu and Angira [28,29], and Babu and Munawar
+[30]. In this optimization, the strategy and parameters used for
+DE are presented in Table 6. Already, DE has been successfully
+applied for solving several complex problems and is now
+being identiﬁed as a potential source for accurate and faster
+optimization.
+5. Optimization of thermally coupled reactor
+In this study, maximization of the objective namely,
+summation of methanol and benzene mole fractions in the
+reactor outlet is considered. The objective is as follows:
+J ¼ yCH3 OH þ yC6 H6 (15)
+Three decision variables namely, inlet temperature of
+exothermic side T01, inlet temperature of endothermic side T02,
+and initial molar ﬂow rate of endothermic side F02 are consid-
+ered for optimization. For tubular and exothermic reactors,
+temperature is an important parameter that changes during
+the reactor length and it has a direct effect on thermodynamic
+equilibrium and catalyst activity. The main reason to develop
+an inlet optimal temperature in exothermic and endothermic
+sides is energy saving and reducing in size of pre-heater. While
+the heat transferred from the exothermic side to endothermic
+side is dependent on molar ﬂow rate of endothermic side, this
+parameter is selected as a decision variable. To validate the
+thermally coupled reactor, the initial molar ﬂow rate of
+exothermic side is considered equal to molar ﬂow rate of
+conventional (industrial) methanol synthesis reactor and is not
+selected as a decision variable. The ranges of decision variables
+are:
+495 < T01 < 535 K (16)
+423 < T02 < 523 K (17)
+0:05 < F02 < 1:0 mol s/C01 (18)
+To ensure that the temperature of synthesis gas at the
+reactor inlet, T01 is not too low for the methanol synthesis
+reaction to occur, the lower bound on inlet temperature of
+exothermic side is set at 495 K. At high temperatures catalyst
+starts deactivation [31], hence an upper bound of 535 K is
+chosen for inlet temperature of exothermic side.
+Table 6 – Strategy and parameters used for DE.
+Strategy DE/best/1/bin
+Population size (NP) 100
+Scaling factor (F ) 0.8
+Crossover constant (CR) 1.0
+Table 5 – Physical properties, mass and heat transfer correlations.
+Parameter Equation Reference
+Component heat capacity Cp ¼ a þ bT þ cT2 þ dT3
+Mixture heat capacity Based on local compositions
+Viscosity of reaction mixtures Based on local compositions
+Mixture thermal conductivity Lindsay and Bromley [47]
+Mass transfer coefﬁcient between gas and solid phases kgi ¼ 1:17Re/C00:42 Sc/C00:67 i ug /C2 103 Cussler [48]
+Re ¼ 2Rp ug m [49]
+Sci ¼ m rDim /C210/C04
+Dim ¼ 1/C0yiP
+i¼j
+yi
+Dij
+Dij ¼
+10/C07 T3=2 ﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃ 1=Mi þ1=Mj p
+Pðv3=2 ci þv2=3 cj Þ2
+Reid et al. [50]
+Overall heat transfer coefﬁcient
+1
+U ¼ 1 hi þ Ai lnðDo =Di Þ 2pLKw þ Ai Ao 1 ho
+[51]
+Heat transfer
+coefﬁcient between
+gas phase
+and reactor wall
+h
+Cp rmðCp m K Þ2=3 ¼ 0:458 eB ðrudp m Þ/C00:407
+international journal of hydrogen energy 34 (2009) 6930–69446936
+
+--- PAGE 8 ---
+While the activity of the Pt/Al2O3 catalyst in the tempera-
+ture range of 423–523 K was evaluated in a conventional
+packed bed and no signiﬁcant deactivation was found after at
+least 3 days of use [46], the bounds for the inlet temperature of
+endothermic side, T02 is chosen. The lower and upper bounds
+for the initial molar ﬂow rate of endothermic side, F02 have
+been selected with no prior intention.
+Three constraints are also considered for optimization:
+T2 < T1 (19)
+495 < T1 < 535 K (20)
+423 < T2 < 523 K (21)
+The constraints on temperature (Eq. (19)) are based on the
+minimum temperature required in order to make a driving
+force for heat transfer from the solid wall.
+The optimization problem considered above is then refor-
+mulated so as to include the constraints. Penalty function
+method is employed for handling constraints. The constraints
+in Eqs. (19)–(21) are incorporated into the objective function
+(Eq. (15)) using penalty functions. This method involves
+penalizing the objective function in proportion to the extent of
+constraint violation (i.e., the penalty function takes a ﬁnite
+value when a constraint is violated and a value of zero when
+constraint is satisﬁed). In the present case, we used 107 as our
+penalty parameter. But this value depends on order of
+magnitude of the variables in the problem; it may change from
+problem to problem.
+The objective function considered for minimization,
+ﬁnally, is thus:
+Minimize
+f ¼/C0J þ 107
+X5
+i¼1
+G2 i (22)
+where
+G1 ¼ maxf0; ðT2 /C0 T1Þg (23)
+G2 ¼ max
+/C8
+0; ð495 /C0 TÞ1
+/C9
+(24)
+G3 ¼ maxf0; ðT1 /C0 535Þg (25)
+G4 ¼ maxf0; ð423 /C0 T2Þg (26)
+G5 ¼ maxf0; ðT2 /C0 523Þg (27)
+The resulting optimization problems are solved using the
+proposed algorithm, DE.
+6. Numerical solution
+The formulated model composed of 11 ordinary differential
+equations and the associated boundary conditions lends itself
+to be an initial value problem. The algebraic equations in the
+model incorporate the initial conditions, the reaction rates,
+the ideal gas assumption, as well as aforementioned correla-
+tions for the heat and mass transfer coefﬁcients and the
+physical properties of ﬂuids. These equations along with the
+discretized ordinary differential equations using backward
+ﬁnite difference form a set of non-linear algebraic equations.
+The reactor length is then divided into 100 separate sections
+and the Gauss-Newton method in MATLAB programming
+environment is used to solve the non-linear algebraic equa-
+tions in each section.
+7. Results and discussion
+The model of methanol synthesis side was validated against
+conventional methanol synthesis reactor for a special case of
+constant coolant temperature by Rahimpour et al. [36] and
+Rezaie et al. [33] under the design speciﬁcations and input
+data listed in Table 6. It was observed that the model per-
+formed satisfactorily well under special case of industrial
+conditions and the observed plant data were in good agree-
+ment with simulation data.
+In this section, various steady-state behaviors observed in
+the co-current optimized thermally coupled reactor, are
+Table 7 – Operating conditions for methanol synthesis
+process (exothermic side).
+Parameter Value
+Gas phase
+Feed composition
+(mole fraction)
+CH3OH 0.0050
+CO2 0.0940
+CO 0.0460
+H2O 0.0004
+H2 0.6590
+N2 0.0930
+CH4 0.1026
+Total molar
+ﬂow rate
+(mol s/C01)
+0.64
+Inlet pressure (bar) 76.98
+Catalyst particle
+Density (kg m/C03) 1770
+Particle diameter (m) 5.47 /C2 10/C03
+Heat capacity
+(kJ kg/C01 K/C01)
+5.0
+Thermal conductivity (W m/C01 K/C01) 0.004
+Speciﬁc surface
+area (m2 m/C03)
+626.98
+Ratio of void
+fraction to tortuosity
+of catalyst particle
+0.123
+Length of reactor (m) 7.022
+Bed void fraction 0.39
+Density of catalyst
+bed (kg m/C03)
+1140
+Tube inner
+diameter (m)
+3.8 /C2 10/C02
+Tube outer
+diameter (m)
+4.2 /C2 10/C02
+Wall thermal
+conductivity (W m/C01 K/C01)
+48
+international journal of hydrogen energy 34 (2009) 6930–6944 6937
+
+--- PAGE 9 ---
+analyzed and the predicted mole fraction and temperature
+proﬁles are presented. The performance of the thermally
+coupled reactor is analyzed, using different operating vari-
+ables, for methanol yield and cyclohexane conversion as
+follows:
+Methanol yield ¼ FCH3 OH;out
+FCO;in þ FCO2 ;in
+(28)
+Cyclohexane conversion ¼ FC6 H12 ;in /C0 FC6 H12 ;out
+FC6 H12 ;in
+/C2 100 (29)
+7.1. Base case
+In order to establish a reference point, optimization is carried
+out for a ‘‘base case’’ and the operating conditions used for
+both sides of the reactor are given in Tables 7 and 8. Oper-
+ating conditions for the methanol synthesis side are similar
+to those used by Rahimpour et al. [33]. The inlet composition
+of the methanol synthesis reaction is typical of industrial
+methanol synthesis process. It corresponds to a hydro-
+gen:carbon dioxide ratio of 7 having small amount of CH3OH,
+CO and H2O together with inert gases of CH4 and N2. On the
+endothermic side, the inlet mole fraction of cyclohexane that
+is diluted with argon is the same as that presented by
+Kusakabe et al. [52]. Thus, the base case aims to investigate
+the situation when the cyclohexane dehydrogenation is used
+for the consumption of the generated heat from methanol
+synthesis and to cool down it, resulting in a higher temper-
+ature at ﬁrst parts of exothermic side for higher kinetics
+constants and then reducing temperature gradually at the
+end parts of reactor for increasing thermodynamics equilib-
+rium which is similar to the temperature proﬁle along a tube
+ﬁlled with catalyst within a methanol conventional reactor.
+This allows comparison of the methanol synthesis process in
+the optimized thermally coupled reactor (OTCR) with
+conventional methanol reactor (CMR) for similar thermal
+behavior. The optimization and simulation results of the
+reactor in the endothermic side are not compared with any
+reference case.
+Table 8 – Operating conditions for dehydrogenation of
+cyclohexane to benzene (endothermic side).
+Parameter Value
+Gas phase
+Feed compositiona (mole fraction)
+C6H12 0.1
+C6H6 0.0
+H2 0.0
+Ar 0.9
+Inlet pressurea (Pa) 1.013 /C2 105
+Particle diameterb (m) 3.55 /C2 10/C03
+Bed void fraction 0.39
+Shell inner
+diameter (m)
+6 /C2 10/C02
+a Obtained from Kusakabe et al. [52].
+b Obtained from Markatos et al. [53].
+495 500 505 510 515 520 525 530 535
+0.04
+0.06
+0.08
+0.1
+0.12
+0.14
+0.16
+Inlet temperature of exothermic side, K
+Objective function
+Optimum
+point
+Fig. 4 – Optimal inlet temperature of exothermic side for
+optimized thermally coupled reactor.
+423 443 463 483 503 5230.04
+0.06
+0.08
+0.1
+0.12
+0.14
+Inlet temperature of endothermic side, K
+Objective function
+Optimum
+point
+Fig. 5 – Optimal inlet temperature of endothermic side for
+optimized thermally coupled reactor.
+0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1
+0
+0.03
+0.06
+0.09
+0.12
+0.15
+Inlet molar flow rate of endothermic stream, mol s-1
+Objective function
+Optimum
+point
+Fig. 6 – Optimal initial molar ﬂow rate of endothermic side
+for optimized thermally coupled reactor.
+international journal of hydrogen energy 34 (2009) 6930–69446938
+
+--- PAGE 10 ---
+7.2. Simulation and optimization
+With due attention to subjects of Section 5, the optimiza-
+tion approach is to ﬁnd optimal temperature proﬁles along
+the exothermic and endothermic sides to maximize meth-
+anol and benzene mole fractions through the optimization
+of initial molar ﬂow rate of endothermic stream and inlet
+temperature of exothermic and endothermic sides. Differ-
+ential evolution method is applied to determine the optimal
+reactor operating conditions for methanol and benzene
+production process in a thermally coupled reactor. Figs. 4
+and 5 show proﬁles of objective function in terms of inlet
+temperature of exothermic and endothermic sides in the
+thermally coupled reactor, respectively. As shown in these
+ﬁgures, the objective function is maximized in one point.
+This means there is an optimal inlet temperature of
+exothermic and endothermic sides and their values are
+527.8 and 423.0 K, respectively. Also Fig. 6 shows variation
+of objective function in term of initial molar ﬂow rate of
+endothermic stream in thermally coupled reactor. As it can
+be seen in this ﬁgure, the optimum value of initial molar
+ﬂow rate of endothermic stream is 0.111 mol s/C01. The
+results of the optimization (using differential evolution
+method and MATLAB programming) are summarized in
+Table 9.
+The simulation of thermally coupled reactor is carried
+out using optimization results in Table 9 and the results of
+this simulation are shown in several ﬁgures. Fig. 7(a)–(e)
+shows the comparison of mole fraction of components in
+exothermic side of optimized thermally coupled reactor
+(OTCR) with conventional methanol reactor (CMR). Fig. 7(a)
+illustrates the mole fraction proﬁle of methanol along the
+reactor, at steady-state for exothermic side of OTCR and
+CMR. Fig. 7(b)–(e) presents similar results for other compo-
+nents. The important point as illustrated in these ﬁgures is
+a reaction kinetic controlling in the upper sections of
+reactor while in other sections, the rate of reactions has
+decreased to its equilibrium value and equilibrium is
+controlling.
+As it can be seen in Fig. 7(a), the comparison of methanol
+mole fraction in exothermic side of OTCR with CMR shows
+that the methanol mole fraction in output of OTCR is
+increased by 3.67%, although, the proﬁles of methanol mole
+fraction along the upper sections of reactor have the same
+patterns in the both reactor under steady-state conditions.
+Fig. 8 is simultaneous plots of mole fraction for cyclohexane,
+benzene and hydrogen in the endothermic side of OTCR
+along the reactor axis. The mole fraction of hydrogen and
+benzene is increased and cyclohexane is decreased. As the
+reaction scheme for cyclohexane dehydrogenation indicates,
+the increase of hydrogen mole fraction is higher than
+benzene.
+Fig. 9(a) and (b) shows axial temperature proﬁles in the
+exothermic and endothermic sides of OTCR and CMR. In
+addition, the highest temperature is observed at the
+exothermic side, since this is where heat is generated. Part of
+this heat is used to drive the endothermic reaction and the
+rest to heat the reaction mixtures in both sides. The
+temperature of the dehydrogenation side is always lower
+than that of the exothermic side in order to make a driving
+force for heat transfer from the solid wall. Along the
+exothermic side, temperature decreases rapidly and a cold
+spot develop as demonstrated in Fig. 9(a), then increases and
+make a hot spot, afterward the temperature decreases to
+505 K. At the entrance of dehydrogenation side, the temper-
+ature increases rapidly and a hot spot form and then the
+temperature decreases.
+Fig. 10(a) shows the variation of rate of reaction for both
+sides of OTCR. Near the reactor entrance, the cyclohexane
+dehydrogenation is fast. Comparing the values for the reaction
+rates present in the exothermic side, it can be seen that the
+predominant reactions are hydrogenation of CO and hydro-
+genation of CO2; however, water-gas shift reaction can be
+neglected, its contribution being signiﬁcant. Fig. 10(b) illus-
+trates the variation of the generated and consumed heat ﬂux in
+the exothermic and the endothermic reaction, respectively,
+and transferred heat from the solid wall along the reactor for
+OTCR. In the ﬁrst half of the reactor, methanol reaction
+proceeds rapidly and as a result much heat is produced by the
+exothermic reaction. In this section, the transferred heat from
+the solid wall is higher than generated heat in the exothermic
+side (dimensionless length ¼ 0–0.05 in Fig. 10(b)) and conse-
+quently the temperature in exothermic side decreases as
+illustrated by the temperature proﬁle in Fig. 9(a).
+Afterward, the generated heat in the exothermic side is
+higher than the transferred heat from the solid wall and
+therefore the excess heat raises the temperature of the system
+in the ﬁrst half of the reactor (dimensionless length ¼ 0.05–0.3
+in Fig. 9(a)). In this region, the generated heat ﬂux is higher
+than the consumed one. The system heats up and a peak in
+the generated heat ﬂux is observed (Fig. 10(b)). Afterward, the
+generated heat ﬂux decreases smoothly, mainly due to fuel
+depletion. The opposite situation occurs when the consumed
+heat ﬂux is higher than the generated one. If the consumed
+heat ﬂux is higher than the generated one, the system starts to
+cool down resulting to low temperature, which in turn
+decreases both reaction rates. Thus, after a certain position
+along the reactor (dimensionless length ¼ 0.3 in Fig. 10(b)) the
+generated heat ﬂux becomes lower than the consumed one,
+which coincides with a hot spot development (see Fig. 9(a)). As
+the reactions in the second half of the reactor, are equilibrium
+limited, so the lower temperature enhances the equilibrium
+conversion (see Fig. 7).
+An increase in the reaction heat ﬂux consumed is observed
+near the reactor entrance, and is associated to the relatively
+Table 9 – The optimized parameters for thermally coupled
+reactor.
+Inlet temperature
+of exothermic
+side, K
+527.8
+Inlet temperature
+of endothermic
+side, K
+423.0
+Initial molar
+ﬂow rate
+of endothermic
+side, mol s/C01
+0.111
+Objective function 0.139
+international journal of hydrogen energy 34 (2009) 6930–6944 6939
+
+--- PAGE 11 ---
+high reaction rates in the endothermic process in that region
+as shown in Fig. 10(a). In this section, the transferred heat
+from the solid wall is higher than the consumed heat in the
+endothermic side and so the system starts to heat up which
+coincides with a hot spot development at the axial position 0.3
+(see Fig. 9(b)).
+Along the reactor length, the heat values consumed by
+the endothermic side and transferred from the solid wall
+are close to each other. This demonstrates the efﬁcient
+thermal communication between the both sides, and which
+is due to high solid wall thermal conductivity and the
+relatively small shell diameter. At the reactor entrance,
+the transferred heat from the solid wall is higher than
+the consumed heat by the endothermic side, which is due
+to high temperature difference. A maximum in the reaction
+heat ﬂuxes consumed and transferred from the solid wall
+0 0.2 0.4 0.6 0.8 10
+0.01
+0.02
+0.03
+0.04
+0.05
+0.06
+0.07
+CH3 OH mole fraction
+Dimensionless length
+OTCR
+CMR
+0 0.2 0.4 0.6 0.8 10.075
+0.08
+0.085
+0.09
+0.095
+CO2 mole fraction
+Dimensionless length
+OTCR
+CMR
+0 0.2 0.4 0.6 0.8 10.02
+0.025
+0.03
+0.035
+0.04
+0.045
+0.05
+CO mole fraction
+Dimensionless length
+OTCR
+CMR
+0 0.2 0.4 0.6 0.8 10
+0.005
+0.01
+0.015
+0.02
+0.025
+0.03
+H2O mole fraction
+Dimensionless length
+OTCR
+CMR
+0 0.2 0.4 0.6 0.8 10.59
+0.6
+0.61
+0.62
+0.63
+0.64
+0.65
+0.66
+H2 mole fraction
+Dimensionless length
+OTCR
+CMR
+a
+b
+c
+e
+d
+Fig. 7 – Comparison of (a) CH3OH, (b) CO2, (c) CO, (d) H2O and (e) H2 mole fraction along the reactor axis between exothermic
+side of OTCR and CMR.
+international journal of hydrogen energy 34 (2009) 6930–69446940
+
+--- PAGE 12 ---
+are located at the same axial position, namely 0.3. After this
+position along the reactor, the consumed heat by the
+dehydrogenation side becomes larger than the transferred
+heat from the solid wall and the system starts to cool down
+(see Fig. 9(b)).
+In Fig. 11, cyclohexane conversion in the endothermic side
+of OTCR, and methanol yield in the exothermic side of OTCR
+and CMR along the reactor are shown. Cyclohexane reaches
+100% conversion, and methanol 0.4002 and 0.3883 yields in the
+exothermic side of OTCR and CMR, respectively. The compar-
+ison of methanol yield in OTCR with CMR shows that the
+methanol yield in output of OTCR is increased by 3.1%.
+Overall, the optimized operating parameters for this case
+lead to efﬁcient coupling of the two reactions.
+8. Conclusion
+Optimization of methanol synthesis reaction coupled with
+dehydrogenation of cyclohexane to benzene by means of
+indirect heat transfer in a catalytic heat exchanger reactor
+was studied by a one-dimensional model. The reactor consists
+0 0.2 0.4 0.6 0.8 1
+0
+0.05
+0.1
+0.15
+0.2
+0.25mole fraction
+Dimensionless length
+C6H12
+C6H6
+H2
+Fig. 8 – Proﬁles of cyclohexane, benzene and hydrogen
+mole fraction along the reactor axis in the endothermic
+side of OTCR.
+0 0.2 0.4 0.6 0.8 1
+500
+505
+510
+515
+520
+525
+530
+535
+Temperature, K
+Dimensionless length
+OTCR
+CMR
+0 0.2 0.4 0.6 0.8 1
+420
+440
+460
+480
+500
+520
+540
+Temperature, K
+Dimensionless length
+OTCR
+CMR
+b
+a
+Fig. 9 – Variation of temperature for (a) exothermic and (b)
+endothermic side of OTCR and CMR along the reactor axis.
+0.2 0.4 0.6 0.8
+-2
+0
+2
+4
+6
+8
+10
+Dimensionless length
+Rate of reaction, mol m-3 s-1
+0 0.2 0.4 0.6 0.8 1
+0
+0.5
+1
+1.5
+2
+Rate of reaction for cyclohexane
+ dehydrogenation, mol m-3 s-1
+Hydrogenation of CO
+Hydrogenation of CO2
+Water-gas shift
+0 0.2 0.4 0.6 0.8 10
+2
+4
+6
+8
+10
+12
+14
+16
+18
+Dimensionless length
+Heat flux, W
+Generated heat in exothermic side
+Consumed heat in endothermic side
+Transfered heat from solid wall
+b
+a
+Fig. 10 – Variation of (a) rate of reaction for both sides and
+(b) generated and consumed heat ﬂux and also transferred
+heat from solid wall along the reactor for the OTCR.
+international journal of hydrogen energy 34 (2009) 6930–6944 6941
+
+--- PAGE 13 ---
+of two separated sides for exothermic and endothermic
+reactions. A base case was generated considering similar
+operating conditions to industrial methanol reactor. Differ-
+ential evolution (DE) method, an exceptionally simple evolu-
+tion strategy, is applied to determine the optimal reactor
+operating conditions. Maximization of methanol and benzene
+mole fractions in the reactor outlet is considered. It is shown
+that suitable amount of initial molar ﬂow rate in the endo-
+thermic side and inlet temperature of both sides can provide
+the necessary heat to heat up the mixtures and to drive the
+endothermic process at the same time. The short distance
+between the heat sink and transferred heat increases the
+efﬁciency of heat transfer. This new conﬁguration represents
+some important improvement in comparison to conventional
+methanol reactor as follows: reduces the size of the reactors;
+lower outlet temperature of product stream and so enhances
+the equilibrium conversion; benzene is also produced as an
+additional valuable product; and auto-thermality is achieved
+within the reactor. The optimization method has enhanced
+the methanol mole fraction by 3.67% and methanol yield by
+3.1%. The results indicate that methanol synthesis reaction
+and cyclohexane dehydrogenation in a heat exchanger reactor
+is feasible and beneﬁcial.
+Appendix A. Dusty gas model
+When reactants diffuse into the pores to react and form
+products, bulk, Knudsen and surface diffusions may take
+place simultaneously, depending on the size of the pores, the
+molecules involved in the diffusing stream, the operating
+conditions and the geometry of the pores [54]. In the dusty gas
+model which is based on Stefan–Maxwell equations, both
+diffusional and convective mass transport terms are consid-
+ered, and this includes the description of pressure drop over
+the catalyst particle resulting from the stoichiometry of
+reaction and accompanying convective transport of molecules
+[55]. The results of sensitivity analysis show that at low
+pressures (up to 10 bar), Knudsen diffusion is the most
+important diffusing term, while at high pressures (100 bar)
+bulk diffusion predominates [43].
+In this model, it is assumed that pore walls consist of giant
+molecules (‘dust’) which are uniformly distributed in the
+space. These dust molecules are considered to be dummy, or
+pseudo species in the mixture [56].
+The dusty gas ﬂux relations can be offered as follows, with
+a small change in the notation as to avoid conﬂicting with
+other notations used in the model [57]:
+Ni
+DEff i þ
+XN
+isj
+0
+@yjNi /C0 yiNj
+DEff ij
+1
+A ¼/C0P RT dyi dr /C0 yi RT
+ 
+1 þ B0 P mDEff i
+!
+dP
+dr (A.1)
+In the above equation, B0 is permeability of catalyst pellet,
+Di Eff is effective Knudsen diffusion coefﬁcient and Dij Eff is
+effective binary diffusion coefﬁcient which are presented by
+Eqs. (A.2) and (A.3) below, respectively [58,59]:
+DEff i ¼ ap es s 2 3 /C208RT pMi /C211=2 (A.2)
+DEff ij ¼ es s Dij (A.3)
+where ap is the mean pore radius.
+The dusty gas ﬂux relations (Eqs. (A.1)–(A.3)) contain three
+parameters: the mean pore radius, a, the ratio of porosity and
+tortuosity factors, es/s and the permeability parameter, B0.
+Using Darcy’s law, combines the two parameters of perme-
+ability and the mean pore radius and gives a two-parameter
+model using the following correlation [58,59]:
+B0 ¼
+a2 p
+8 (A.4)
+The reader should note that the ﬂux relations (Eq. (A.1))
+could be rewritten for distinct components to form a set of
+ordinary differential equations, yielding expressions for dyi/dr
+[57]. Knowing the fact that summation of all components
+equals to1 (i.e., PN 1 yi ¼ 1), N /C0 1 ordinary differential equa-
+tions should be written for the ﬂux relations.
+To complete the mathematical modeling of dusty gas
+model, the material balances and the stoichiometric relations
+have to be added in order to be able to describe the multi-
+component reaction–diffusion problem. Since we have used
+the detailed Graaf kinetics for the system of methanol
+synthesis process, which is based on three-independent
+reactions [43], and cyclohexane dehydrogenation reaction,
+four material balances are needed to be added to ﬂux rela-
+tions. For a spherical and isothermal particle, this yields [57]:
+dUk
+dr ¼ r2rk k ¼ 1; 2; 3; 4 (A.5)
+dyi
+dr ¼/C01 r2
+0
+@X3
+k¼1
+Uk
+X5
+j¼1
+vkjFij
+1
+A; i ¼ 1; 2; .; N /C0 1 (A.6)
+Fii ¼ RT P
+0
+@ 1
+DEff i þ
+X5
+j¼1;jsi
+yi
+DEff ij /C0 yi DEff i
+ 
+1 þ B0P mDEff i
+!
+1
+w
+1
+A (A.7)
+0.2 0.4 0.6 0.8 1
+0
+0.09
+0.18
+0.27
+0.36
+0.45
+Dimensionless length
+Methanol yield
+0 0.2 0.4 0.6 0.8
+0
+0.2
+0.4
+0.6
+0.8
+1
+Cyclohexane conversion
+OTCR
+....... CMR
+Fig. 11 – Cyclohexane conversion in endothermic side of
+OTCR and methanol yield in exothermic side of OTCR and
+CMR along the reactor length.
+international journal of hydrogen energy 34 (2009) 6930–69446942
+
+--- PAGE 14 ---
+Fij ¼/C0RT P
+0
+@ yi
+DEff i þ yi DEff j
+ 
+1 þ B0P mDEff i
+!
+1
+w
+1
+A (A.8)
+w ¼ 1 þ B0P m XN i¼1 yi DEff i (A.9)
+where Fii, Fij, w and Uk are auxiliary parameters and v is the
+stoichiometric coefﬁcient.
+The pressure drop in radial coordinate is given by:
+dP
+dr ¼/C01 r2 RT w XN i¼1
+ 
+1
+DEff i
+X
+k
+vikUk
+!
+(A.10)
+The boundary conditions for the set of ordinary differential
+equations are given by:
+Uk ¼ 0atr ¼ 0 (A.11)
+yi ¼ ys i at r ¼ Rp (A.12)
+P ¼ Ps at r ¼ Rp (A.13)
+The effectiveness factor for reaction k is given by:
+hk ¼
+R Rp
+0 rkdr
+Rprs k (A.14)
+references
+[1] Agar DW. Multifunctional reactors: old preconceptions and
+new dimensions. Chem Eng Sci 1999;54:1299.
+[2] Zanﬁr M, Gavriilidis A. Catalytic combustion assisted
+methane steam reforming in a catalytic plate reactor. Chem
+Eng Sci 2003;58:3947.
+[3] Dautzenberg FM, Mukherjee M. Process intensiﬁcation using
+multifunctional reactors. Chem Eng Sci 2001;56:251.
+[4] Hunter JB, McGuire G. Method and apparatus for catalytic
+heat-exchange, US Patent 4 214 867; 1980.
+[5] Itoh N, Wu TH. An adiabatic type of palladium membrane
+reactor for coupling endothermic and exothermic reactions.
+J Membr Sci 1997;124:213–22.
+[6] Frauhammer J, Eigenberger G, Hippel LV, Arntz D. A new
+reactor concept for endothermic high-temperature
+reactions. Chem Eng Sci 1999;54:3661.
+[7] Kolios G, Frauhammer J, Eigenberger G. A simpliﬁed procedure
+for the optimal design of auto-thermal reactors for endothermic
+high-temperature reactions. Chem Eng Sci 2001;56:351.
+[8] Kolios G, Frauhammer J, Eigenberger G. Efﬁcient reactor
+concepts for coupling of endothermic and exothermic
+reactions. Chem Eng Sci 2002;57:1505.
+[9] Elnashaie SSEH, Moustafa T, Alsoudani T, Elshishini SS.
+Modeling and basic characteristics of novel integrated
+dehydrogenation-hydrogenation membrane catalytic
+reactors. Comput Chem Eng 2000;24:1293–300.
+[10] Moustafa TM, Elnashaie SSEH. Simulation production of
+styrene and cyclohexane in an integrated membrane reactor.
+J Membr Sci 2000;178:171–84.
+[11] Fukuhara Ch, Igarashi A. Performance simulation of a wall-
+type reactor in which exothermic and endothermic reactions
+proceed simultaneously, comparing with that of a ﬁxed-bed
+reactor. Chem Eng Sci 2005;60:6824–34.
+[12] Ramaswamy RC, Ramachandran PA, Dudukovic´ MP.
+Recuperative coupling of exothermic and endothermic
+reactions. Chem Eng Sci 2006;61:459–72.
+[13] Ramaswamy RC, Ramachandran PA, Dudukovic´ MP.
+Coupling exothermic and endothermic reactions in adiabatic
+reactors. Chem Eng Sci 2008;63(6):1654–67.
+[14] Abo-Ghander NS, Grace JR, Elnashaie SSEH, Lim CJ. Modeling
+of a novel membrane reactor to integrate dehydrogenation of
+ethylbenzene to styrene with hydrogenation of nitrobenzene
+to aniline. Chem Eng Sci 2008;63:1817–26.
+[15] Kirkpatrik S, Gelatt CD, Vechhi MP. Optimization by
+simulated annealing. Science 1983;220(4568):671–80.
+[16] Schwefel HP. Numerical optimization of computer models.
+New York: John Wiley & Sons; 1981.
+[17] Goldberg DE. Genetic algorithms in search, optimization, and
+machine learning. Reading, MA: Addison-Wesley; 1989.
+[18] Davis L. Handbook of genetic algorithms. Newyork: Van
+Nostrand Reinhold; 1991.
+[19] Price K, Storn R. Differential evolution – a simple evolution
+strategy for fast optimization. Dr. Dobb’s J 1997;22:18–24. 78.
+[20] Chiou JP, Wang FS. Hybrid method of evolutionary
+algorithms for static and dynamic optimization problems
+with application to a fed-batch fermentation process.
+Comput Chem Eng 1999;23:1277–91.
+[21] Babu BV, Sastry KKN. Estimation of heat transfer
+parameters in a trickle bed reactor using differential
+evolution and orthogonal collocation. Comput Chem Eng
+1999;23:327–39.
+[22] Babu BV, Singh RP. Optimization and synthesis of heat
+integrated distillation systems using differential evolution.
+In: Proceedings of all India seminar on chemical engineering
+progress on resource development: a vision 2010 and
+beyond, organized by IE (I), Orissa State Centre
+Bhuvaneshwar, March 13, 2000.
+[23] Babu BV, Gaurav C. Evolutionary computation strategy for
+optimization of an alkylation reaction. In: Proceedings of
+international symposium and 53rd annual session of IIChE
+(CHEMCON-2000), Science City, Calcutta, December 18–21,
+2000.
+[24] Babu BV, Angira R. Optimization of thermal cracker
+operation using differential evolution. In: Proceedings of
+international symposium and 54th annual session of IIChE
+(CHEMCON-2001), CLRI, Chennai, December 19–22, 2001.
+[25] Babu BV, Angira R. A differential evolution approach for
+global optimization of MINLP problems. In: Proceedings of
+fourth Asia-Paciﬁc conference on simulated evolution and
+learning (SEAL’02), Singapore, November 18–22, 2002, paper
+no. 1033, vol. 2, p. 880–4.
+[26] Babu BV, Chaurasia AS. Optimization of pyrolysis of biomass
+using differential evolution approach. In: Proceedings of the
+second international conference on computational
+intelligence, robotics, and autonomous systems (CIRAS-
+2003), Singapore, December 15–18, 2003.
+[27] Babu BV, Chakole PG, Syed Mubeen JH. Multi-objective
+differential evolution (MODE) for optimization of adiabatic
+styrene reactor. Chem Eng Sci 2005;60:4822–37.
+[28] Babu BV, Angira R. Modiﬁed differential evolution (MDE) for
+optimization of non-linear chemical processes. Comput
+Chem Eng 2006;30:989–1002.
+[29] Angira R, Babu BV. Optimization of process synthesis and
+design problems: A modiﬁed differential evolution approach.
+Chem Eng Sci 2006;61:4707–21.
+[30] Babu BV, Munawar SA. Differential evolution strategies for
+optimal design of shell-and-tube heat exchangers. Chem Eng
+Sci 2007;62:3720–39.
+[31] Rahimpour MR, Ghader S. Theoretical investigation of a pd-
+membrane reactor for methanol synthesis. Chem Eng
+Technol 2003;26(8):902–7.
+international journal of hydrogen energy 34 (2009) 6930–6944 6943
+
+--- PAGE 15 ---
+[32] Jahanmiri A, Eslamloueyan R. Optimal temperature proﬁle in
+methanol synthesis reactor. Chem Eng Commun 2002;189:
+713–41.
+[33] Rezaie N, Jahanmiri A, Moghtaderi B, Rahimpour MR. A
+comparison of homogeneous and heterogeneous dynamic
+models for industrial methanol reactors in the presence of
+catalyst deactivation. Chem Eng Process 2005;44:911–21.
+[34] Rahimpour MR, Fathikalajahi J, Jahanmiri A. Selective kinetic
+deactivation model for methanol synthesis from
+simultaneous reaction of CO2 and CO with H2 on
+a commercial copper/zinc oxide catalyst. Can J Chem Eng
+1998;76:1–9.
+[35] Rahimpour MR, Satar S, Baniadam M, Fathikalajahi J.
+Incorporation of ﬂexibity in design of methanol synthesis
+reactor. Chem Eng Technol 2003;26(6):672–8.
+[36] Rahimpour MR, Moghtaderi B, Jahanmiri A, Rezaie N.
+Operability of an industrial methanol synthesis reactor with
+mixtures of fresh and partially deactivated catalyst. Chem
+Eng Technol 2005;28(2):226–34.
+[37] Velardi SA, Barresi AA. Methanol Synthesis in a forced
+unsteady-state reactor network. Chem Eng Sci 2002;57(15):
+2995–3004.
+[38] Rahimpour MR, Lotﬁnejad M. A comparison of auto-thermal
+and conventional methanol synthesis reactor in the
+presence of catalyst deactivation. Chem Eng Process 2008;
+47(12):2121–30.
+[39] Rahimpour MR, Lotﬁnejad M. Enhancement of methanol
+production in a membrane dual-type reactor. Chem Eng
+Technol 2007;30(8):1062–76.
+[40] Rahimpour MR, Lotﬁnejad M. A comparison of co-current
+and counter-current modes of operation for a dual-type
+industrial methanol reactor. Chem Eng Process 2008;47(9–10):
+1819–30.
+[41] Rahimpour MR, Lotﬁnejad M. Co-current and counter-
+current conﬁguration for a membrane dual-type methanol
+reactor. Chem Eng Technol 2008;31(1):38–57.
+[42] Amon B, Redlingshofer H, Klemm E, Dieterich E, Emig G.
+Kinetic investigation of deactivation by coking of a noble
+metal catalyst in the catalytic hydrogenation of nitrobenzene
+using a catalytic wall reactor. Chem Eng Process 1999;38(4):
+395–404.
+[43] Graaf GH, Scholtens H, Stamhuis EJ, Beenackers AACM.
+Intra-particle diffusion limitations in low-pressure methanol
+synthesis. Chem Eng Sci 1990;45(4):773–83.
+[44] Graaf GH, Sijtsema PJJM, Stamhuis EJ, Joosten GEH. Chemical
+equilibrium in methanol synthesis. Chem Eng Sci 1986;
+41(11):2883–90.
+[45] Itoh N. A membrane reactor using palladium. AIChE J 1987;
+33:1576–8.
+[46] Jeong BH, Sotowa KI, Kusakabe K. Catalytic dehydrogenation
+of cyclohexane in an FAU-type zeolite membrane reactor. J
+Membr Sci 2003;224:151–8.
+[47] Lindsay AL, Bromley LA. Thermal conductivity of gas
+mixture. Ind Eng Chem 1950;42:1508–10.
+[48] Cussler EL. Diffusion, mass transfer in ﬂuid systems.
+Cambridge University Press; 1984.
+[49] Wilke CR. Chem Eng Prog 1949;45:218.
+[50] Reid RC, Sherwood TK, Prausnitz J. The properties of gases
+and liquids. 3rd ed. New York: McGraw-Hill; 1977.
+[51] Smith JM. Chemical engineering kinetics. New York:
+McGraw-Hill; 1980.
+[52] Jeong BH, Sotowa KI, Kusakabe K. Modeling of an FAU-type
+zeolite membrane reactor for the catalytic dehydrogenation
+of cyclohexane. Chem Eng J 2004;103:69–75.
+[53] Koukou MK, Chaloulon G, Papayannakos N, Markatos NC.
+Mathematical modeling of the performance of non-
+isothermal membrane reactors. Int J Heat Mass Transfer
+1997;40(10):2407–17.
+[54] Wood J, Gladden LF, Keil FJ. Modeling diffusion and reaction
+accompanied by capillary condensation using three-
+dimensional pore networks. Part 2. Dusty gas model and
+general reaction kinetics. Chem Eng Sci 2002;57:3047–59.
+[55] Lommerts BJ, Graaf GH, Beenackers AACM. Mathematical
+modeling of internal mass transport limitations in methanol
+synthesis. Chem Eng Sci 2000;55:5589–98.
+[56] Suwanwarangkul R, Croiset E, Fowler MW, Douglas PL,
+Entchev E, Douglas MA. Performance comparison of Fick’s,
+dustygas and Stefan–Maxwell models to predict the
+concentration overpotential of a SOFC anode. J Power
+Sources 2003;122:9–18.
+[57] Skrzypek J, Grzesik M, Szopa R. Theoretical analysis of two
+parallel and consecutive reactions in isothermal
+symmetrical catalyst pellets using a dusty-gas model. Chem
+Eng Sci 1984;39:515–21.
+[58] Jackson R. Transport in porous catalysts. Amsterdam:
+Elsevier; 1977.
+[59] Froment GF, Bischoff KB. Chemical reactor analysis and
+design. New York: Wiley; 1977.
+international journal of hydrogen energy 34 (2009) 6930–69446944
+
