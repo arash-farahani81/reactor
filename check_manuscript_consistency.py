@@ -66,7 +66,10 @@ def check_consistency():
     ]
 
     for label, pattern in checks:
-        if pattern not in text:
+        alt_pattern = pattern.replace("%", r"\%")
+        alt_math = pattern.replace(" K", r"\text{ K}").replace(" MW", r"\text{ MW}")
+        alt_both = pattern.replace("%", r"\%").replace(" K", r"\text{ K}").replace(" MW", r"\text{ MW}")
+        if pattern not in text and alt_pattern not in text and alt_math not in text and alt_both not in text:
             errors.append(f"Missing expected value for {label}: '{pattern}' not found in manuscript.")
 
     if errors:

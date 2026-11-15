@@ -186,7 +186,7 @@ A fair apple-to-apple comparison requires that the conventional reactor (CMR) be
 | **Peak Temperature (K)** | 524.36 | 535.00 | 539.59 | 550.48 | **525.74** |
 | **Tube Pressure Drop (bar)** | 0.45 | 0.45 | 0.46 | 0.47 | 0.34 |
 | **Shell Pressure Drop (bar)**| — | — | 0.98 | 1.05 | 0.87 |
-| **Shell Exit Pressure (bar)**| — | — | 1.02 | 1.01 | **1.13** |
+| **Shell Exit Pressure (bar)**| — | — | 1.02 | 0.95 | **1.13** |
 
 ### 2. Complete Process Thermal Duty Accounting
 Rigorous accounting of feed vaporization and sensible preheating duties eliminates misleading "zero utility" marketing claims:

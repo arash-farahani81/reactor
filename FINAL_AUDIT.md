@@ -68,7 +68,7 @@ tests/test_physics.py::test_t11_local_wall_heat_flux_equality PASSED     [100%]
 | **Hydrogen Coproduction (t/d)** | 0.00 | 0.00 | 7.80 | 8.70 | 5.15 |
 | **Peak Bed Temp $T_{\text{max}}$ (K)** | 524.36 | 535.00 | 539.59 | 550.48 | 525.74 |
 | **Tube Pressure Drop (bar)** | 0.45 | 0.45 | 0.46 | 0.47 | 0.34 |
-| **Shell Exit Pressure (bar)** | — | — | 1.02 | 1.01 | 1.13 |
+| **Shell Exit Pressure (bar)** | — | — | 1.02 | 0.95 | 1.13 |
 | **Reaction Zone Cooling Utility** | 5.57 MW | 5.64 MW | 0.0 kW | 0.0 kW | 0.0 kW |
 | **Total Feed Preheating Duty** | 10.51 MW | 10.51 MW | 17.17 MW | 17.17 MW | 17.17 MW |
 

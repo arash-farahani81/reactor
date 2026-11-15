@@ -108,7 +108,7 @@ reactor/
 | **Benzene Coproduct (t/d)** | 0.00 | 0.00 | **100.71** | **112.37** | **66.56** |
 | **Hydrogen Coproduct (t/d)** | 0.00 | 0.00 | **7.80** | **8.70** | **5.15** |
 | **Peak Bed Temp (K)** | 524.4 | 535.0 | 539.6 | 550.5 | **525.7** |
-| **Shell Exit Pressure (bar)** | — | — | 1.02 | 1.01 | **1.13** |
+| **Shell Exit Pressure (bar)** | — | — | 1.02 | 0.95 | **1.13** |
 | **Reaction Zone Cooling Utility**| 5.57 MW | 5.64 MW | **0.0 kW** | **0.0 kW** | **0.0 kW** |
 | **Feed Preheating Duty** | 10.51 MW | 10.51 MW | 17.17 MW | 17.17 MW | 17.17 MW |
 

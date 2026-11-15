@@ -8,7 +8,7 @@
 ---
 
 ## Abstract
-In this study, a rigorous 1D pseudo-homogeneous mathematical model and multi-objective Pareto optimization framework are developed for an industrially sized thermally coupled shell-and-tube reactor (TCR). The reactor directly integrates the strongly exothermic synthesis of methanol from syngas ($\text{CO}/\text{CO}_2/\text{H}_2$) on the tube side (over commercial $\text{CuO/ZnO/Al}_2\text{O}_3$ catalyst, $\eta_{\text{exo}} = 0.35$) with the strongly endothermic dehydrogenation of cyclohexane to benzene and high-purity hydrogen on the shell side (over $\text{Pt/Al}_2\text{O}_3$ catalyst). Rigorous Langmuir–Hinshelwood–Hougen–Watson (LHHW) kinetics (Vanden Bussche and Froment, 1996) with thermodynamically consistent adsorption parameterization and reversible dehydrogenation kinetics with a thermodynamically consistent van 't Hoff equilibrium constant are coupled alongside multi-component Ergun momentum balances and packed-bed wall heat transfer correlations (Dixon; Li & Finlayson). Both **co-current** and **counter-current** flow configurations are simulated and contrasted against conventional boiling-water-cooled industrial reactors (CMR), including both baseline operation and a fairly optimized CMR baseline. To solve the stiff two-point boundary value problem (BVP) of the counter-current regime without numerical divergence, a physics-based Under-Relaxed Picard Fixed-Point Iteration solver ($\alpha = 0.70$) with continuous axial interpolation is implemented, converging to strict tolerances ($\max |\Delta T| < 10^{-3}\text{ K}$ and $\max |\Delta F_i / F_i| < 10^{-3}$). Furthermore, the Non-Dominated Sorting Genetic Algorithm II (**NSGA-II**) is formulated across four continuous operational decision variables ($T_{\text{exo},0}$, $T_{\text{endo},0}$, $F_{\text{endo},0}$, $F_{\text{exo},0}$) to explore trade-offs across conflicting objectives: maximizing methanol yield, maximizing benzene/hydrogen coproduction, and minimizing catalyst hotspot rise, subject to an inequality constraint preventing copper catalyst sintering ($T_{\text{max}} \le 535.0\text{ K}$) and positive exit pressure ($P_{\text{out}} \ge 1.013\text{ bar}$). Results demonstrate that thermal coupling flattens the intra-tubular temperature profile. In co-current baseline mode, entrance hotspotting reaches $539.6 K$ with a single-pass methanol yield of $28.72%$, coproduction of $100.71 t/d$ benzene, and $7.80 t/d$ hydrogen. In counter-current mode, higher thermal driving forces achieve $28.25%$ methanol yield, $112.37 t/d$ benzene, and $8.70 t/d$ hydrogen with peak temperature $550.5 K$. When compared against an optimized conventional reactor (CMR, yield $30.88%, 226.87 t/d), the TCR NSGA-II balanced knee-point solution delivers $164.08 t/d$ methanol (yield $25.50%), $66.56 t/d$ benzene, and $5.15 t/d$ high-purity hydrogen co-product, with peak temperature safely constrained to $525.7 K$ (safely below the $535.0\text{ K}$ Cu sintering threshold), a positive shell outlet pressure of $1.13 bar$, and complete elimination of reaction-zone external cooling utilities ($0.0\text{ kW}$), while overall plant feed conditioning requires $17.17 MW$ of sensible and latent preheating duty.
+In this study, a rigorous 1D pseudo-homogeneous mathematical model and multi-objective Pareto optimization framework are developed for an industrially sized thermally coupled shell-and-tube reactor (TCR). The reactor directly integrates the strongly exothermic synthesis of methanol from syngas ($\text{CO}/\text{CO}_2/\text{H}_2$) on the tube side (over commercial $\text{CuO/ZnO/Al}_2\text{O}_3$ catalyst, $\eta_{\text{exo}} = 0.35$) with the strongly endothermic dehydrogenation of cyclohexane to benzene and high-purity hydrogen on the shell side (over $\text{Pt/Al}_2\text{O}_3$ catalyst). Rigorous Langmuir–Hinshelwood–Hougen–Watson (LHHW) kinetics (Vanden Bussche and Froment, 1996) with thermodynamically consistent adsorption parameterization and reversible dehydrogenation kinetics with a thermodynamically consistent van 't Hoff equilibrium constant are coupled alongside multi-component Ergun momentum balances and packed-bed wall heat transfer correlations (Dixon; Li & Finlayson). Both **co-current** and **counter-current** flow configurations are simulated and contrasted against conventional boiling-water-cooled industrial reactors (CMR), including both baseline operation and a fairly optimized CMR baseline. To solve the stiff two-point boundary value problem (BVP) of the counter-current regime without numerical divergence, a physics-based Under-Relaxed Picard Fixed-Point Iteration solver ($\alpha = 0.70$) with continuous axial interpolation is implemented, converging to strict tolerances ($\max |\Delta T| < 10^{-3}\text{ K}$ and $\max |\Delta F_i / F_i| < 10^{-3}$). Furthermore, the Non-Dominated Sorting Genetic Algorithm II (**NSGA-II**) is formulated across four continuous operational decision variables ($T_{\text{exo},0}$, $T_{\text{endo},0}$, $F_{\text{endo},0}$, $F_{\text{exo},0}$) to explore trade-offs across conflicting objectives: maximizing methanol yield, maximizing benzene/hydrogen coproduction, and minimizing catalyst hotspot rise, subject to an inequality constraint preventing copper catalyst sintering ($T_{\text{max}} \le 535.0\text{ K}$) and positive exit pressure ($P_{\text{out}} \ge 1.013\text{ bar}$). Results demonstrate that thermal coupling flattens the intra-tubular temperature profile. In co-current baseline mode, entrance hotspotting reaches $539.6\text{ K}$ with a single-pass methanol yield of $28.72\%$, coproduction of $100.71\text{ t/d}$ benzene, and $7.80\text{ t/d}$ hydrogen. In counter-current mode, higher thermal driving forces achieve $28.25\%$ methanol yield, $112.37\text{ t/d}$ benzene, and $8.70\text{ t/d}$ hydrogen with peak temperature $550.5\text{ K}$. When compared against an optimized conventional reactor (CMR, yield $30.88\%$, $226.87\text{ t/d}$), the TCR NSGA-II balanced knee-point solution delivers $164.08\text{ t/d}$ methanol (yield $25.50\%$), $66.56\text{ t/d}$ benzene, and $5.15\text{ t/d}$ high-purity hydrogen co-product, with peak temperature safely constrained to $525.7\text{ K}$ (safely below the $535.0\text{ K}$ Cu sintering threshold), a positive shell outlet pressure of $1.13\text{ bar}$, and complete elimination of reaction-zone external cooling utilities ($0.0\text{ kW}$), while overall plant feed conditioning requires $17.17\text{ MW}$ of sensible and latent preheating duty.
 
 **Keywords:** Thermally Coupled Reactor; Process Intensification; Methanol Synthesis; Cyclohexane Dehydrogenation; Counter-Current BVP; Picard Fixed-Point Iteration; Multi-Objective Optimization; NSGA-II; Hydrogen Coproduction.
 
@@ -189,34 +189,34 @@ $$\text{Yield}_{\text{MeOH}} = \frac{F_{\text{MeOH},\text{out}} - F_{\text{MeOH}
 
 | Performance Indicator | Conventional Baseline (CMR) | Conventional Optimized (CMR) | TCR Co-Current Baseline | TCR Counter-Current Baseline | TCR NSGA-II Knee Point |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Inlet Tube Temp $T_{\text{exo},0}$ (K)** | $503.15$ | $505.0 K$ | $503.15$ | $503.15$ | $497.3 K$ |
-| **Coolant / Shell Temp (K)** | $503.15$ | $511.3 K$ | $485.00$ | $485.00$ | $460.9 K$ |
-| **Methanol Production Rate (mol/s)** | $75.72$ | $81.95$ | $76.23$ | $74.97$ | $59.27$ |
-| **Methanol Daily Output (t/d)** | $209.62$ | $226.87$ | $211.04$ | $207.56$ | $164.08$ |
-| **CO₂ Conversion (%)** | $19.06%$ | $21.34%$ | $22.74%$ | $21.87%$ | $19.87%$ |
-| **Total COx Conversion (%)** | $28.53%$ | $30.88%$ | $28.72%$ | $28.25%$ | $25.50%$ |
-| **Methanol Yield (Eq. 28) (%)** | $28.53%$ | $30.88%$ | $28.72%$ | $28.25%$ | $25.50%$ |
-| **Cyclohexane Conversion (%)** | $0.0\%$ (N/A) | $0.0\%$ (N/A) | $12.60%$ | $14.05%$ | $8.25%$ |
-| **Benzene Production Rate (mol/s)** | $0.00$ | $0.00$ | $14.92$ | $16.65$ | $9.86$ |
-| **Benzene Daily Output (t/d)** | $0.00$ | $0.00$ | $100.71$ | $112.37$ | $66.56 t/d |
-| **Hydrogen Coproduction Rate (mol/s)** | $0.00$ | $0.00$ | $44.77$ | $49.95$ | $29.59 mol/s |
-| **Hydrogen Daily Output (t/d)** | $0.00$ | $0.00$ | $7.80$ | $8.70$ | $5.15 t/d |
-| **Peak Catalyst Temp ($T_{\text{max}}$)** | $524.4 K$ | $535.0 K$ | $539.6 K$ | $550.5 K$ | $525.7 K |
-| **Tube Pressure Drop ($\Delta P$, bar)** | $0.45 bar$ | $0.45 bar$ | $0.46 bar$ | $0.47 bar$ | $0.34 bar |
-| **Shell Pressure Drop ($\Delta P$, bar)** | — | — | $0.98 bar$ | $1.05 bar$ | $0.87 bar |
-| **Shell Exit Pressure ($P_{\text{out}}$, bar)** | — | — | $1.02 bar$ | $0.95 bar$ | $1.13 bar |
-| **Reaction Zone Cooling Utility** | $5.57 MW$ | $5.64 MW$ | **0.0 kW** | **0.0 kW** | **0.0 kW** |
+| **Inlet Tube Temp $T_{\text{exo},0}$ (K)** | $503.15\text{ K}$ | $505.0\text{ K}$ | $503.15\text{ K}$ | $503.15\text{ K}$ | $497.3\text{ K}$ |
+| **Coolant / Shell Temp (K)** | $503.15\text{ K}$ | $511.3\text{ K}$ | $485.00\text{ K}$ | $485.00\text{ K}$ | $460.9\text{ K}$ |
+| **Methanol Production Rate (mol/s)** | $75.72\text{ mol/s}$ | $81.95\text{ mol/s}$ | $76.23\text{ mol/s}$ | $74.97\text{ mol/s}$ | $59.27\text{ mol/s}$ |
+| **Methanol Daily Output (t/d)** | $209.62\text{ t/d}$ | $226.87\text{ t/d}$ | $211.04\text{ t/d}$ | $207.56\text{ t/d}$ | $164.08\text{ t/d}$ |
+| **CO₂ Conversion (%)** | $19.06\%$ | $21.34\%$ | $22.74\%$ | $21.87\%$ | $19.87\%$ |
+| **Total COx Conversion (%)** | $28.53\%$ | $30.88\%$ | $28.72\%$ | $28.25\%$ | $25.50\%$ |
+| **Methanol Yield (Eq. 28) (%)** | $28.53\%$ | $30.88\%$ | $28.72\%$ | $28.25\%$ | $25.50\%$ |
+| **Cyclohexane Conversion (%)** | $0.00\%$ (N/A) | $0.00\%$ (N/A) | $12.60\%$ | $14.05\%$ | $8.25\%$ |
+| **Benzene Production Rate (mol/s)** | $0.00\text{ mol/s}$ | $0.00\text{ mol/s}$ | $14.92\text{ mol/s}$ | $16.65\text{ mol/s}$ | $9.86\text{ mol/s}$ |
+| **Benzene Daily Output (t/d)** | $0.00\text{ t/d}$ | $0.00\text{ t/d}$ | $100.71\text{ t/d}$ | $112.37\text{ t/d}$ | $66.56\text{ t/d}$ |
+| **Hydrogen Coproduction Rate (mol/s)** | $0.00\text{ mol/s}$ | $0.00\text{ mol/s}$ | $44.77\text{ mol/s}$ | $49.95\text{ mol/s}$ | $29.59\text{ mol/s}$ |
+| **Hydrogen Daily Output (t/d)** | $0.00\text{ t/d}$ | $0.00\text{ t/d}$ | $7.80\text{ t/d}$ | $8.70\text{ t/d}$ | $5.15\text{ t/d}$ |
+| **Peak Catalyst Temp ($T_{\text{max}}$)** | $524.4\text{ K}$ | $535.0\text{ K}$ | $539.6\text{ K}$ | $550.5\text{ K}$ | $525.7\text{ K}$ |
+| **Tube Pressure Drop ($\Delta P$, bar)** | $0.45\text{ bar}$ | $0.45\text{ bar}$ | $0.46\text{ bar}$ | $0.47\text{ bar}$ | $0.34\text{ bar}$ |
+| **Shell Pressure Drop ($\Delta P$, bar)** | — | — | $0.98\text{ bar}$ | $1.05\text{ bar}$ | $0.87\text{ bar}$ |
+| **Shell Exit Pressure ($P_{\text{out}}$, bar)** | — | — | $1.02\text{ bar}$ | $0.95\text{ bar}$ | $1.13\text{ bar}$ |
+| **Reaction Zone Cooling Utility** | $5.57\text{ MW}$ | $5.64\text{ MW}$ | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** |
 
 ### 5.2 Key Engineering Insights
 
 1. **Fair Comparison with Conventional Optimization:**
-   When the conventional reactor is optimized over $(T_{\text{exo},0}, T_{\text{coolant}})$, its yield increases from $28.53%$ to $30.88%$ ($+8.2%$ relative gain), producing $226.87 t/d$ of methanol at the $535.0\text{ K}$ sintering limit. TCR configurations maintain comparable methanol yields ($28.72%$ to $28.25%$) while coproducing $100.71\text{–}112.37\text{ t/d}$ of chemical-grade benzene and $7.80\text{–}8.70\text{ t/d}$ of high-purity hydrogen, completely eliminating the $5.6\text{–}6.8\text{ MW}$ reaction-zone boiling water cooling duty.
+   When the conventional reactor is optimized over $(T_{\text{exo},0}, T_{\text{coolant}})$, its yield increases from $28.53\%$ to $30.88\%$ ($+8.2\%$ relative gain), producing $226.87\text{ t/d}$ of methanol at the $535.0\text{ K}$ sintering limit. TCR configurations maintain comparable methanol yields ($28.72\%$ to $28.25\%$) while coproducing $100.71\text{–}112.37\text{ t/d}$ of chemical-grade benzene and $7.80\text{–}8.70\text{ t/d}$ of high-purity hydrogen, completely eliminating the $5.6\text{–}6.8\text{ MW}$ reaction-zone boiling water cooling duty.
 
 2. **Counter-Current vs. Co-Current Hydrodynamics and Heat Transfer:**
-   Counter-current operation delivers higher endothermic conversion ($14.05%$ vs $12.60%$) because the hottest exiting shell fluid preheats the reacting zone near $z = 0$. However, this configuration generates a higher peak temperature ($550.5 K$). In co-current mode, the peak temperature remains moderate ($539.6 K$).
+   Counter-current operation delivers higher endothermic conversion ($14.05\%$ vs $14.05\%$) because the hottest exiting shell fluid preheats the reacting zone near $z = 0$. However, this configuration generates a higher peak temperature ($550.5\text{ K}$). In co-current mode, the peak temperature remains moderate ($539.6\text{ K}$).
 
 3. **NSGA-II Knee Point Balance:**
-   The multi-objective knee point safely limits peak temperature to $525.7 K$ (safely below the $535.0\text{ K}$ threshold), producing $164.08 t/d$ of methanol, $66.56 t/d$ of benzene, and $5.15 t/d$ of hydrogen.
+   The multi-objective knee point safely limits peak temperature to $525.7\text{ K}$ (safely below the $535.0\text{ K}$ threshold), producing $164.08\text{ t/d}$ of methanol, $66.56\text{ t/d}$ of benzene, and $5.15\text{ t/d}$ of hydrogen.
 
 ---
 
@@ -226,13 +226,13 @@ Rigorous techno-economic evaluation requires accounting for all process duties, 
 
 | Process Heat Duty Stream | Thermal Duty (MW) | Engineering Description |
 | :--- | :--- | :--- |
-| **Syngas Sensible Preheating ($300\text{ K} \to 503.15\text{ K}$)** | $10.51 MW$ | High-pressure syngas feed preheating |
-| **Cyclohexane Vaporization & Preheating ($300\text{ K} \to 485\text{ K}$)** | $6.66 MW$ | Includes liquid preheat, latent vaporization ($\Delta H_{\text{vap}} = 30.1\text{ kJ/mol}$), and vapor preheat |
-| **Total Upstream Feed Conditioning Duty** | **$17.17 MW$** | Required external thermal input for feed preparation |
-| **Reaction Zone External Cooling Utility** | **$0.0 kW** | 100% autothermal *in situ* heat integration |
+| **Syngas Sensible Preheating ($300\text{ K} \to 503.15\text{ K}$)** | $10.51\text{ MW}$ | High-pressure syngas feed preheating |
+| **Cyclohexane Vaporization & Preheating ($300\text{ K} \to 485\text{ K}$)** | $6.66\text{ MW}$ | Includes liquid preheat, latent vaporization ($\Delta H_{\text{vap}} = 30.1\text{ kJ/mol}$), and vapor preheat |
+| **Total Upstream Feed Conditioning Duty** | **$17.17\text{ MW}$** | Required external thermal input for feed preparation |
+| **Reaction Zone External Cooling Utility** | **$0.0\text{ kW}$** | 100% autothermal *in situ* heat integration |
 
 *Honest Framing of Results:*
-- **Energy Coupling:** Thermal coupling completely eliminates the need for an external cooling medium in the reaction zone ($0.0\text{ kW}$ cooling utility). However, overall plant operation requires $17.17 MW$ for feed preheating and cyclohexane vaporization.
+- **Energy Coupling:** Thermal coupling completely eliminates the need for an external cooling medium in the reaction zone ($0.0\text{ kW}$ cooling utility). However, overall plant operation requires $17.17\text{ MW}$ for feed preheating and cyclohexane vaporization.
 - **Hydrogen Coproduction:** The coproduct hydrogen is produced from catalytic dehydrogenation of cyclohexane (a fossil hydrocarbon derivative). While high in purity, it is more accurately classified as gray/blue hydrogen rather than "green" hydrogen unless the cyclohexane is derived from renewable bio-feedstocks.
 
 ---
@@ -253,8 +253,8 @@ The exponent implies $-\Delta H / R = -3190\text{ K}$, corresponding to an appar
 ## 8. Conclusions
 1. Direct reaction-reaction thermal coupling between methanol synthesis and cyclohexane dehydrogenation achieves 100% *in situ* heat integration in the reaction zone ($0.0\text{ kW}$ cooling utility).
 2. Setting shell inlet pressure to $2.0\text{ bar}$ guarantees that shell effluents discharge above atmospheric pressure across all operational regimes ($1.13\text{ bar} > 1.013\text{ bar}$), resolving prior unphysical negative pressure artifacts.
-3. When compared fairly against an optimized conventional reactor (CMR, yield $30.88%$), the TCR knee-point produces $164.08 t/d$ methanol, $66.56 t/d$ benzene, and $5.15 t/d$ hydrogen co-product while safely respecting the $535.0\text{ K}$ catalyst thermal limit.
-4. Upstream feed preheating and vaporization duties require $17.17 MW$, providing an honest and complete process energy balance.
+3. When compared fairly against an optimized conventional reactor (CMR, yield $30.88\%$), the TCR knee-point produces $164.08\text{ t/d}$ methanol, $66.56\text{ t/d}$ benzene, and $5.15\text{ t/d}$ hydrogen co-product while safely respecting the $535.0\text{ K}$ catalyst thermal limit.
+4. Upstream feed preheating and vaporization duties require $17.17\text{ MW}$, providing an honest and complete process energy balance.
 
 ---
 
