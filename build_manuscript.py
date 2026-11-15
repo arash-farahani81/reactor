@@ -128,6 +128,18 @@ def render_manuscript(template_path="manuscript_template.md",
 
     rendered = re.sub(r"\{\{\s*([a-zA-Z0-9_\.]+)\s*\}\}", replace_match, content)
 
+    # Automated LaTeX syntax validation gate before writing output
+    for line_idx, line_str in enumerate(rendered.splitlines(), start=1):
+        line_inline = re.sub(r"\$\$.*?\$\$", "", line_str)
+        if line_inline.count("$") % 2 != 0:
+            raise ValueError(f"Rendered manuscript has odd '$' math delimiters on line {line_idx}: {line_str.strip()}")
+        for block in re.findall(r"\$\$(.*?)\$\$", line_str):
+            if re.search(r"(?<!\\)%", block):
+                raise ValueError(f"Rendered manuscript has unescaped '%' in display math on line {line_idx}: '$${block}$$'")
+        for block in re.findall(r"\$([^\$\n]+)\$", line_inline):
+            if re.search(r"(?<!\\)%", block):
+                raise ValueError(f"Rendered manuscript has unescaped '%' in inline math on line {line_idx}: '${block}$'")
+
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(rendered)
 
