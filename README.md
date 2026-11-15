@@ -103,14 +103,14 @@ reactor/
 
 | Performance Metric | CMR Baseline | CMR Optimized | TCR Co-Current | TCR Counter-Current | TCR NSGA-II Optimum |
 |---|---|---|---|---|---|
-| **Methanol Production (t/d)** | 209.62 | **226.87** | 211.04 | 207.56 | **223.90** |
-| **Methanol Yield (%)** | 28.53% | **30.88%** | 28.72% | 28.25% | **30.47%** |
-| **Benzene Coproduct (t/d)** | 0.00 | 0.00 | **100.71** | **112.37** | **117.85** |
-| **Hydrogen Coproduct (t/d)** | 0.00 | 0.00 | **7.80** | **8.70** | **9.12** |
-| **Peak Bed Temp (K)** | 524.4 | 535.0 | 539.6 | 550.5 | **533.1** |
-| **Shell Exit Pressure (bar)** | — | — | 1.02 | 0.95 | **1.14** |
-| **Reaction Zone Cooling Utility**| 5.57 MW | 5.64 MW | **0.0 kW** | **0.0 kW** | **0.0 kW** |
-| **Feed Preheating Duty** | 10.51 MW | 10.51 MW | 17.17 MW | 17.17 MW | **24.13 MW** |
+| **Methanol Production (t/d)** | 209.79 | **226.98** | 208.33 | 203.97 | **214.33** |
+| **Methanol Yield (%)** | 28.55% | **30.89%** | 28.36% | 27.76% | **29.17%** |
+| **Benzene Coproduct (t/d)** | 0.00 | 0.00 | **88.45** | **97.75** | **105.56** |
+| **Hydrogen Coproduct (t/d)** | 0.00 | 0.00 | **6.85** | **7.57** | **8.17** |
+| **Peak Bed Temp (K)** | 524.4 | 535.0 | 540.9 | 552.5 | **527.5** |
+| **Shell Exit Pressure (bar)** | — | — | 1.82 | 1.78 | **1.16** |
+| **Reaction Zone Cooling Utility**| 5.58 MW | 5.50 MW | **0.0 kW** | **0.0 kW** | **0.0 kW** |
+| **Feed Preheating Duty** | 10.51 MW | 10.51 MW | 17.17 MW | 17.17 MW | **23.75 MW** |
 
 ---
 

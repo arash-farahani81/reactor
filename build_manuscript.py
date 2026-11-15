@@ -21,10 +21,11 @@ def build_replacement_dict(results):
     duties = results["process_thermal_duties"]
     bench = results["benchmark_khademi_2009"]
 
-    # Calculate shell exit pressures
-    co_P_shell_out = max(2.0 - co["dP_shell"], 0.0)
-    counter_P_shell_out = max(2.0 - counter["dP_shell"], 0.0)
-    knee_P_endo_in = float(knee['decision_variables'].get('P_endo_0_bar', 2.0))
+    # Calculate shell exit pressures dynamically from metadata or decision variables
+    P_shell_in_base = float(results.get("metadata", {}).get("shell_inlet_pressure_bar", 2.5))
+    co_P_shell_out = max(P_shell_in_base - co["dP_shell"], 0.0)
+    counter_P_shell_out = max(P_shell_in_base - counter["dP_shell"], 0.0)
+    knee_P_endo_in = float(knee.get('decision_variables', {}).get('P_endo_0_bar', P_shell_in_base))
     knee_P_shell_out = max(knee_P_endo_in - knee["dP_shell"], 0.0)
 
     delta_cmr_yield = (c_opt["yield_khademi_eq28"] - c_base["yield_khademi_eq28"]) / c_base["yield_khademi_eq28"] * 100.0
