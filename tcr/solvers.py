@@ -21,6 +21,238 @@ from .transport import calc_U_tcr, calc_U_cmr, calc_ergun_dp
 SPECIES_TUBE = ['H2', 'CO2', 'CO', 'CH3OH', 'H2O', 'CH4', 'N2']
 SPECIES_SHELL = ['C6H12', 'C6H6', 'H2', 'Ar']
 
+
+class FluxArray(np.ndarray):
+    """
+    Numpy array representing spatial flux or state profiles along the reactor axis.
+    Acts as a standard np.ndarray while also supporting direct function calls
+    obj(z) to evaluate continuous interpolated values at arbitrary axial positions z.
+    """
+    def __new__(cls, input_array, z_grid=None):
+        obj = np.asarray(input_array).view(cls)
+        obj.z_grid = z_grid
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        self.z_grid = getattr(obj, 'z_grid', None)
+
+    def __reduce__(self):
+        state = super().__reduce__()
+        return (state[0], state[1], (state[2], getattr(self, 'z_grid', None)))
+
+    def __setstate__(self, state):
+        nd_state, z_grid = state
+        super().__setstate__(nd_state)
+        self.z_grid = z_grid
+
+    def __call__(self, z):
+        z_grid = getattr(self, 'z_grid', None)
+        if z_grid is not None:
+            return np.interp(z, z_grid, self)
+        raise TypeError("z_grid not provided for spatial interpolation.")
+
+
+class CounterSolution:
+    """Rigorous solution object for Counter-Current Two-Point BVP."""
+    def __init__(self):
+        self.t = None
+        self.y = None
+        self.Q_wall_arr = None
+        self.Q_wall_tube = None
+        self.Q_wall_shell = None
+        self.Q_wall_tube_arr = None
+        self.Q_wall_shell_arr = None
+        self.U_arr = None
+        self.clamp_violations = 0
+        self.bvp_cross_check = None
+
+    def get_local_heat_fluxes(self):
+        """Returns (Q_wall_tube, Q_wall_shell, U_arr)."""
+        return self.Q_wall_tube, self.Q_wall_shell, self.U_arr
+
+
+def calc_local_heat_fluxes(sol: object, geom: ReactorGeometry,
+                           cat_exo: CatalystBedConfig, cat_endo: CatalystBedConfig,
+                           trans: TransportConfig) -> tuple[FluxArray, FluxArray, FluxArray]:
+    """
+    Evaluates local U(z), Q_wall_tube(z), and Q_wall_shell(z) across all axial coordinates z
+    using the converged local interpolated states (F_exo(z), T_exo(z), P_exo(z), F_endo(z), T_endo(z), P_endo(z)).
+    Guarantees strict local heat flux conservation across the tube wall:
+        |Q_wall_tube(z) + Q_wall_shell(z)| <= 1e-10 everywhere.
+    """
+    z_grid = sol.t
+    z_points = len(z_grid)
+    len_endo = sol.y.shape[0] - 11
+    species_shell = SPECIES_SHELL[:len_endo]
+
+    U_arr = np.zeros(z_points)
+    Q_wall_arr = np.zeros(z_points)
+    for i in range(z_points):
+        T_e = sol.y[7+len_endo, i]
+        T_n = sol.y[8+len_endo, i]
+        P_e = sol.y[9+len_endo, i]
+        P_n = sol.y[10+len_endo, i]
+        F_e = sol.y[0:7, i]
+        F_n = sol.y[7:7+len_endo, i]
+        U_loc = calc_U_tcr(T_e, P_e, F_e, SPECIES_TUBE,
+                           T_n, P_n, F_n, species_shell,
+                           geom, cat_exo, cat_endo, trans)
+        U_arr[i] = U_loc
+        Q_wall_arr[i] = U_loc * geom.a_H * (T_e - T_n)
+
+    q_tube = FluxArray(-Q_wall_arr, z_grid=z_grid)
+    q_shell = FluxArray(Q_wall_arr, z_grid=z_grid)
+    u_flux = FluxArray(U_arr, z_grid=z_grid)
+    return q_tube, q_shell, u_flux
+
+
+def cross_check_countercurrent_bvp(sol_picard: object, geom: ReactorGeometry,
+                                   cat_exo: CatalystBedConfig, cat_endo: CatalystBedConfig,
+                                   trans: TransportConfig,
+                                   y_exo_0: np.ndarray, T_exo_0: float, P_exo_0: float, F_exo_total_0: float,
+                                   y_endo_0: np.ndarray, T_endo_0: float, P_endo_0: float, F_endo_total_0: float,
+                                   kinetics_mode: str = "production_vbf",
+                                   max_rel_dev_tol: float = 0.002,
+                                   bvp_tol: float = 1e-3,
+                                   max_nodes: int = 1000,
+                                   assert_pass: bool = True) -> dict:
+    """
+    Cross-verifies the Under-Relaxed Picard BVP solution against scipy.integrate.solve_bvp (collocation)
+    across all 14 state variables (< 0.2% maximum relative deviation).
+    """
+    z_grid = sol_picard.t
+    len_endo = len(y_endo_0)
+    species_shell = SPECIES_SHELL[:len_endo]
+    total_states = 7 + len_endo + 4
+
+    F_exo_init = y_exo_0 * F_exo_total_0
+    F_endo_init = y_endo_0 * F_endo_total_0
+
+    def bvp_ode(z, S):
+        m = S.shape[1]
+        dS = np.zeros_like(S)
+        for j in range(m):
+            F_t = np.maximum(S[0:7, j], 1e-15)
+            F_s = np.maximum(S[7:7+len_endo, j], 1e-15)
+            T_t = max(S[7+len_endo, j], 200.0)
+            T_s = max(S[8+len_endo, j], 200.0)
+            P_t = max(S[9+len_endo, j], 1e4)
+            P_s = max(S[10+len_endo, j], 1e4)
+
+            F_tot_t = np.sum(F_t)
+            F_tot_s = np.sum(F_s)
+            y_t = F_t / F_tot_t
+            y_s = F_s / F_tot_s
+
+            if kinetics_mode == "production_vbf":
+                r_meoh, r_rwgs = kinetics_vbf_production(T_t, P_t, y_t, cat_exo.eta)
+                r_ch = kinetics_ch_production(T_s, P_s, y_s, cat_endo.eta)
+            else:
+                r1, r2, r3 = kinetics_graaf_benchmark(T_t, P_t, y_t, cat_exo.eta)
+                r_meoh = r1 + r3
+                r_rwgs = r2
+                r_ch = kinetics_itoh_benchmark(T_s, P_s, y_s, mode="khademi_thermo", eta_endo=cat_endo.eta)
+
+            dH_meoh = calc_dH_rxn_meoh(T_t)
+            dH_rwgs = calc_dH_rxn_rwgs(T_t)
+            dH_ch = calc_dH_rxn_ch(T_s)
+
+            # Tube flow (+z direction)
+            dS[0, j] = geom.A_tube * cat_exo.rho_b * (-3.0 * r_meoh - r_rwgs)
+            dS[1, j] = geom.A_tube * cat_exo.rho_b * (-r_meoh - r_rwgs)
+            dS[2, j] = geom.A_tube * cat_exo.rho_b * (r_rwgs)
+            dS[3, j] = geom.A_tube * cat_exo.rho_b * (r_meoh)
+            dS[4, j] = geom.A_tube * cat_exo.rho_b * (r_meoh + r_rwgs)
+            dS[5, j] = 0.0
+            dS[6, j] = 0.0
+
+            # Shell flow (-z direction: dF/dz = - dF/dxi)
+            dS[7, j] = - geom.A_shell * cat_endo.rho_b * (-r_ch)
+            dS[8, j] = - geom.A_shell * cat_endo.rho_b * (r_ch)
+            dS[9, j] = - geom.A_shell * cat_endo.rho_b * (3.0 * r_ch)
+            if len_endo > 3:
+                dS[10:7+len_endo, j] = 0.0
+
+            U_loc = calc_U_tcr(T_t, P_t, F_t, SPECIES_TUBE, T_s, P_s, F_s, species_shell, geom, cat_exo, cat_endo, trans)
+            Q_wall = U_loc * geom.a_H * (T_t - T_s)
+            FCp_t = sum(F_t[i] * calc_cp_species(SPECIES_TUBE[i], T_t) for i in range(7))
+            FCp_s = sum(F_s[i] * calc_cp_species(species_shell[i], T_s) for i in range(len_endo))
+            Q_rxn_t = geom.A_tube * cat_exo.rho_b * ((-dH_meoh) * r_meoh + (-dH_rwgs) * r_rwgs)
+            dS[7+len_endo, j] = (Q_rxn_t - Q_wall) / max(FCp_t, 1e-3)
+            Q_rxn_s = geom.A_shell * cat_endo.rho_b * (-dH_ch) * r_ch
+            dS[8+len_endo, j] = - (Q_rxn_s + Q_wall) / max(FCp_s, 1e-3)
+
+            mw_t = sum(y_t[i] * MW[SPECIES_TUBE[i]] for i in range(7))
+            rho_t = (P_t * mw_t) / (R_GAS * T_t)
+            u_t = (F_tot_t * R_GAS * T_t) / (P_t * geom.A_tube)
+            dS[9+len_endo, j] = calc_ergun_dp(u_t, rho_t, trans.mu_exo, cat_exo.dp, cat_exo.eps)
+            mw_s = sum(y_s[i] * MW[species_shell[i]] for i in range(len_endo))
+            rho_s = (P_s * mw_s) / (R_GAS * T_s)
+            u_s = (F_tot_s * R_GAS * T_s) / (P_s * geom.A_shell)
+            dS[10+len_endo, j] = - calc_ergun_dp(u_s, rho_s, trans.mu_endo, cat_endo.dp, cat_endo.eps)
+        return dS
+
+    def bvp_bc(ya, yb):
+        res = np.zeros(total_states)
+        # Tube inlet at z = 0
+        res[0:7] = ya[0:7] - F_exo_init
+        res[7] = ya[7+len_endo] - T_exo_0
+        res[8] = ya[9+len_endo] - P_exo_0
+        # Shell inlet at z = L
+        res[9:9+len_endo] = yb[7:7+len_endo] - F_endo_init
+        res[9+len_endo] = yb[8+len_endo] - T_endo_0
+        res[10+len_endo] = yb[10+len_endo] - P_endo_0
+        return res
+
+    res_bvp = solve_bvp(bvp_ode, bvp_bc, z_grid, sol_picard.y, tol=bvp_tol, max_nodes=max_nodes)
+    if not res_bvp.success:
+        raise RuntimeError(f"solve_bvp failed to converge: {res_bvp.message}")
+
+    y_bvp = res_bvp.sol(z_grid)
+    state_names = (
+        [f"F_exo_{s}" for s in SPECIES_TUBE]
+        + [f"F_endo_{s}" for s in species_shell]
+        + ["T_exo", "T_endo", "P_exo", "P_endo"]
+    )
+    state_max_rel = {}
+    state_max_abs = {}
+
+    for k in range(total_states):
+        y_p = sol_picard.y[k, :]
+        y_b = y_bvp[k, :]
+        diff = np.abs(y_p - y_b)
+        max_abs = float(np.max(diff))
+        scale = float(np.max(np.abs(y_p)))
+        if scale > 1e-12:
+            rel = diff / np.maximum(np.abs(y_p), 1e-4 * scale)
+            max_rel = float(np.max(rel))
+        else:
+            max_rel = 0.0
+        state_max_abs[state_names[k]] = max_abs
+        state_max_rel[state_names[k]] = max_rel
+
+    global_max_rel = max(state_max_rel.values())
+    passed = bool(res_bvp.success and global_max_rel < max_rel_dev_tol)
+
+    if assert_pass and not passed:
+        raise AssertionError(
+            f"BVP Collocation cross-check failed: max relative deviation {global_max_rel*100:.4f}% "
+            f"exceeds tolerance {max_rel_dev_tol*100:.2f}%"
+        )
+
+    return {
+        'success': res_bvp.success,
+        'passed': passed,
+        'max_rel_deviation': global_max_rel,
+        'max_rel_dev_pct': global_max_rel * 100.0,
+        'state_max_rel_deviations': state_max_rel,
+        'state_max_abs_deviations': state_max_abs,
+        'bvp_message': res_bvp.message,
+        'bvp_nodes': res_bvp.x.shape[0]
+    }
+
 # Terminal event guards (Rule R5)
 def make_event_pressure_collapse(P_min):
     def event(z, S):
@@ -103,14 +335,22 @@ def solve_conventional(geom: ReactorGeometry, cat: CatalystBedConfig, trans: Tra
     )
 
     # Post-calculate exact wall heat flux along z
-    Q_wall_arr = np.zeros(len(sol.t))
-    for i in range(len(sol.t)):
+    n_pts = len(sol.t)
+    Q_wall_arr = np.zeros(n_pts)
+    U_arr = np.zeros(n_pts)
+    for i in range(n_pts):
         T_e = sol.y[7, i]
         P_e = sol.y[8, i]
         F_e = sol.y[0:7, i]
         U_loc = calc_U_cmr(T_e, P_e, F_e, SPECIES_TUBE, geom, cat, trans)
+        U_arr[i] = U_loc
         Q_wall_arr[i] = U_loc * geom.a_H * (T_e - T_coolant)
-    sol.Q_wall_arr = Q_wall_arr
+    sol.U_arr = FluxArray(U_arr, z_grid=sol.t)
+    sol.Q_wall_arr = FluxArray(Q_wall_arr, z_grid=sol.t)
+    sol.Q_wall_tube = FluxArray(-Q_wall_arr, z_grid=sol.t)
+    sol.Q_wall_shell = FluxArray(Q_wall_arr, z_grid=sol.t)
+    sol.Q_wall_tube_arr = sol.Q_wall_tube
+    sol.Q_wall_shell_arr = sol.Q_wall_shell
 
     # Check clamp count on accepted trajectory
     sol.clamp_violations = int(np.sum(sol.y[0:7, :] < -1e-6) + np.sum(sol.y[8, :] < 0.2 * P0))
@@ -208,6 +448,7 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
     # Post-calculate exact wall heat flux along z
     n_pts = len(sol.t)
     Q_wall_arr = np.zeros(n_pts)
+    U_arr = np.zeros(n_pts)
     for i in range(n_pts):
         T_e = sol.y[7+len_endo, i]
         T_n = sol.y[8+len_endo, i]
@@ -218,8 +459,14 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
         U_loc = calc_U_tcr(T_e, P_e, F_e, SPECIES_TUBE,
                            T_n, P_n, F_n, species_shell,
                            geom, cat_exo, cat_endo, trans)
+        U_arr[i] = U_loc
         Q_wall_arr[i] = U_loc * geom.a_H * (T_e - T_n)
-    sol.Q_wall_arr = Q_wall_arr
+    sol.U_arr = FluxArray(U_arr, z_grid=sol.t)
+    sol.Q_wall_arr = FluxArray(Q_wall_arr, z_grid=sol.t)
+    sol.Q_wall_tube = FluxArray(-Q_wall_arr, z_grid=sol.t)
+    sol.Q_wall_shell = FluxArray(Q_wall_arr, z_grid=sol.t)
+    sol.Q_wall_tube_arr = sol.Q_wall_tube
+    sol.Q_wall_shell_arr = sol.Q_wall_shell
 
     # Check clamp count on accepted trajectory
     sol.clamp_violations = int(
@@ -402,9 +649,6 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
         print(f"  ⚠ Picard iteration reached max iterations ({sol_cfg.picard_max_iter}). Residual T: {final_res_T:.2e}")
 
     # Build unblended final solution object
-    class CounterSolution:
-        pass
-
     sol_final = CounterSolution()
     sol_final.t = z_grid
     # Structure: F_exo (7), F_endo (len_endo), T_exo, T_endo, P_exo, P_endo
@@ -419,6 +663,7 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
 
     # Evaluate exact wall heat flux profile with machine precision equality
     Q_wall_arr = np.zeros(z_points)
+    U_arr = np.zeros(z_points)
     for i in range(z_points):
         T_e = sol_final.y[7+len_endo, i]
         T_n = sol_final.y[8+len_endo, i]
@@ -429,8 +674,14 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
         U_loc = calc_U_tcr(T_e, P_e, F_e, SPECIES_TUBE,
                            T_n, P_n, F_n, species_shell,
                            geom, cat_exo, cat_endo, trans)
+        U_arr[i] = U_loc
         Q_wall_arr[i] = U_loc * geom.a_H * (T_e - T_n)
-    sol_final.Q_wall_arr = Q_wall_arr
+    sol_final.U_arr = FluxArray(U_arr, z_grid=z_grid)
+    sol_final.Q_wall_arr = FluxArray(Q_wall_arr, z_grid=z_grid)
+    sol_final.Q_wall_tube = FluxArray(-Q_wall_arr, z_grid=z_grid)
+    sol_final.Q_wall_shell = FluxArray(Q_wall_arr, z_grid=z_grid)
+    sol_final.Q_wall_tube_arr = sol_final.Q_wall_tube
+    sol_final.Q_wall_shell_arr = sol_final.Q_wall_shell
 
     sol_final.clamp_violations = int(
         np.sum(sol_final.y[0:7, :] < -1e-6)
@@ -444,7 +695,20 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
         'iterations': iterations_run,
         'final_res_T': final_res_T,
         'final_res_F': final_res_F,
-        'clamp_violations': sol_final.clamp_violations
+        'clamp_violations': sol_final.clamp_violations,
+        'bvp_cross_check': None,
+        'max_relative_deviation': None
     }
+
+    if cross_check_bvp:
+        cross_res = cross_check_countercurrent_bvp(
+            sol_final, geom, cat_exo, cat_endo, trans,
+            y_exo_0, T_exo_0, P_exo_0, F_exo_total_0,
+            y_endo_0, T_endo_0, P_endo_0, F_endo_total_0,
+            kinetics_mode=kinetics_mode
+        )
+        info['bvp_cross_check'] = cross_res
+        info['max_relative_deviation'] = cross_res['max_rel_deviation']
+        sol_final.bvp_cross_check = cross_res
 
     return sol_final, info
