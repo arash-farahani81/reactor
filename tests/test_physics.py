@@ -186,7 +186,7 @@ def test_t13_bvp_collocation_picard_crosscheck(cfg, geom):
     from tcr.transport import calc_U_tcr, calc_ergun_dp
 
     sol_fast = SolverConfig(
-        z_points=100, rtol=1e-5, atol=1e-7,
+        z_points=150, rtol=1e-5, atol=1e-7,
         picard_max_iter=100, picard_tol_T=1e-3, picard_tol_F=1e-6, picard_alpha=0.70
     )
     sol_picard, info = solve_countercurrent(
