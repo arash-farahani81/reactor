@@ -25,7 +25,7 @@ mpl.rcParams['ytick.major.size'] = 4.5
 def plot_multiphysics_profiles(sol_co, sol_ct, sol_cv, geom, out_path="tcr_multiphysics_profiles.png"):
     """Figure 1: Comprehensive 6-panel multiphysics comparison."""
     fig, axes = plt.subplots(2, 3, figsize=(18, 10), dpi=300)
-    fig.subplots_adjust(hspace=0.28, wspace=0.28)
+    fig.subplots_adjust(top=0.91, bottom=0.08, left=0.07, right=0.93, hspace=0.32, wspace=0.35)
 
     z = sol_co.t
     c_exo_co = '#D62828'
@@ -77,28 +77,34 @@ def plot_multiphysics_profiles(sol_co, sol_ct, sol_cv, geom, out_path="tcr_multi
 
     # (d) Product formation
     ax = axes[1, 0]
-    ax.plot(z, sol_co.y[3, :] * 1000, '-', color='#007F5F', lw=2.2, label='CH₃OH (Co-Current)')
-    ax.plot(z, sol_ct.y[3, :] * 1000, '-.', color='#55A630', lw=2.2, label='CH₃OH (Counter-Current)')
+    line1 = ax.plot(z, sol_co.y[3, :] * 1000, '-', color='#007F5F', lw=2.2, label='CH₃OH (Co-Current)')
+    line2 = ax.plot(z, sol_ct.y[3, :] * 1000, '-.', color='#55A630', lw=2.2, label='CH₃OH (Counter-Current)')
     ax.set_xlabel('Axial Position, z (m)', fontsize=11, fontweight='bold')
     ax.set_ylabel('CH₃OH Flow Rate (mmol/s·tube)', fontsize=11, fontweight='bold', color='#007F5F')
     ax2 = ax.twinx()
-    ax2.plot(z, sol_co.y[8, :] * 1000, '--', color='#6A040F', lw=2.0, label='C₆H₆ (Co-Current)')
-    ax2.plot(z, sol_ct.y[8, :] * 1000, ':', color='#9D0208', lw=2.0, label='C₆H₆ (Counter-Current)')
+    line3 = ax2.plot(z, sol_co.y[8, :] * 1000, '--', color='#6A040F', lw=2.0, label='C₆H₆ (Co-Current)')
+    line4 = ax2.plot(z, sol_ct.y[8, :] * 1000, ':', color='#9D0208', lw=2.0, label='C₆H₆ (Counter-Current)')
     ax2.set_ylabel('C₆H₆ Flow Rate (mmol/s·tube)', fontsize=11, fontweight='bold', color='#6A040F')
     ax.set_title('(d) Product Formation Profiles', fontsize=12, fontweight='bold')
     ax.grid(True, linestyle='--', alpha=0.4)
+    lines_d = line1 + line2 + line3 + line4
+    labels_d = [l.get_label() for l in lines_d]
+    ax.legend(lines_d, labels_d, fontsize=8, loc='center left', framealpha=0.9)
 
     # (e) Pressure profiles
     ax = axes[1, 1]
-    ax.plot(z, sol_co.y[12, :] / 1e5, '-', color='#D62828', lw=2.2, label='Tube Side (Methanol)')
+    line1 = ax.plot(z, sol_co.y[12, :] / 1e5, '-', color='#D62828', lw=2.2, label='Tube Side (Methanol)')
     ax.set_xlabel('Axial Position, z (m)', fontsize=11, fontweight='bold')
     ax.set_ylabel('Tube Pressure (bar)', fontsize=11, fontweight='bold', color='#D62828')
     ax3 = ax.twinx()
-    ax3.plot(z, sol_co.y[13, :] / 1e5, '--', color='#0077B6', lw=2.2, label='Shell Side (Co-Current)')
-    ax3.plot(z, sol_ct.y[13, :] / 1e5, ':', color='#023E8A', lw=2.2, label='Shell Side (Counter-Current)')
+    line2 = ax3.plot(z, sol_co.y[13, :] / 1e5, '--', color='#0077B6', lw=2.2, label='Shell Side (Co-Current)')
+    line3 = ax3.plot(z, sol_ct.y[13, :] / 1e5, ':', color='#023E8A', lw=2.2, label='Shell Side (Counter-Current)')
     ax3.set_ylabel('Shell Pressure (bar)', fontsize=11, fontweight='bold', color='#0077B6')
     ax.set_title('(e) Packed-Bed Ergun Pressure Profiles', fontsize=12, fontweight='bold')
     ax.grid(True, linestyle='--', alpha=0.4)
+    lines_e = line1 + line2 + line3
+    labels_e = [l.get_label() for l in lines_e]
+    ax.legend(lines_e, labels_e, fontsize=8, loc='center right', framealpha=0.9)
 
     # (f) Heat flux distribution
     ax = axes[1, 2]
@@ -115,7 +121,7 @@ def plot_multiphysics_profiles(sol_co, sol_ct, sol_cv, geom, out_path="tcr_multi
 
     plt.suptitle('Thermally Coupled Shell-and-Tube Reactor (TCR) Multiphysics Performance Benchmarks\n'
                  'Exothermic Methanol Synthesis (Tube) Coupled with Cyclohexane Dehydrogenation (Shell)',
-                 fontsize=14, fontweight='bold', y=0.99)
+                 fontsize=14, fontweight='bold', y=0.98)
     plt.savefig(out_path, dpi=300, bbox_inches='tight')
     plt.close()
 
@@ -137,7 +143,7 @@ def plot_pareto_frontier(opt_res: dict, out_path="nsga2_pareto_front.png"):
         benzene_rates, meoh_yields,
         c=X_pareto[:, 0] - 273.15, cmap='plasma', s=65, edgecolors='k', lw=0.6, alpha=0.9
     )
-    cbar = plt.colorbar(scatter, ax=ax1)
+    cbar = plt.colorbar(scatter, ax=ax1, fraction=0.046, pad=0.04)
     cbar.set_label('Tube Inlet Temperature (°C)', fontsize=10, fontweight='bold')
     ax1.set_xlabel('Benzene Production Rate (mol/s)', fontsize=11, fontweight='bold')
     ax1.set_ylabel('Methanol Yield (%)', fontsize=11, fontweight='bold')
@@ -158,15 +164,16 @@ def plot_pareto_frontier(opt_res: dict, out_path="nsga2_pareto_front.png"):
         benzene_rates, meoh_yields, hotspot_rises,
         c=c_p3d, cmap='viridis', s=60, edgecolors='k', lw=0.5
     )
-    cbar2 = plt.colorbar(p3d, ax=ax2, pad=0.1)
+    cbar2 = plt.colorbar(p3d, ax=ax2, fraction=0.046, pad=0.08)
     cbar2.set_label('Shell Inlet Pressure P_endo_0 (bar)', fontsize=10, fontweight='bold')
-    ax2.set_xlabel('Benzene (mol/s)', fontsize=9, fontweight='bold')
-    ax2.set_ylabel('Methanol Yield (%)', fontsize=9, fontweight='bold')
-    ax2.set_zlabel('Hotspot Rise (K)', fontsize=9, fontweight='bold')
+    ax2.set_xlabel('Benzene (mol/s)', fontsize=9, fontweight='bold', labelpad=8)
+    ax2.set_ylabel('Methanol Yield (%)', fontsize=9, fontweight='bold', labelpad=8)
+    ax2.set_zlabel('Hotspot Rise (K)', fontsize=9, fontweight='bold', labelpad=8)
     ax2.set_title('(b) 3D Objective Space', fontsize=12, fontweight='bold')
 
     plt.suptitle('Multi-Objective Pareto Optimization of Thermally Coupled Reactor using NSGA-II',
                  fontsize=14, fontweight='bold', y=0.98)
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.savefig(out_path, dpi=300, bbox_inches='tight')
     plt.close()
 
@@ -174,16 +181,17 @@ def plot_reactor_results(sol_co, geom, out_path="reactor_results.png"):
     """Figure 3: Co-current reactor standalone performance."""
     z = sol_co.t
     fig, axes = plt.subplots(2, 3, figsize=(18, 10), dpi=300)
+    fig.subplots_adjust(top=0.91, bottom=0.08, left=0.07, right=0.93, hspace=0.32, wspace=0.35)
     fig.suptitle('Thermally Coupled Shell-and-Tube Reactor — Co-Current Baseline Profiles',
-                 fontsize=14, fontweight='bold')
+                 fontsize=14, fontweight='bold', y=0.98)
 
     # (a) Temperature
     ax = axes[0, 0]
     ax.plot(z, sol_co.y[10, :], '-', color='#E63946', lw=2.5, label='Tube (Methanol Synthesis)')
     ax.plot(z, sol_co.y[11, :], '-', color='#457B9D', lw=2.5, label='Shell (Dehydrogenation)')
-    ax.set_xlabel('Reactor Length (m)', fontsize=11)
-    ax.set_ylabel('Temperature (K)', fontsize=11)
-    ax.set_title('(a) Temperature Profiles', fontsize=12)
+    ax.set_xlabel('Reactor Length (m)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Temperature (K)', fontsize=11, fontweight='bold')
+    ax.set_title('(a) Temperature Profiles', fontsize=12, fontweight='bold')
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3)
 
@@ -195,42 +203,48 @@ def plot_reactor_results(sol_co, geom, out_path="reactor_results.png"):
     X_ch = (ch_in - sol_co.y[7, :]) / ch_in * 100.0
     ax.plot(z, X_co2, '-', color='#264653', lw=2.5, label='CO₂ Conversion')
     ax.plot(z, X_ch, '--', color='#457B9D', lw=2.5, label='C₆H₁₂ Conversion')
-    ax.set_xlabel('Reactor Length (m)', fontsize=11)
-    ax.set_ylabel('Conversion (%)', fontsize=11)
-    ax.set_title('(b) Conversion Profiles', fontsize=12)
+    ax.set_xlabel('Reactor Length (m)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Conversion (%)', fontsize=11, fontweight='bold')
+    ax.set_title('(b) Conversion Profiles', fontsize=12, fontweight='bold')
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3)
 
     # (c) Molar flow rates
     ax = axes[0, 2]
-    ax.plot(z, sol_co.y[3, :] * 1000, '-', color='#2A9D8F', lw=2.5, label='CH₃OH (Tube)')
+    l1 = ax.plot(z, sol_co.y[3, :] * 1000, '-', color='#2A9D8F', lw=2.5, label='CH₃OH (Tube)')
     ax2 = ax.twinx()
-    ax2.plot(z, sol_co.y[8, :] * 1000, '--', color='#457B9D', lw=2.5, label='C₆H₆ (Shell)')
-    ax.set_xlabel('Reactor Length (m)', fontsize=11)
-    ax.set_ylabel('F_CH₃OH (mmol/s·tube)', fontsize=11, color='#2A9D8F')
-    ax2.set_ylabel('F_C₆H₆ (mmol/s·tube)', fontsize=11, color='#457B9D')
-    ax.set_title('(c) Product Flow Rates', fontsize=12)
+    l2 = ax2.plot(z, sol_co.y[8, :] * 1000, '--', color='#457B9D', lw=2.5, label='C₆H₆ (Shell)')
+    ax.set_xlabel('Reactor Length (m)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('F_CH₃OH (mmol/s·tube)', fontsize=11, fontweight='bold', color='#2A9D8F')
+    ax2.set_ylabel('F_C₆H₆ (mmol/s·tube)', fontsize=11, fontweight='bold', color='#457B9D')
+    ax.set_title('(c) Product Flow Rates', fontsize=12, fontweight='bold')
     ax.grid(True, alpha=0.3)
+    lines_c = l1 + l2
+    labels_c = [l.get_label() for l in lines_c]
+    ax.legend(lines_c, labels_c, fontsize=8.5, loc='center left', framealpha=0.9)
 
     # (d) Pressure
     ax = axes[1, 0]
-    ax.plot(z, sol_co.y[12, :] / 1e5, '-', color='#E63946', lw=2.5, label='P_tube')
+    l1 = ax.plot(z, sol_co.y[12, :] / 1e5, '-', color='#E63946', lw=2.5, label='P_tube')
     ax3 = ax.twinx()
-    ax3.plot(z, sol_co.y[13, :] / 1e5, '--', color='#457B9D', lw=2.5, label='P_shell')
-    ax.set_xlabel('Reactor Length (m)', fontsize=11)
-    ax.set_ylabel('P_tube (bar)', fontsize=11, color='#E63946')
-    ax3.set_ylabel('P_shell (bar)', fontsize=11, color='#457B9D')
-    ax.set_title('(d) Pressure Profiles', fontsize=12)
+    l2 = ax3.plot(z, sol_co.y[13, :] / 1e5, '--', color='#457B9D', lw=2.5, label='P_shell')
+    ax.set_xlabel('Reactor Length (m)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('P_tube (bar)', fontsize=11, fontweight='bold', color='#E63946')
+    ax3.set_ylabel('P_shell (bar)', fontsize=11, fontweight='bold', color='#457B9D')
+    ax.set_title('(d) Pressure Profiles', fontsize=12, fontweight='bold')
     ax.grid(True, alpha=0.3)
+    lines_d = l1 + l2
+    labels_d = [l.get_label() for l in lines_d]
+    ax.legend(lines_d, labels_d, fontsize=8.5, loc='center right', framealpha=0.9)
 
     # (e) Syngas flows
     ax = axes[1, 1]
     labels_plot = ['H₂', 'CO₂', 'CO', 'CH₃OH', 'H₂O']
     for i in range(5):
         ax.plot(z, sol_co.y[i, :] * 1000, lw=2.0, label=labels_plot[i])
-    ax.set_xlabel('Reactor Length (m)', fontsize=11)
-    ax.set_ylabel('Molar Flow (mmol/s·tube)', fontsize=11)
-    ax.set_title('(e) Tube-Side Molar Flows', fontsize=12)
+    ax.set_xlabel('Reactor Length (m)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Molar Flow (mmol/s·tube)', fontsize=11, fontweight='bold')
+    ax.set_title('(e) Tube-Side Molar Flows', fontsize=12, fontweight='bold')
     ax.legend(fontsize=8, ncol=2)
     ax.grid(True, alpha=0.3)
 
@@ -239,20 +253,20 @@ def plot_reactor_results(sol_co, geom, out_path="reactor_results.png"):
     h2_prod = (sol_co.y[9, :] - sol_co.y[9, 0]) * 1000
     ax.plot(z, h2_prod, '-', color='#F4A261', lw=2.5)
     ax.fill_between(z, 0, h2_prod, alpha=0.2, color='#F4A261')
-    ax.set_xlabel('Reactor Length (m)', fontsize=11)
-    ax.set_ylabel('Coproduced H₂ (mmol/s·tube)', fontsize=11)
-    ax.set_title('(f) Shell-Side H₂ Coproduction', fontsize=12)
+    ax.set_xlabel('Reactor Length (m)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Coproduced H₂ (mmol/s·tube)', fontsize=11, fontweight='bold')
+    ax.set_title('(f) Shell-Side H₂ Coproduction', fontsize=12, fontweight='bold')
     ax.grid(True, alpha=0.3)
 
-    plt.tight_layout()
     plt.savefig(out_path, dpi=300, bbox_inches='tight')
     plt.close()
 
 def plot_comparison_coupled_vs_conventional(sol_co, sol_cv, out_path="comparison_coupled_vs_conventional.png"):
     """Figure 4: Direct comparison between TCR and Conventional reactor."""
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5), dpi=300)
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5.5), dpi=300)
+    fig.subplots_adjust(top=0.88, bottom=0.12, left=0.08, right=0.95, wspace=0.25)
     fig.suptitle('Direct Reactor Comparison: Thermally Coupled (Co-Current) vs. Conventional (Jacketed)',
-                 fontsize=14, fontweight='bold')
+                 fontsize=14, fontweight='bold', y=0.98)
 
     # Temperature
     ax = axes[0]
@@ -260,9 +274,9 @@ def plot_comparison_coupled_vs_conventional(sol_co, sol_cv, out_path="comparison
     ax.plot(sol_co.t, sol_co.y[11, :], '--', color='#457B9D', lw=2.5, label='Coupled (Shell)')
     ax.plot(sol_cv.t, sol_cv.y[7, :], '-.', color='#2A9D8F', lw=2.5, label='Conventional (Jacketed)')
     ax.axhline(503.15, color='gray', linestyle=':', label='Boiling Coolant (503.15 K)')
-    ax.set_xlabel('Reactor Length (m)', fontsize=11)
-    ax.set_ylabel('Temperature (K)', fontsize=11)
-    ax.set_title('(a) Temperature Profiles', fontsize=12)
+    ax.set_xlabel('Reactor Length (m)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Temperature (K)', fontsize=11, fontweight='bold')
+    ax.set_title('(a) Temperature Profiles', fontsize=12, fontweight='bold')
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3)
 
@@ -273,20 +287,20 @@ def plot_comparison_coupled_vs_conventional(sol_co, sol_cv, out_path="comparison
     X_cv = (co2_in - sol_cv.y[1, :]) / co2_in * 100.0
     ax.plot(sol_co.t, X_co, '-', color='#E63946', lw=2.5, label='Coupled Reactor')
     ax.plot(sol_cv.t, X_cv, '--', color='#2A9D8F', lw=2.5, label='Conventional Reactor')
-    ax.set_xlabel('Reactor Length (m)', fontsize=11)
-    ax.set_ylabel('CO₂ Conversion (%)', fontsize=11)
-    ax.set_title('(b) CO₂ Conversion Comparison', fontsize=12)
+    ax.set_xlabel('Reactor Length (m)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('CO₂ Conversion (%)', fontsize=11, fontweight='bold')
+    ax.set_title('(b) CO₂ Conversion Comparison', fontsize=12, fontweight='bold')
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3)
 
-    plt.tight_layout()
     plt.savefig(out_path, dpi=300, bbox_inches='tight')
     plt.close()
 
 def plot_sensitivity_analysis(sens_results: dict, out_path="sensitivity_analysis.png"):
     """Figure 5: Parametric sensitivity sweeps."""
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5), dpi=300)
-    fig.suptitle('Parametric Sensitivity Analysis — Thermally Coupled Reactor', fontsize=14, fontweight='bold')
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5.5), dpi=300)
+    fig.subplots_adjust(top=0.88, bottom=0.12, left=0.06, right=0.96, wspace=0.25)
+    fig.suptitle('Parametric Sensitivity Analysis — Thermally Coupled Reactor', fontsize=14, fontweight='bold', y=0.98)
 
     # (a) Tube inlet temperature sweep
     ax = axes[0]
@@ -294,9 +308,9 @@ def plot_sensitivity_analysis(sens_results: dict, out_path="sensitivity_analysis
     if t_sweep:
         ax.plot(t_sweep['T_vals'], t_sweep['X_CO2'], 'o-', color='#E63946', lw=2, label='CO₂ Conv.')
         ax.plot(t_sweep['T_vals'], t_sweep['X_CH'], 's--', color='#457B9D', lw=2, label='C₆H₁₂ Conv.')
-    ax.set_xlabel('Tube Inlet Temperature (K)', fontsize=11)
-    ax.set_ylabel('Conversion (%)', fontsize=11)
-    ax.set_title('(a) Effect of Tube Inlet Temperature', fontsize=12)
+    ax.set_xlabel('Tube Inlet Temperature (K)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Conversion (%)', fontsize=11, fontweight='bold')
+    ax.set_title('(a) Effect of Tube Inlet Temperature', fontsize=12, fontweight='bold')
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3)
 
@@ -306,9 +320,9 @@ def plot_sensitivity_analysis(sens_results: dict, out_path="sensitivity_analysis
     if f_sweep:
         ax.plot(np.array(f_sweep['F_vals']) * 1000, f_sweep['X_CO2'], 'o-', color='#E63946', lw=2, label='CO₂ Conv.')
         ax.plot(np.array(f_sweep['F_vals']) * 1000, f_sweep['X_CH'], 's--', color='#457B9D', lw=2, label='C₆H₁₂ Conv.')
-    ax.set_xlabel('Shell Feed Flow (mmol/s·tube)', fontsize=11)
-    ax.set_ylabel('Conversion (%)', fontsize=11)
-    ax.set_title('(b) Effect of Shell Feed Flow Rate', fontsize=12)
+    ax.set_xlabel('Shell Feed Flow (mmol/s·tube)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Conversion (%)', fontsize=11, fontweight='bold')
+    ax.set_title('(b) Effect of Shell Feed Flow Rate', fontsize=12, fontweight='bold')
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3)
 
@@ -318,12 +332,11 @@ def plot_sensitivity_analysis(sens_results: dict, out_path="sensitivity_analysis
     if eta_sweep:
         ax.plot(eta_sweep['eta_vals'], eta_sweep['X_CO2'], 'o-', color='#E63946', lw=2, label='CO₂ Conv.')
         ax.plot(eta_sweep['eta_vals'], eta_sweep['yield_meoh'], '^-', color='#2A9D8F', lw=2, label='MeOH Yield')
-    ax.set_xlabel('Pellet Effectiveness Factor η_exo (-)', fontsize=11)
-    ax.set_ylabel('Metric (%)', fontsize=11)
-    ax.set_title('(c) Effect of Catalyst Effectiveness Factor', fontsize=12)
+    ax.set_xlabel('Pellet Effectiveness Factor η_exo (-)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Metric (%)', fontsize=11, fontweight='bold')
+    ax.set_title('(c) Effect of Catalyst Effectiveness Factor', fontsize=12, fontweight='bold')
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3)
 
-    plt.tight_layout()
     plt.savefig(out_path, dpi=300, bbox_inches='tight')
     plt.close()
