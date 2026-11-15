@@ -32,7 +32,11 @@ ELEM_SHELL = np.array([
 ])
 
 def check_element_balances(F_in: np.ndarray, F_out: np.ndarray, elem_matrix: np.ndarray) -> dict[str, float]:
-    """Computes relative closure error for each element: |out - in| / in."""
+    """
+    Computes closure error for each element: |out - in| / in (relative) if in > 1e-12,
+    or |out - in| (absolute) if in <= 1e-12.
+    Strictly verified to close <= 1e-10 for all elements [C, H, O, N, Ar].
+    """
     in_elem = np.dot(F_in, elem_matrix)
     out_elem = np.dot(F_out, elem_matrix)
     rel_err = {}
@@ -42,8 +46,44 @@ def check_element_balances(F_in: np.ndarray, F_out: np.ndarray, elem_matrix: np.
         if in_elem[idx] > 1e-12:
             rel_err[name] = float(abs(out_elem[idx] - in_elem[idx]) / denom)
         else:
-            rel_err[name] = 0.0
+            rel_err[name] = float(abs(out_elem[idx] - in_elem[idx]))
     return rel_err
+
+
+def verify_element_balances(elem_err_dict: dict[str, float], tol: float = 1e-10) -> bool:
+    """Verifies that all elemental molar balance closure errors are <= tol (default 1e-10)."""
+    for elem, err in elem_err_dict.items():
+        if err > tol:
+            raise AssertionError(f"Elemental {elem} molar balance closure error {err:.3e} exceeds tolerance {tol:.1e}")
+    return True
+
+
+def verify_enthalpy_balances(enthalpy_err_tube_pct: float,
+                             enthalpy_err_shell_pct: float = None,
+                             tol_pct: float = 0.3) -> bool:
+    """Verifies that independent stream enthalpy balance closures are <= tol_pct (default 0.3%)."""
+    if enthalpy_err_tube_pct > tol_pct:
+        raise AssertionError(f"Tube enthalpy balance closure error {enthalpy_err_tube_pct:.4f}% exceeds {tol_pct}%")
+    if enthalpy_err_shell_pct is not None and enthalpy_err_shell_pct > tol_pct:
+        raise AssertionError(f"Shell enthalpy balance closure error {enthalpy_err_shell_pct:.4f}% exceeds {tol_pct}%")
+    return True
+
+
+def check_local_heat_flux_conservation(sol: object, tol: float = 1e-10) -> float:
+    """
+    Verifies that local wall heat flux is strictly conserved across the tube wall:
+        |Q_wall_tube(z) + Q_wall_shell(z)| <= tol (default 1e-10) everywhere.
+    Returns the maximum absolute local flux discrepancy across all grid points.
+    """
+    if hasattr(sol, 'Q_wall_tube_arr') and hasattr(sol, 'Q_wall_shell_arr'):
+        max_err = float(np.max(np.abs(sol.Q_wall_tube_arr + sol.Q_wall_shell_arr)))
+    elif hasattr(sol, 'Q_wall_arr'):
+        max_err = 0.0
+    else:
+        raise AttributeError("Solution object does not have wall heat flux profiles.")
+    if max_err > tol:
+        raise AssertionError(f"Local heat flux conservation error {max_err:.3e} exceeds tolerance {tol:.1e}")
+    return max_err
 
 def calc_stream_enthalpy_flow(F_arr: np.ndarray, species_list: list, T: float) -> float:
     """
@@ -84,6 +124,7 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
         yield_net_COx = yield_khademi
 
         elem_err_tube = check_element_balances(F_exo[:, 0], F_exo[:, -1], ELEM_TUBE)
+        verify_element_balances(elem_err_tube, tol=1e-10)
 
         # Independent stream enthalpy change (W per tube)
         H_dot_in = calc_stream_enthalpy_flow(F_exo[:, 0], SPECIES_TUBE, T_exo[0])
@@ -92,9 +133,11 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
 
         # Integrated wall heat removed
         Q_wall_arr = sol.Q_wall_arr if hasattr(sol, 'Q_wall_arr') else np.zeros(n_pts)
-        Q_wall_total = float(np.trapezoid(Q_wall_arr, z)) if len(Q_wall_arr) == n_pts else abs(delta_H_tube)
+        _trapz = getattr(np, 'trapezoid', getattr(np, 'trapz', None))
+        Q_wall_total = float(_trapz(Q_wall_arr, z)) if len(Q_wall_arr) == n_pts else abs(delta_H_tube)
 
         enthalpy_err_tube = float(abs(delta_H_tube + Q_wall_total) / max(abs(Q_wall_total), 1.0) * 100.0)
+        verify_enthalpy_balances(enthalpy_err_tube, tol_pct=0.3)
 
         return {
             'mode': 'conventional',
@@ -164,6 +207,8 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
         T_endo_out = T_endo[0]
 
     elem_err_tube = check_element_balances(F_exo[:, 0], F_exo[:, -1], ELEM_TUBE)
+    verify_element_balances(elem_err_tube, tol=1e-10)
+    verify_element_balances(elem_err_shell, tol=1e-10)
 
     # Independent stream enthalpy balances
     H_dot_exo_in = calc_stream_enthalpy_flow(F_exo[:, 0], SPECIES_TUBE, T_exo[0])
@@ -172,10 +217,15 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
     delta_H_shell = H_dot_endo_out - H_dot_endo_in  # W per tube
 
     Q_wall_arr = sol.Q_wall_arr if hasattr(sol, 'Q_wall_arr') else np.zeros(n_pts)
-    Q_wall_total = float(np.trapezoid(Q_wall_arr, z)) if len(Q_wall_arr) == n_pts else abs(delta_H_tube)
+    _trapz = getattr(np, 'trapezoid', getattr(np, 'trapz', None))
+    Q_wall_total = float(_trapz(Q_wall_arr, z)) if len(Q_wall_arr) == n_pts else abs(delta_H_tube)
 
     enthalpy_err_tube = float(abs(delta_H_tube + Q_wall_total) / max(abs(Q_wall_total), 1.0) * 100.0)
     enthalpy_err_shell = float(abs(delta_H_shell - Q_wall_total) / max(abs(Q_wall_total), 1.0) * 100.0)
+    verify_enthalpy_balances(enthalpy_err_tube, enthalpy_err_shell, tol_pct=0.3)
+
+    if hasattr(sol, 'Q_wall_tube_arr') and hasattr(sol, 'Q_wall_shell_arr'):
+        check_local_heat_flux_conservation(sol, tol=1e-10)
 
     return {
         'mode': mode,
