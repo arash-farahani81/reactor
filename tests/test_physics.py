@@ -176,3 +176,119 @@ def test_t11_local_wall_heat_flux_equality(cfg, geom):
     m_co = evaluate_run_metrics(res_co, geom, mode="cocurrent")
     assert np.isfinite(m_co["Q_wall_total_MW"]), "Q_wall_total_MW must be finite"
     assert m_co["Q_wall_total_MW"] > 0.0, "Q_wall_total_MW must be positive (tube hotter than shell)"
+
+def test_t13_bvp_collocation_picard_crosscheck(cfg, geom):
+    """T13: Cross-examination of Picard BVP solution against scipy.integrate.solve_bvp collocation."""
+    from scipy.integrate import solve_bvp
+    from tcr.config import SolverConfig
+    from tcr.thermo import R_GAS, calc_cp_species, calc_dH_rxn_meoh, calc_dH_rxn_rwgs, calc_dH_rxn_ch, MW
+    from tcr.kinetics import kinetics_vbf_production, kinetics_ch_production
+    from tcr.transport import calc_U_tcr, calc_ergun_dp
+
+    sol_fast = SolverConfig(
+        z_points=100, rtol=1e-5, atol=1e-7,
+        picard_max_iter=100, picard_tol_T=1e-3, picard_tol_F=1e-6, picard_alpha=0.70
+    )
+    sol_picard, info = solve_countercurrent(
+        geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, sol_fast,
+        cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
+        cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
+        kinetics_mode="production_vbf"
+    )
+    assert info["converged"], "Picard solver must converge before collocation cross-examination"
+
+    z_grid = sol_picard.t
+    def bvp_ode(z, S):
+        m = S.shape[1]
+        dS = np.zeros_like(S)
+        for j in range(m):
+            F_t = np.maximum(S[0:7, j], 1e-15)
+            F_s = np.maximum(S[7:10, j], 1e-15)
+            T_t = max(S[10, j], 200.0)
+            T_s = max(S[11, j], 200.0)
+            P_t = max(S[12, j], 1e4)
+            P_s = max(S[13, j], 1e4)
+            F_tot_t = np.sum(F_t)
+            F_tot_s = np.sum(F_s)
+            y_t = F_t / F_tot_t
+            y_s = F_s / F_tot_s
+
+            r_meoh, r_rwgs = kinetics_vbf_production(T_t, P_t, y_t, cfg.cat_tube.eta)
+            r_ch = kinetics_ch_production(T_s, P_s, y_s, cfg.cat_shell.eta)
+            dH_meoh = calc_dH_rxn_meoh(T_t)
+            dH_rwgs = calc_dH_rxn_rwgs(T_t)
+            dH_ch = calc_dH_rxn_ch(T_s)
+
+            dS[0, j] = geom.A_tube * cfg.cat_tube.rho_b * (-3.0 * r_meoh - r_rwgs)
+            dS[1, j] = geom.A_tube * cfg.cat_tube.rho_b * (-r_meoh - r_rwgs)
+            dS[2, j] = geom.A_tube * cfg.cat_tube.rho_b * (r_rwgs)
+            dS[3, j] = geom.A_tube * cfg.cat_tube.rho_b * (r_meoh)
+            dS[4, j] = geom.A_tube * cfg.cat_tube.rho_b * (r_meoh + r_rwgs)
+            dS[7, j] = - geom.A_shell * cfg.cat_shell.rho_b * (-r_ch)
+            dS[8, j] = - geom.A_shell * cfg.cat_shell.rho_b * (r_ch)
+            dS[9, j] = - geom.A_shell * cfg.cat_shell.rho_b * (3.0 * r_ch)
+
+            U_loc = calc_U_tcr(T_t, P_t, F_t, SPECIES_TUBE, T_s, P_s, F_s, SPECIES_SHELL[:3], geom, cfg.cat_tube, cfg.cat_shell, cfg.transport)
+            Q_wall = U_loc * geom.a_H * (T_t - T_s)
+            FCp_t = sum(F_t[i] * calc_cp_species(SPECIES_TUBE[i], T_t) for i in range(7))
+            FCp_s = sum(F_s[i] * calc_cp_species(SPECIES_SHELL[i], T_s) for i in range(3))
+            Q_rxn_t = geom.A_tube * cfg.cat_tube.rho_b * ((-dH_meoh) * r_meoh + (-dH_rwgs) * r_rwgs)
+            dS[10, j] = (Q_rxn_t - Q_wall) / max(FCp_t, 1e-3)
+            Q_rxn_s = geom.A_shell * cfg.cat_shell.rho_b * (-dH_ch) * r_ch
+            dS[11, j] = - (Q_rxn_s + Q_wall) / max(FCp_s, 1e-3)
+
+            mw_t = sum(y_t[i] * MW[SPECIES_TUBE[i]] for i in range(7))
+            rho_t = (P_t * mw_t) / (R_GAS * T_t)
+            u_t = (F_tot_t * R_GAS * T_t) / (P_t * geom.A_tube)
+            dS[12, j] = calc_ergun_dp(u_t, rho_t, cfg.transport.mu_exo, cfg.cat_tube.dp, cfg.cat_tube.eps)
+            mw_s = sum(y_s[i] * MW[SPECIES_SHELL[i]] for i in range(3))
+            rho_s = (P_s * mw_s) / (R_GAS * T_s)
+            u_s = (F_tot_s * R_GAS * T_s) / (P_s * geom.A_shell)
+            dS[13, j] = - calc_ergun_dp(u_s, rho_s, cfg.transport.mu_endo, cfg.cat_shell.dp, cfg.cat_shell.eps)
+        return dS
+
+    F_t0 = cfg.feed_tube.y0 * cfg.feed_tube.F_total0
+    F_s0 = cfg.feed_shell.y0 * cfg.feed_shell.F_total0
+    def bvp_bc(ya, yb):
+        res = np.zeros(14)
+        res[0:7] = ya[0:7] - F_t0
+        res[7] = ya[10] - cfg.feed_tube.T0
+        res[8] = ya[12] - cfg.feed_tube.P0
+        res[9:12] = yb[7:10] - F_s0
+        res[12] = yb[11] - cfg.feed_shell.T0
+        res[13] = yb[13] - cfg.feed_shell.P0
+        return res
+
+    y_guess = sol_picard.y
+    res_bvp = solve_bvp(bvp_ode, bvp_bc, z_grid, y_guess, tol=1e-3, max_nodes=500)
+    assert res_bvp.success, f"solve_bvp failed: {res_bvp.message}"
+    y_bvp = res_bvp.sol(z_grid)
+
+    L_inf_T = max(np.max(np.abs(y_guess[10, :] - y_bvp[10, :])), np.max(np.abs(y_guess[11, :] - y_bvp[11, :])))
+    assert L_inf_T < 0.10, f"Max temperature discrepancy between Picard and solve_bvp is {L_inf_T:.3e} K (must be < 0.10 K)"
+
+def test_t14_equal_throughput_optimization_and_pressure(cfg):
+    """T14: Verifies equal-throughput optimization rule, thermal limits, and positive pressure."""
+    import json
+    with open("simulation_results.json", "r", encoding="utf-8") as f:
+        res = json.load(f)
+
+    knee = res.get("tcr_nsga2_optimum")
+    assert knee is not None, "tcr_nsga2_optimum must exist in simulation_results.json"
+    vars_opt = knee.get("decision_variables", {})
+
+    # 1. Equal syngas feed rate
+    F_exo_opt = vars_opt.get("F_exo_mol_s")
+    assert F_exo_opt is not None, "F_exo_mol_s must be documented in decision_variables"
+    assert abs(F_exo_opt - cfg.feed_tube.F_total0) < 1e-6, f"F_exo_opt ({F_exo_opt}) must match baseline ({cfg.feed_tube.F_total0})"
+
+    # 2. Temperature safety
+    assert knee["T_max_exo"] <= cfg.optimization.T_max_limit + 0.1, f"T_max ({knee['T_max_exo']}) must satisfy sintering limit ({cfg.optimization.T_max_limit})"
+
+    # 3. Positive shell outlet pressure
+    P_in = vars_opt.get("P_endo_0_bar", 2.0)
+    P_out = P_in - knee["dP_shell"]
+    assert P_out >= 1.10, f"Shell exit pressure {P_out:.2f} bar must be >= 1.10 bar"
+
+    # 4. Rigorous performance: must achieve high production without feed throttling
+    assert knee["daily_meoh_ton"] >= 200.0, f"Daily methanol output {knee['daily_meoh_ton']:.2f} t/d must be >= 200.0 t/d under full feed"

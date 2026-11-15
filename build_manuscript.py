@@ -21,10 +21,11 @@ def build_replacement_dict(results):
     duties = results["process_thermal_duties"]
     bench = results["benchmark_khademi_2009"]
 
-    # Calculate shell exit pressures (P_in = 2.0 bar)
+    # Calculate shell exit pressures
     co_P_shell_out = max(2.0 - co["dP_shell"], 0.0)
     counter_P_shell_out = max(2.0 - counter["dP_shell"], 0.0)
-    knee_P_shell_out = max(2.0 - knee["dP_shell"], 0.0)
+    knee_P_endo_in = float(knee['decision_variables'].get('P_endo_0_bar', 2.0))
+    knee_P_shell_out = max(knee_P_endo_in - knee["dP_shell"], 0.0)
 
     delta_cmr_yield = (c_opt["yield_khademi_eq28"] - c_base["yield_khademi_eq28"]) / c_base["yield_khademi_eq28"] * 100.0
 
@@ -83,6 +84,7 @@ def build_replacement_dict(results):
 
         "tcr_nsga2_optimum.T_exo_0": f"{knee['decision_variables']['T_exo_0_K']:.1f}",
         "tcr_nsga2_optimum.T_endo_0": f"{knee['decision_variables']['T_endo_0_K']:.1f}",
+        "tcr_nsga2_optimum.P_endo_0": f"{knee_P_endo_in:.2f}",
         "tcr_nsga2_optimum.F_exo_0": f"{knee['decision_variables']['F_exo_mol_s']:.4f}",
         "tcr_nsga2_optimum.F_endo_0": f"{knee['decision_variables']['F_endo_mol_s']:.4f}",
         "tcr_nsga2_optimum.T_max_exo": f"{knee['T_max_exo']:.1f}",

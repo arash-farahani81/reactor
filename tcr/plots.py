@@ -153,12 +153,13 @@ def plot_pareto_frontier(opt_res: dict, out_path="nsga2_pareto_front.png"):
 
     # Subplot 2: 3D Objective Space
     ax2 = fig.add_subplot(1, 2, 2, projection='3d')
+    c_p3d = X_pareto[:, 3] / 1e5 if np.mean(X_pareto[:, 3]) > 1e3 else X_pareto[:, 3]
     p3d = ax2.scatter(
         benzene_rates, meoh_yields, hotspot_rises,
-        c=X_pareto[:, 3], cmap='viridis', s=60, edgecolors='k', lw=0.5
+        c=c_p3d, cmap='viridis', s=60, edgecolors='k', lw=0.5
     )
     cbar2 = plt.colorbar(p3d, ax=ax2, pad=0.1)
-    cbar2.set_label('Tube Feed F_exo_0 (mol/s)', fontsize=10, fontweight='bold')
+    cbar2.set_label('Shell Inlet Pressure P_endo_0 (bar)', fontsize=10, fontweight='bold')
     ax2.set_xlabel('Benzene (mol/s)', fontsize=9, fontweight='bold')
     ax2.set_ylabel('Methanol Yield (%)', fontsize=9, fontweight='bold')
     ax2.set_zlabel('Hotspot Rise (K)', fontsize=9, fontweight='bold')

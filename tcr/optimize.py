@@ -71,18 +71,20 @@ def optimize_cmr(cfg: AppConfig) -> dict:
 def run_nsga2_tcr(cfg: AppConfig) -> dict:
     """
     Executes NSGA-II multi-objective optimization for TCR.
+    Syngas feed rate is held strictly constant at design capacity F_exo_0 = 0.640 mol/s
+    per tube to guarantee an equitable comparison against conventional and baseline reactors.
     Decision variables:
       x[0]: T_exo_0 in [490.0, 530.0] K
       x[1]: T_endo_0 in [460.0, 510.0] K
       x[2]: F_endo_0 in [0.025, 0.080] mol/s per tube
-      x[3]: F_exo_0 in [0.550, 0.700] mol/s per tube
+      x[3]: P_endo_0 in [2.0e5, 3.0e5] Pa (2.0 to 3.0 bar shell inlet pressure)
     Objectives:
       f1: -1 * Methanol Yield (%)
       f2: -1 * Benzene Production Rate (mol/s)
       f3: Hotspot Rise (T_max - T_exo_0) (K)
     Constraints:
-      g1: T_max - 535.0 <= 0 (K)
-      g2: 1.1 bar - P_endo_out <= 0 (positive exit pressure)
+      g1: T_max - 535.0 <= 0 (K) (copper sintering limit)
+      g2: 1.10 bar - P_endo_out <= 0 (positive shell exit pressure)
     """
     geom = ReactorGeometry(cfg.geometry)
     sol_fast = SolverConfig(
@@ -91,8 +93,9 @@ def run_nsga2_tcr(cfg: AppConfig) -> dict:
     )
 
     b = cfg.optimization.bounds
-    xl = np.array([b['T_exo_0'][0], b['T_endo_0'][0], b['F_endo_0'][0], b['F_exo_0'][0]])
-    xu = np.array([b['T_exo_0'][1], b['T_endo_0'][1], b['F_endo_0'][1], b['F_exo_0'][1]])
+    xl = np.array([b['T_exo_0'][0], b['T_endo_0'][0], b['F_endo_0'][0], b['P_endo_0'][0]])
+    xu = np.array([b['T_exo_0'][1], b['T_endo_0'][1], b['F_endo_0'][1], b['P_endo_0'][1]])
+    F_exo_fixed = float(cfg.feed_tube.F_total0)
 
     class TCROptimizationProblem(ElementwiseProblem):
         def __init__(self):
@@ -103,10 +106,14 @@ def run_nsga2_tcr(cfg: AppConfig) -> dict:
 
         def _evaluate(self, x, out, *args, **kwargs):
             try:
+                T_exo = float(x[0])
+                T_endo = float(x[1])
+                F_endo = float(x[2])
+                P_endo = float(x[3])
                 sol = solve_cocurrent(
                     geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, sol_fast,
-                    cfg.feed_tube.y0, float(x[0]), cfg.feed_tube.P0, float(x[3]),
-                    cfg.feed_shell.y0, float(x[1]), cfg.feed_shell.P0, float(x[2]),
+                    cfg.feed_tube.y0, T_exo, cfg.feed_tube.P0, F_exo_fixed,
+                    cfg.feed_shell.y0, T_endo, P_endo, F_endo,
                     kinetics_mode="production_vbf"
                 )
                 if not sol.success:
@@ -117,12 +124,12 @@ def run_nsga2_tcr(cfg: AppConfig) -> dict:
                 res = evaluate_run_metrics(sol, geom, mode="cocurrent")
                 f1 = -res['yield_khademi_eq28']
                 f2 = -res['Benzene_rate_plant']
-                f3 = res['T_max_exo'] - float(x[0])
+                f3 = res['T_max_exo'] - T_exo
 
                 # Constraints: T_max <= 535 K, and P_endo_out >= 1.1 bar
-                P_endo_out = (cfg.feed_shell.P0 / 1e5) - res['dP_shell']
+                P_endo_out = (P_endo / 1e5) - res['dP_shell']
                 g1 = res['T_max_exo'] - cfg.optimization.T_max_limit
-                g2 = 1.1 - P_endo_out
+                g2 = 1.10 - P_endo_out
 
                 out["F"] = [f1, f2, f3]
                 out["G"] = [g1, g2]
@@ -157,19 +164,23 @@ def run_nsga2_tcr(cfg: AppConfig) -> dict:
     benzene_rates = -F_pareto[:, 1]
     hotspot_rises = F_pareto[:, 2]
 
-    # Select Knee Point using 3D Euclidean distance to utopia
+    # Select Knee Point using balanced utopia distance:
+    # Primary trade-off is between methanol yield and benzene production rate.
+    # Hotspot rise is bounded by the hard Cu sintering constraint (T_max <= 535 K).
+    # A small regularization weight (w_h = 0.10) on hotspot rise prevents excessive thermal stress
+    # without sacrificing throughput or pushing the reactor into an unreactive cold regime.
     norm_y = (meoh_yields - np.min(meoh_yields)) / (np.max(meoh_yields) - np.min(meoh_yields) + 1e-10)
     norm_b = (benzene_rates - np.min(benzene_rates)) / (np.max(benzene_rates) - np.min(benzene_rates) + 1e-10)
     norm_h = (hotspot_rises - np.min(hotspot_rises)) / (np.max(hotspot_rises) - np.min(hotspot_rises) + 1e-10)
-    dist_ideal = np.sqrt((1.0 - norm_y) ** 2 + (1.0 - norm_b) ** 2 + (norm_h) ** 2)
+    dist_ideal = np.sqrt((1.0 - norm_y) ** 2 + (1.0 - norm_b) ** 2 + 0.10 * (norm_h ** 2))
     knee_idx = int(np.argmin(dist_ideal))
 
     # High-resolution simulation at knee point
     knee_x = X_pareto[knee_idx]
     sol_knee = solve_cocurrent(
         geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
-        cfg.feed_tube.y0, float(knee_x[0]), cfg.feed_tube.P0, float(knee_x[3]),
-        cfg.feed_shell.y0, float(knee_x[1]), cfg.feed_shell.P0, float(knee_x[2]),
+        cfg.feed_tube.y0, float(knee_x[0]), cfg.feed_tube.P0, F_exo_fixed,
+        cfg.feed_shell.y0, float(knee_x[1]), float(knee_x[3]), float(knee_x[2]),
         kinetics_mode="production_vbf"
     )
     res_knee = evaluate_run_metrics(sol_knee, geom, mode="cocurrent")
@@ -177,7 +188,8 @@ def run_nsga2_tcr(cfg: AppConfig) -> dict:
         'T_exo_0_K': float(knee_x[0]),
         'T_endo_0_K': float(knee_x[1]),
         'F_endo_mol_s': float(knee_x[2]),
-        'F_exo_mol_s': float(knee_x[3])
+        'P_endo_0_bar': float(knee_x[3] / 1e5),
+        'F_exo_mol_s': float(F_exo_fixed)
     }
 
     return {

@@ -103,7 +103,7 @@ def main():
     knee_results = opt_res['knee_results']
     knee_vars = knee_results['decision_variables']
     print(f"  ✓ NSGA-II completed in {opt_res['opt_time_s']:.2f}s | Knee Point: T_exo={knee_vars['T_exo_0_K']:.1f} K, T_endo={knee_vars['T_endo_0_K']:.1f} K, "
-          f"F_endo={knee_vars['F_endo_mol_s']:.4f} mol/s, F_exo={knee_vars['F_exo_mol_s']:.4f} mol/s | "
+          f"F_endo={knee_vars['F_endo_mol_s']:.4f} mol/s, P_endo={knee_vars.get('P_endo_0_bar', 2.0):.2f} bar, F_exo={knee_vars['F_exo_mol_s']:.4f} mol/s | "
           f"MeOH Yield: {knee_results['yield_khademi_eq28']:.2f}% | Rate: {knee_results['MeOH_rate_net_plant']:.2f} mol/s ({knee_results['daily_meoh_ton']:.2f} t/d) | "
           f"Benzene: {knee_results['Benzene_rate_plant']:.2f} mol/s | H2: {knee_results['H2_rate_plant']:.2f} mol/s | T_max: {knee_results['T_max_exo']:.1f} K")
 

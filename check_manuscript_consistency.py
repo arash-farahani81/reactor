@@ -35,7 +35,18 @@ def check_consistency():
     if "green hydrogen" in text:
         errors.append("Unqualified 'green hydrogen' found in manuscript (must specify fossil/dehydrogenation co-product).")
 
-    # 3. Check specific numerical values against simulation_results.json
+    # 3. Check for LaTeX syntax integrity (odd $ delimiters and unescaped % in math mode)
+    cleaned_math = re.sub(r"\$\$.*?\$\$", "", text, flags=re.DOTALL)
+    for line_idx, line_str in enumerate(cleaned_math.splitlines()):
+        if line_str.count("$") % 2 != 0:
+            errors.append(f"Odd number of '$' math delimiters on line {line_idx+1}: {line_str.strip()}")
+
+    inline_math_blocks = re.findall(r"\$([^\$\n]+)\$", cleaned_math)
+    for block in inline_math_blocks:
+        if re.search(r"(?<!\\)%", block):
+            errors.append(f"Unescaped '%' found inside math mode block: '${block}$'")
+
+    # 4. Check specific numerical values against simulation_results.json
     cmr_base = res["conventional_baseline"]
     cmr_opt = res["conventional_optimized"]
     co = res["cocurrent_baseline"]
