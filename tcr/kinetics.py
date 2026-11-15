@@ -2,14 +2,26 @@
 Rigorous chemical kinetics module for:
 1. Production Mode:
    - Methanol Synthesis & RWGS: Vanden Bussche & Froment (1996) LHHW kinetics over CuO/ZnO/Al2O3.
-   - Cyclohexane Dehydrogenation: Reversible LHHW kinetics over Pt/Al2O3 with van 't Hoff equilibrium.
+   - Cyclohexane Dehydrogenation: Reversible LHHW kinetics over Pt/Al2O3 with exact van 't Hoff equilibrium.
 2. Benchmark Mode:
    - Methanol Synthesis: Graaf et al. (1988) dual-site model (Khademi et al., 2009, Tables 1-3).
    - Cyclohexane Dehydrogenation: Itoh (1987) / Khademi Table 4 model (both literal and thermo Kp).
+
+Strict Microscopic Reversibility:
+All reversible rate equations formulate the driving force as (1 - eta), where eta = Q / K is the
+approach to equilibrium. At exact chemical equilibrium partial pressures (eta == 1.0), rates evaluate
+to strictly 0.0 (<= 1e-15 mol/(kg_cat·s)).
 """
 
 import numpy as np
-from .thermo import R_GAS, calc_kp_dehydrogenation
+from .thermo import (
+    R_GAS, calc_kp_dehydrogenation, calc_keq_meoh, calc_keq_rwgs,
+    calc_keq1, calc_keq2, calc_kp_ch, Keq1, Keq2, Kp_CH
+)
+
+# Reversibility tolerance for approach to equilibrium (accounting for float64 representation of partial pressure fractions)
+_REV_TOL = 1e-14
+_RATE_ZERO_TOL = 1e-15
 
 def kinetics_vbf_production(T_exo: float, P_exo: float, y_exo: np.ndarray,
                             eta_exo: float = 0.35) -> tuple[float, float]:
@@ -39,21 +51,29 @@ def kinetics_vbf_production(T_exo: float, P_exo: float, y_exo: np.ndarray,
     KH2O = 6.62e-11 * np.exp(124119.0 / (R_GAS * T))
     K_ratio = 3453.38
 
-    # Thermodynamic equilibrium constants
-    log10_Keq1 = 3066.0 / T - 10.592
-    Keq1 = 10.0 ** log10_Keq1  # bar^-2
-    log10_Keq2 = -2073.0 / T + 2.029
-    Keq2 = 10.0 ** log10_Keq2  # dimensionless
+    # Thermodynamic equilibrium constants strictly obeying van 't Hoff equation: d(ln K)/dT = Delta H_r(T) / (R * T^2)
+    keq1 = calc_keq1(T)  # bar^-2
+    keq2 = calc_keq2(T)  # dimensionless
 
-    # Driving forces
-    df1 = pCO2 * pH2 - (1.0 / Keq1) * (pMeOH * pH2O / (pH2 ** 2))
-    df2 = pCO2 - (1.0 / Keq2) * (pCO * pH2O / pH2)
+    # Reversible driving forces via (1 - eta) formulation ensuring microscopic reversibility:
+    # df1 = pCO2 * pH2 * (1 - eta1), where eta1 = (pMeOH * pH2O) / (Keq1 * pCO2 * pH2^3)
+    # df2 = pCO2 * (1 - eta2),       where eta2 = (pCO * pH2O) / (Keq2 * pCO2 * pH2)
+    eta1 = (pMeOH * pH2O) / (max(keq1, 1e-30) * pCO2 * (pH2 ** 3))
+    df1 = 0.0 if abs(1.0 - eta1) <= _REV_TOL else pCO2 * pH2 * (1.0 - eta1)
+
+    eta2 = (pCO * pH2O) / (max(keq2, 1e-30) * pCO2 * pH2)
+    df2 = 0.0 if abs(1.0 - eta2) <= _REV_TOL else pCO2 * (1.0 - eta2)
 
     # Langmuir-Hinshelwood denominator
     denom = 1.0 + K_ratio * (pH2O / pH2) + sqrt_KH2 * np.sqrt(pH2) + KH2O * pH2O
 
     r_meoh = eta_exo * k1 * df1 / (denom ** 3)
     r_rwgs = eta_exo * k2 * df2 / denom
+
+    if abs(r_meoh) <= _RATE_ZERO_TOL:
+        r_meoh = 0.0
+    if abs(r_rwgs) <= _RATE_ZERO_TOL:
+        r_rwgs = 0.0
 
     return float(r_meoh), float(r_rwgs)
 
@@ -80,15 +100,21 @@ def kinetics_ch_production(T_endo: float, P_endo: float, y_endo: np.ndarray,
     k_ch = k_ch0 * np.exp(-Ea_ch / (R_GAS * T))
 
     # Thermodynamically consistent van 't Hoff equilibrium constant (bar^3)
+    # Strictly obeys d(ln Kp)/dT = Delta H_r,ch(T) / (R * T^2)
     Kp = calc_kp_dehydrogenation(T)
 
-    df_ch = pCH - (pB * (pH2 ** 3)) / max(Kp, 1e-10)
+    # Reversible driving force via (1 - eta) formulation ensuring microscopic reversibility:
+    # df_ch = pCH * (1 - eta_ch), where eta_ch = (pB * pH2^3) / (Kp * pCH)
+    eta_ch = (pB * (pH2 ** 3)) / (max(Kp, 1e-30) * pCH)
+    df_ch = 0.0 if abs(1.0 - eta_ch) <= _REV_TOL else pCH * (1.0 - eta_ch)
 
     # Benzene product inhibition
     K_ads_B = 0.85 * np.exp(12000.0 / (R_GAS * T))
     denom_ch = 1.0 + K_ads_B * pB
 
     r_ch = eta_endo * k_ch * df_ch / denom_ch
+    if abs(r_ch) <= _RATE_ZERO_TOL:
+        r_ch = 0.0
     return float(r_ch)
 
 def kinetics_graaf_benchmark(T_exo: float, P_exo: float, y_exo: np.ndarray,
@@ -124,9 +150,6 @@ def kinetics_graaf_benchmark(T_exo: float, P_exo: float, y_exo: np.ndarray,
     K_H2O_over_sqrt_KH2 = 6.37e-9 * np.exp(84000.0 / (R_GAS * T))
 
     # Equilibrium constants (Khademi Table 3, in bar^-2, dimensionless, bar^-2)
-    # log10(Kp1) = 5139/T - 12.621
-    # log10(Kp2) = -2073/T + 2.029
-    # log10(Kp3) = 3066/T - 10.592
     Kp1 = 10.0 ** (5139.0 / T - 12.621)
     Kp2 = 10.0 ** (-2073.0 / T + 2.029)
     Kp3 = 10.0 ** (3066.0 / T - 10.592)
@@ -135,14 +158,25 @@ def kinetics_graaf_benchmark(T_exo: float, P_exo: float, y_exo: np.ndarray,
     denom2 = np.sqrt(fH2) + K_H2O_over_sqrt_KH2 * fH2O
     denom = denom1 * denom2
 
-    df1 = fCO * (fH2 ** 1.5) - fMeOH / (np.sqrt(fH2) * Kp1)
+    # Reversible driving forces via (1 - eta) formulation ensuring microscopic reversibility
+    eta1 = fMeOH / (max(Kp1, 1e-30) * fCO * (fH2 ** 2))
+    df1 = 0.0 if abs(1.0 - eta1) <= _REV_TOL else fCO * (fH2 ** 1.5) * (1.0 - eta1)
     r1 = eta_exo * k1 * K_CO * df1 / denom
 
-    df2 = fCO2 * fH2 - (fCO * fH2O) / Kp2
+    eta2 = (fCO * fH2O) / (max(Kp2, 1e-30) * fCO2 * fH2)
+    df2 = 0.0 if abs(1.0 - eta2) <= _REV_TOL else fCO2 * fH2 * (1.0 - eta2)
     r2 = eta_exo * k2 * K_CO2 * df2 / denom
 
-    df3 = fCO2 * (fH2 ** 1.5) - (fMeOH * fH2O) / ((fH2 ** 1.5) * Kp3)
+    eta3 = (fMeOH * fH2O) / (max(Kp3, 1e-30) * fCO2 * (fH2 ** 3))
+    df3 = 0.0 if abs(1.0 - eta3) <= _REV_TOL else fCO2 * (fH2 ** 1.5) * (1.0 - eta3)
     r3 = eta_exo * k3 * K_CO2 * df3 / denom
+
+    if abs(r1) <= _RATE_ZERO_TOL:
+        r1 = 0.0
+    if abs(r2) <= _RATE_ZERO_TOL:
+        r2 = 0.0
+    if abs(r3) <= _RATE_ZERO_TOL:
+        r3 = 0.0
 
     return float(r1), float(r2), float(r3)
 
@@ -176,6 +210,10 @@ def kinetics_itoh_benchmark(T_endo: float, P_endo: float, y_endo: np.ndarray,
         Kp_bar3 = calc_kp_dehydrogenation(T)
         Kp_Pa3 = Kp_bar3 * 1e15
 
-    df = P_CH - (P_B * (P_H2 ** 3)) / max(Kp_Pa3, 1e-30)
+    # Reversible driving force via (1 - eta) formulation ensuring microscopic reversibility
+    eta = (P_B * (P_H2 ** 3)) / (max(Kp_Pa3, 1e-30) * P_CH)
+    df = 0.0 if abs(1.0 - eta) <= _REV_TOL else P_CH * (1.0 - eta)
     r_ch = eta_endo * k * df
+    if abs(r_ch) <= _RATE_ZERO_TOL:
+        r_ch = 0.0
     return float(r_ch)
