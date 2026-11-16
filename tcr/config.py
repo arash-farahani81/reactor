@@ -46,6 +46,7 @@ class StreamFeedConfig:
     T0: float
     P0: float
     F_total0: float
+    components: Optional[List[str]] = None
 
 @dataclass
 class TransportConfig:
@@ -73,6 +74,11 @@ class OptimizationConfig:
     n_gen: int
     bounds: Dict[str, List[float]]
     T_max_limit: float
+    seeds: List[int] = field(default_factory=lambda: [42, 101, 777])
+    pop_size_counter: int = 16
+    n_gen_counter: int = 10
+    P_shell_out_min: float = 1.10
+    P_shell_out_knee: float = 1.15
 
 @dataclass
 class AppConfig:
@@ -127,13 +133,15 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         y0=np.array(feed_prod["tube"]["y0"], dtype=float),
         T0=float(feed_prod["tube"]["T0"]["value"]),
         P0=float(feed_prod["tube"]["P0"]["value"]),
-        F_total0=float(feed_prod["tube"]["F_total0"]["value"])
+        F_total0=float(feed_prod["tube"]["F_total0"]["value"]),
+        components=feed_prod["tube"].get("components", ['H2', 'CO2', 'CO', 'CH3OH', 'H2O', 'CH4', 'N2'])
     )
     feed_shell = StreamFeedConfig(
         y0=np.array(feed_prod["shell"]["y0"], dtype=float),
         T0=float(feed_prod["shell"]["T0"]["value"]),
         P0=float(feed_prod["shell"]["P0"]["value"]),
-        F_total0=float(feed_prod["shell"]["F_total0"]["value"])
+        F_total0=float(feed_prod["shell"]["F_total0"]["value"]),
+        components=feed_prod["shell"].get("components", ['C6H12', 'C6H6', 'H2', 'Ar'][:len(feed_prod["shell"]["y0"])])
     )
 
     feed_bench = data["feed"]["benchmark_khademi"]
@@ -141,13 +149,15 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         y0=np.array(feed_bench["tube"]["y0"], dtype=float),
         T0=float(feed_bench["tube"]["T0"]["value"]),
         P0=float(feed_bench["tube"]["P0"]["value"]),
-        F_total0=float(feed_bench["tube"]["F_total0"]["value"])
+        F_total0=float(feed_bench["tube"]["F_total0"]["value"]),
+        components=feed_bench["tube"].get("components", ['H2', 'CO2', 'CO', 'CH3OH', 'H2O', 'CH4', 'N2'])
     )
     feed_shell_bench = StreamFeedConfig(
         y0=np.array(feed_bench["shell"]["y0"], dtype=float),
         T0=float(feed_bench["shell"]["T0"]["value"]),
         P0=float(feed_bench["shell"]["P0"]["value"]),
-        F_total0=float(feed_bench["shell"]["F_total0"]["value"])
+        F_total0=float(feed_bench["shell"]["F_total0"]["value"]),
+        components=feed_bench["shell"].get("components", ['C6H12', 'C6H6', 'H2', 'Ar'])
     )
 
     trans_data = data["transport"]
@@ -177,7 +187,12 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         pop_size=int(opt_data["pop_size"]),
         n_gen=int(opt_data["n_gen"]),
         bounds=opt_data["bounds"],
-        T_max_limit=float(opt_data["T_max_limit"])
+        T_max_limit=float(opt_data["T_max_limit"]),
+        seeds=[int(s) for s in opt_data.get("seeds", [42, 101, 777])],
+        pop_size_counter=int(opt_data.get("pop_size_counter", 16)),
+        n_gen_counter=int(opt_data.get("n_gen_counter", 10)),
+        P_shell_out_min=float(opt_data.get("P_shell_out_min", 1.10)),
+        P_shell_out_knee=float(opt_data.get("P_shell_out_knee", 1.15))
     )
 
     return AppConfig(
