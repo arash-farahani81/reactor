@@ -26,7 +26,7 @@ def run_khademi_benchmark(cfg: AppConfig) -> dict:
     """
     geom = ReactorGeometry(cfg.geometry)
     sol_cfg = SolverConfig(
-        z_points=200, rtol=1e-6, atol=1e-8,
+        z_points=600, rtol=1e-6, atol=1e-8,
         picard_max_iter=100, picard_tol_T=1e-3, picard_tol_F=1e-6, picard_alpha=0.70
     )
 
