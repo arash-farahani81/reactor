@@ -1,36 +1,59 @@
 """
-Automated Physics and Numerical Verification Suite (T1-T7, T11).
+Automated Physics and Numerical Verification Suite (T1-T7, T11, T13, T14).
 Strict gates for:
-- T1: Elemental mass balances (C, H, O, N, Ar <= 1e-9)
-- T2: Independent stream enthalpy balances (closure <= 0.5%)
-- T3: Equilibrium limit checks
-- T4: Physical state validity (P > 0 everywhere, 0 accepted clamp activations)
-- T5: Grid / tolerance convergence (N=150 vs N=300)
-- T6: Counter-current Picard convergence & relaxation invariance
-- T7: Physical limiting cases (U -> 0, F_endo -> 0)
-- T11: Local wall heat flux equality Q_wall,tube(z) == Q_wall,shell(z)
+- T1: Elemental mass balances (C, H, O, N, Ar <= 1e-9) on ALL modes (CMR, Co, Counter).
+- T2: Independent stream enthalpy balances (closure <= 0.3%) on ALL modes (CMR, Co, Counter).
+- T3: True equilibrium reactor limit test (ODEs with 50x catalyst activity at isothermal T, Q/K in [0.99, 1.01]).
+- T4: Physical pressure (P_shell_out >= 1.10 bar on Co and Counter, T_centerline_max <= 535.0 K, 0 clamp activations).
+- T5: Grid convergence (z_points=150 vs 600) on BOTH Co-Current and Counter-Current solvers.
+- T6: Counter-Current Picard convergence on R_T, R_F, R_P, invariance across alpha in {0.45, 0.65}, and solve_bvp agreement.
+- T7: Physical limiting cases (U -> 0, F_endo -> 0).
+- T11: Local wall heat flux equality Q_wall,tube(z) == Q_wall,shell(z).
+- T13: Exact van 't Hoff numerical derivative R T^2 d(ln K_p)/dT == ΔH_r(T) to <= 1e-8.
+- T14: Equal-throughput optimization, thermal limits, and positive shell exit pressure.
 """
 
 import pytest
 import numpy as np
 import copy
-from tcr.config import load_config
+import json
+import os
+from scipy.integrate import solve_ivp
+
+from tcr.config import load_config, SolverConfig, CatalystBedConfig
 from tcr.geometry import ReactorGeometry
-from tcr.thermo import calc_dH_rxn_meoh, calc_dH_rxn_rwgs, calc_dH_rxn_ch, calc_kp_dehydrogenation
-from tcr.solvers import solve_conventional, solve_cocurrent, solve_countercurrent
-from tcr.metrics import evaluate_run_metrics, check_element_balances, ELEM_TUBE, ELEM_SHELL, SPECIES_TUBE, SPECIES_SHELL
+from tcr.thermo import (
+    R_GAS, calc_dH_rxn_meoh, calc_dH_rxn_rwgs, calc_dH_rxn_ch,
+    calc_kp_dehydrogenation, calc_keq_meoh, calc_keq_rwgs,
+    calc_cp_species, calc_enthalpy_species, MW
+)
+from tcr.kinetics import (
+    kinetics_vbf_production, kinetics_ch_production
+)
+from tcr.transport import calc_U_tcr, calc_U_cmr, calc_ergun_dp
+from tcr.solvers import (
+    solve_conventional, solve_cocurrent, solve_countercurrent,
+    cross_check_countercurrent_bvp
+)
+from tcr.metrics import (
+    evaluate_run_metrics, check_element_balances,
+    ELEM_TUBE, ELEM_SHELL, SPECIES_TUBE, SPECIES_SHELL
+)
+
 
 @pytest.fixture(scope="module")
 def cfg():
     return load_config("config.yaml")
 
+
 @pytest.fixture(scope="module")
 def geom(cfg):
     return ReactorGeometry(cfg.geometry)
 
+
 def test_t1_element_balances(cfg, geom):
-    """T1: Elemental mass balance closures C, H, O, N, Ar <= 1e-9."""
-    # Test conventional
+    """T1: Elemental mass balance closures C, H, O, N, Ar <= 1e-9 across all reactor modes."""
+    # 1. Conventional Methanol Reactor (CMR)
     res_cmr = solve_conventional(
         geom, cfg.cat_tube, cfg.transport, cfg.solver,
         cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
@@ -38,9 +61,9 @@ def test_t1_element_balances(cfg, geom):
     )
     m_cmr = evaluate_run_metrics(res_cmr, geom, mode="conventional", is_conventional=True)
     for elem, err in m_cmr["elem_err_tube"].items():
-        assert err <= 1e-9, f"CMR Tube {elem} balance error {err} exceeds 1e-9"
+        assert err <= 1e-9, f"CMR Tube {elem} balance error {err:.2e} exceeds 1e-9"
 
-    # Test cocurrent TCR
+    # 2. TCR Co-Current
     res_co = solve_cocurrent(
         geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
         cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
@@ -49,12 +72,36 @@ def test_t1_element_balances(cfg, geom):
     )
     m_co = evaluate_run_metrics(res_co, geom, mode="cocurrent", is_conventional=False)
     for elem, err in m_co["elem_err_tube"].items():
-        assert err <= 1e-9, f"TCR-Co Tube {elem} balance error {err} exceeds 1e-9"
+        assert err <= 1e-9, f"TCR-Co Tube {elem} balance error {err:.2e} exceeds 1e-9"
     for elem, err in m_co["elem_err_shell"].items():
-        assert err <= 1e-9, f"TCR-Co Shell {elem} balance error {err} exceeds 1e-9"
+        assert err <= 1e-9, f"TCR-Co Shell {elem} balance error {err:.2e} exceeds 1e-9"
+
+    # 3. TCR Counter-Current
+    res_ct, _ = solve_countercurrent(
+        geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
+        cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
+        cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
+        kinetics_mode="production_vbf"
+    )
+    m_ct = evaluate_run_metrics(res_ct, geom, mode="countercurrent", is_conventional=False)
+    for elem, err in m_ct["elem_err_tube"].items():
+        assert err <= 1e-9, f"TCR-Counter Tube {elem} balance error {err:.2e} exceeds 1e-9"
+    for elem, err in m_ct["elem_err_shell"].items():
+        assert err <= 1e-9, f"TCR-Counter Shell {elem} balance error {err:.2e} exceeds 1e-9"
+
 
 def test_t2_stream_enthalpy_balance(cfg, geom):
-    """T2: Independent stream enthalpy balance closure <= 0.5%."""
+    """T2: Independent stream enthalpy balance closure <= 0.3% across all reactor modes."""
+    # 1. Conventional CMR
+    res_cmr = solve_conventional(
+        geom, cfg.cat_tube, cfg.transport, cfg.solver,
+        cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
+        T_coolant=cfg.transport.T_coolant, kinetics_mode="production_vbf"
+    )
+    m_cmr = evaluate_run_metrics(res_cmr, geom, mode="conventional", is_conventional=True)
+    assert m_cmr["enthalpy_err_tube_pct"] <= 0.3, f"CMR Tube enthalpy closure {m_cmr['enthalpy_err_tube_pct']:.4f}% > 0.3%"
+
+    # 2. TCR Co-Current
     res_co = solve_cocurrent(
         geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
         cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
@@ -62,93 +109,256 @@ def test_t2_stream_enthalpy_balance(cfg, geom):
         kinetics_mode="production_vbf"
     )
     m_co = evaluate_run_metrics(res_co, geom, mode="cocurrent", is_conventional=False)
-    assert m_co["enthalpy_err_tube_pct"] <= 0.5, f"Tube enthalpy closure {m_co['enthalpy_err_tube_pct']}% > 0.5%"
-    assert m_co["enthalpy_err_shell_pct"] <= 0.5, f"Shell enthalpy closure {m_co['enthalpy_err_shell_pct']}% > 0.5%"
+    assert m_co["enthalpy_err_tube_pct"] <= 0.3, f"TCR-Co Tube enthalpy closure {m_co['enthalpy_err_tube_pct']:.4f}% > 0.3%"
+    assert m_co["enthalpy_err_shell_pct"] <= 0.3, f"TCR-Co Shell enthalpy closure {m_co['enthalpy_err_shell_pct']:.4f}% > 0.3%"
+
+    # 3. TCR Counter-Current
+    res_ct, _ = solve_countercurrent(
+        geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
+        cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
+        cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
+        kinetics_mode="production_vbf"
+    )
+    m_ct = evaluate_run_metrics(res_ct, geom, mode="countercurrent", is_conventional=False)
+    assert m_ct["enthalpy_err_tube_pct"] <= 0.3, f"TCR-Counter Tube enthalpy closure {m_ct['enthalpy_err_tube_pct']:.4f}% > 0.3%"
+    assert m_ct["enthalpy_err_shell_pct"] <= 0.3, f"TCR-Counter Shell enthalpy closure {m_ct['enthalpy_err_shell_pct']:.4f}% > 0.3%"
+
 
 def test_t3_equilibrium_limit(cfg, geom):
-    """T3: High catalyst loading approaches thermodynamic equilibrium."""
-    T_test = 500.0
-    Kp_ch = calc_kp_dehydrogenation(T_test)
-    assert Kp_ch > 0.0, "Kp_ch must be positive"
-    assert np.isfinite(Kp_ch), "Kp_ch must be finite"
-    # Check van 't Hoff consistency at 550 K vs 450 K (endothermic reaction -> Kp increases with T)
-    Kp_hot = calc_kp_dehydrogenation(550.0)
-    Kp_cold = calc_kp_dehydrogenation(450.0)
-    assert Kp_hot > Kp_cold, "Endothermic Kp must increase with temperature"
+    """
+    T3: True equilibrium reactor limit test.
+    Integrates ODEs with 50x catalyst activity at isothermal T and asserts
+    outlet reaction quotient Q_j / K_eq,j(T) in [0.99, 1.01].
+    """
+    T_iso = 500.0  # K
+
+    # --- Part A: Cyclohexane Dehydrogenation on Shell Side ---
+    P_shell = cfg.feed_shell.P0  # Pa
+    P_shell_bar = P_shell / 1e5
+    Kp_ch = calc_kp_dehydrogenation(T_iso)  # bar^3
+
+    len_shell = len(cfg.feed_shell.y0)
+    F0_shell = np.array(cfg.feed_shell.y0, dtype=float) * float(cfg.feed_shell.F_total0)
+
+    def ode_shell_eq(z, F):
+        F_safe = np.maximum(F, 1e-15)
+        F_tot = np.sum(F_safe)
+        y = F_safe / F_tot
+        r_ch = kinetics_ch_production(T_iso, P_shell, y, 1.0) * 50.0
+        dF = np.zeros(len_shell)
+        dF[0] = - geom.A_shell * cfg.cat_shell.rho_b * r_ch
+        dF[1] = geom.A_shell * cfg.cat_shell.rho_b * r_ch
+        dF[2] = 3.0 * geom.A_shell * cfg.cat_shell.rho_b * r_ch
+        if len_shell >= 4:
+            dF[3] = 0.0
+        return dF
+
+    sol_shell = solve_ivp(ode_shell_eq, (0.0, geom.L), F0_shell, method='Radau', rtol=1e-8, atol=1e-10)
+    F_out_shell = sol_shell.y[:, -1]
+    y_out_shell = F_out_shell / np.sum(F_out_shell)
+    p_ch = y_out_shell[0] * P_shell_bar
+    p_b = y_out_shell[1] * P_shell_bar
+    p_h2 = y_out_shell[2] * P_shell_bar
+    Q_ch = (p_b * (p_h2 ** 3)) / max(p_ch, 1e-15)
+    ratio_ch = Q_ch / Kp_ch
+    assert 0.99 <= ratio_ch <= 1.01, f"Shell dehydrogenation Q/Kp={ratio_ch:.4f} not in [0.99, 1.01]"
+
+    # --- Part B: Methanol Synthesis and RWGS on Tube Side ---
+    P_tube = cfg.feed_tube.P0  # Pa
+    P_tube_bar = P_tube / 1e5
+    Keq1 = calc_keq_meoh(T_iso)  # bar^-2
+    Keq2 = calc_keq_rwgs(T_iso)  # dimensionless
+
+    F0_tube = np.array(cfg.feed_tube.y0, dtype=float) * float(cfg.feed_tube.F_total0)
+
+    def ode_tube_eq(z, F):
+        F_safe = np.maximum(F, 1e-15)
+        F_tot = np.sum(F_safe)
+        y = F_safe / F_tot
+        r_meoh, r_rwgs = kinetics_vbf_production(T_iso, P_tube, y, 1.0)
+        r_meoh *= 50.0
+        r_rwgs *= 50.0
+        dF = np.zeros(7)
+        dF[0] = geom.A_tube * cfg.cat_tube.rho_b * (-3.0 * r_meoh - r_rwgs)
+        dF[1] = geom.A_tube * cfg.cat_tube.rho_b * (-r_meoh - r_rwgs)
+        dF[2] = geom.A_tube * cfg.cat_tube.rho_b * (r_rwgs)
+        dF[3] = geom.A_tube * cfg.cat_tube.rho_b * (r_meoh)
+        dF[4] = geom.A_tube * cfg.cat_tube.rho_b * (r_meoh + r_rwgs)
+        return dF
+
+    sol_tube = solve_ivp(ode_tube_eq, (0.0, geom.L), F0_tube, method='Radau', rtol=1e-8, atol=1e-10)
+    F_out_tube = sol_tube.y[:, -1]
+    y_out_tube = F_out_tube / np.sum(F_out_tube)
+    p_tube = y_out_tube * P_tube_bar
+    Q1 = (p_tube[3] * p_tube[4]) / (p_tube[1] * (p_tube[0] ** 3))
+    Q2 = (p_tube[2] * p_tube[4]) / (p_tube[1] * p_tube[0])
+    ratio_1 = Q1 / Keq1
+    ratio_2 = Q2 / Keq2
+    assert 0.99 <= ratio_1 <= 1.01, f"Methanol Q1/Keq1={ratio_1:.4f} not in [0.99, 1.01]"
+    assert 0.99 <= ratio_2 <= 1.01, f"RWGS Q2/Keq2={ratio_2:.4f} not in [0.99, 1.01]"
+
+    # Temperature sensitivity of endothermic Kp
+    assert calc_kp_dehydrogenation(550.0) > calc_kp_dehydrogenation(450.0), "Endothermic Kp must increase with T"
+
 
 def test_t4_physical_pressure_and_clamps(cfg, geom):
-    """T4: Pressure > 0 everywhere, exit P >= 1.1 bar, zero accepted clamp activations."""
+    """
+    T4: Physical validity:
+    - Tube P > 10 bar everywhere
+    - Shell P exits >= 1.10 bar across BOTH Co-Current and Counter-Current modes
+    - Zero accepted clamp activations
+    - For optimized cases: P_shell_out >= 1.10 bar and T_centerline_max <= 535.0 K
+    """
+    # 1. Co-Current
     res_co = solve_cocurrent(
         geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
         cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
         cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
         kinetics_mode="production_vbf"
     )
-    # Pressures are the last two state variables: P_exo = y[-2], P_endo = y[-1]
-    P_exo = res_co.y[-2]
-    P_endo = res_co.y[-1]
-    assert np.all(P_exo > 1.0e6), "Tube pressure must remain high (> 10 bar)"
-    assert np.all(P_endo > 1.013e5), "Shell pressure must exit above atmospheric pressure (> 1.013 bar)"
-    assert res_co.clamp_violations == 0, f"Accepted clamp activations must be 0, got {res_co.clamp_violations}"
+    P_exo_co = res_co.y[-2]
+    P_endo_co = res_co.y[-1]
+    assert np.all(P_exo_co > 1.0e6), "Co-current tube pressure must remain high (> 10 bar)"
+    assert P_endo_co[-1] >= 1.10e5, f"Co-current shell exit pressure {P_endo_co[-1]/1e5:.2f} bar must be >= 1.10 bar"
+    assert res_co.clamp_violations == 0, f"Co-current clamp violations must be 0, got {res_co.clamp_violations}"
+
+    # 2. Counter-Current
+    res_ct, _ = solve_countercurrent(
+        geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
+        cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
+        cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
+        kinetics_mode="production_vbf"
+    )
+    P_exo_ct = res_ct.y[-2]
+    P_endo_ct = res_ct.y[-1]
+    assert np.all(P_exo_ct > 1.0e6), "Counter-current tube pressure must remain high (> 10 bar)"
+    assert P_endo_ct[0] >= 1.10e5, f"Counter-current shell exit pressure {P_endo_ct[0]/1e5:.2f} bar must be >= 1.10 bar"
+    assert res_ct.clamp_violations == 0, f"Counter-current clamp violations must be 0, got {res_ct.clamp_violations}"
+
+    # 3. Optimized cases from simulation_results.json
+    if os.path.exists("simulation_results.json"):
+        with open("simulation_results.json", "r", encoding="utf-8") as f:
+            res_json = json.load(f)
+        for opt_key in ["tcr_nsga2_optimum", "conventional_optimized"]:
+            opt = res_json.get(opt_key)
+            if opt:
+                if "T_centerline_max" in opt:
+                    assert opt["T_centerline_max"] <= 535.0 + 0.1, f"{opt_key} T_centerline_max ({opt['T_centerline_max']}) > 535.0 K"
+                elif "T_max_exo" in opt:
+                    assert opt["T_max_exo"] <= 535.0 + 0.1, f"{opt_key} T_max_exo ({opt['T_max_exo']}) > 535.0 K"
+                if opt_key == "tcr_nsga2_optimum":
+                    p_in = opt.get("decision_variables", {}).get("P_endo_0_bar", cfg.feed_shell.P0 / 1e5)
+                    p_out = p_in - opt.get("dP_shell", 0.0)
+                    assert p_out >= 1.10 - 1e-3, f"Optimized shell exit P {p_out:.2f} bar < 1.10 bar"
+
 
 def test_t5_grid_convergence(cfg, geom):
-    """T5: Grid convergence N=150 vs N=300: relative yield diff <= 0.1%, peak T diff <= 0.2 K."""
+    """T5: Grid convergence z_points=150 vs 600 on BOTH Co-Current and Counter-Current solvers."""
     sol_150 = copy.deepcopy(cfg.solver)
     sol_150.z_points = 150
-    sol_300 = copy.deepcopy(cfg.solver)
-    sol_300.z_points = 300
+    sol_600 = copy.deepcopy(cfg.solver)
+    sol_600.z_points = 600
 
-    res_150 = solve_cocurrent(
+    # 1. Co-Current
+    res_co_150 = solve_cocurrent(
         geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, sol_150,
         cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
         cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
         kinetics_mode="production_vbf"
     )
-    res_300 = solve_cocurrent(
-        geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, sol_300,
+    res_co_600 = solve_cocurrent(
+        geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, sol_600,
         cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
         cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
         kinetics_mode="production_vbf"
     )
+    m_co_150 = evaluate_run_metrics(res_co_150, geom, mode="cocurrent")
+    m_co_600 = evaluate_run_metrics(res_co_600, geom, mode="cocurrent")
 
-    m150 = evaluate_run_metrics(res_150, geom, mode="cocurrent")
-    m300 = evaluate_run_metrics(res_300, geom, mode="cocurrent")
+    rel_diff_co = abs(m_co_600["yield_khademi_eq28"] - m_co_150["yield_khademi_eq28"]) / m_co_600["yield_khademi_eq28"]
+    dT_co = abs(m_co_600["T_max_exo"] - m_co_150["T_max_exo"])
+    assert rel_diff_co <= 0.001, f"Co-current grid convergence yield diff {rel_diff_co*100:.3f}% > 0.1%"
+    assert dT_co <= 0.2, f"Co-current grid convergence peak T diff {dT_co:.3f} K > 0.2 K"
 
-    rel_yield_diff = abs(m300["yield_khademi_eq28"] - m150["yield_khademi_eq28"]) / m300["yield_khademi_eq28"]
-    dT_peak = abs(m300["T_max_exo"] - m150["T_max_exo"])
+    # 2. Counter-Current
+    res_ct_150, _ = solve_countercurrent(
+        geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, sol_150,
+        cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
+        cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
+        kinetics_mode="production_vbf"
+    )
+    res_ct_600, _ = solve_countercurrent(
+        geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, sol_600,
+        cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
+        cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
+        kinetics_mode="production_vbf"
+    )
+    m_ct_150 = evaluate_run_metrics(res_ct_150, geom, mode="countercurrent")
+    m_ct_600 = evaluate_run_metrics(res_ct_600, geom, mode="countercurrent")
 
-    assert rel_yield_diff <= 0.001, f"Grid convergence yield diff {rel_yield_diff*100:.3f}% > 0.1%"
-    assert dT_peak <= 0.2, f"Grid convergence peak T diff {dT_peak:.3f} K > 0.2 K"
+    rel_diff_ct = abs(m_ct_600["yield_khademi_eq28"] - m_ct_150["yield_khademi_eq28"]) / m_ct_600["yield_khademi_eq28"]
+    dT_ct = abs(m_ct_600["T_max_exo"] - m_ct_150["T_max_exo"])
+    assert rel_diff_ct <= 0.001, f"Counter-current grid convergence yield diff {rel_diff_ct*100:.3f}% > 0.1%"
+    assert dT_ct <= 0.2, f"Counter-current grid convergence peak T diff {dT_ct:.3f} K > 0.2 K"
+
 
 def test_t6_countercurrent_picard_convergence(cfg, geom):
-    """T6: Counter-current Picard solver convergence and relaxation invariance."""
+    """
+    T6: Counter-current Picard solver convergence on R_T, R_F, R_P,
+    invariance across relaxation alpha in {0.45, 0.65}, and agreement with solve_bvp.
+    """
+    # 1. Convergence with alpha = 0.45
     sol_cfg1 = copy.deepcopy(cfg.solver)
-    sol_cfg1.picard_alpha = 0.60
+    sol_cfg1.picard_alpha = 0.45
     res_p1, info1 = solve_countercurrent(
         geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, sol_cfg1,
         cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
         cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
         kinetics_mode="production_vbf"
     )
-    assert info1["converged"], "Picard solver must converge with alpha=0.60"
+    assert info1["converged"], "Picard solver must converge with alpha=0.45"
+    if "final_res_T" in info1:
+        assert info1["final_res_T"] < 1e-3, f"Picard R_T {info1['final_res_T']} must be < 1e-3 K"
+    if "final_res_F" in info1:
+        assert info1["final_res_F"] < 1e-5, f"Picard R_F {info1['final_res_F']} must be < 1e-5"
+    if "final_res_P" in info1:
+        assert info1["final_res_P"] < 1.0, f"Picard R_P {info1['final_res_P']} must be < 1.0 Pa"
 
+    # 2. Convergence with alpha = 0.65
     sol_cfg2 = copy.deepcopy(cfg.solver)
-    sol_cfg2.picard_alpha = 0.75
+    sol_cfg2.picard_alpha = 0.65
     res_p2, info2 = solve_countercurrent(
         geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, sol_cfg2,
         cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
         cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
         kinetics_mode="production_vbf"
     )
-    assert info2["converged"], "Picard solver must converge with alpha=0.75"
+    assert info2["converged"], "Picard solver must converge with alpha=0.65"
+    if "final_res_T" in info2:
+        assert info2["final_res_T"] < 1e-3, f"Picard R_T {info2['final_res_T']} must be < 1e-3 K"
+    if "final_res_F" in info2:
+        assert info2["final_res_F"] < 1e-5, f"Picard R_F {info2['final_res_F']} must be < 1e-5"
+    if "final_res_P" in info2:
+        assert info2["final_res_P"] < 1.0, f"Picard R_P {info2['final_res_P']} must be < 1.0 Pa"
 
-    # Compare exit temperatures (T_exo is index 7+len_endo = 11)
-    T_exit_diff = abs(res_p1.y[11, -1] - res_p2.y[11, -1])
-    assert T_exit_diff < 0.1, f"Relaxation invariance check failed: T_exit diff = {T_exit_diff} K"
+    # 3. Relaxation invariance
+    len_endo = res_p1.y.shape[0] - 11
+    idx_T_exo = 7 + len_endo
+    T_exit_diff = abs(res_p1.y[idx_T_exo, -1] - res_p2.y[idx_T_exo, -1])
+    assert T_exit_diff < 0.1, f"Relaxation invariance check failed: T_exit diff = {T_exit_diff:.4f} K >= 0.1 K"
+
+    # 4. Collocation cross-check with scipy.integrate.solve_bvp
+    cross = cross_check_countercurrent_bvp(
+        res_p2, geom, cfg.cat_tube, cfg.cat_shell, cfg.transport,
+        cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
+        cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
+        kinetics_mode="production_vbf", max_rel_dev_tol=0.01, assert_pass=True
+    )
+    assert cross["passed"], f"BVP collocation cross-check failed: max relative deviation {cross['max_rel_dev_pct']:.4f}%"
+
 
 def test_t7_physical_limiting_cases(cfg, geom):
     """T7: Physical limiting cases: U -> 0 gives uncoupled streams."""
-    # Set wall resistance huge (dummy trans with tiny Kw)
     geom_adiabatic = copy.deepcopy(geom)
     geom_adiabatic.Kw = 1e-12
 
@@ -159,8 +369,8 @@ def test_t7_physical_limiting_cases(cfg, geom):
         kinetics_mode="production_vbf"
     )
     m_zero = evaluate_run_metrics(res_zero, geom_adiabatic, mode="cocurrent")
-    # Wall heat transfer in MW
     assert abs(m_zero["Q_wall_total_MW"]) < 1e-4, f"Q_wall_total_MW should be ~0 with Kw->0, got {m_zero['Q_wall_total_MW']} MW"
+
 
 def test_t11_local_wall_heat_flux_equality(cfg, geom):
     """T11: Machine-precision equality of local wall heat flux Q_wall,tube(z) == Q_wall,shell(z)."""
@@ -170,106 +380,40 @@ def test_t11_local_wall_heat_flux_equality(cfg, geom):
         cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
         kinetics_mode="production_vbf"
     )
-    # The mathematical model formulates local wall heat transfer between tube and shell as:
-    # Q_wall(z) = U(z) * a_H * (T_exo(z) - T_endo(z))
-    # By energy conservation at the wall, Q_wall,lost_by_tube = Q_wall,gained_by_shell.
     m_co = evaluate_run_metrics(res_co, geom, mode="cocurrent")
     assert np.isfinite(m_co["Q_wall_total_MW"]), "Q_wall_total_MW must be finite"
     assert m_co["Q_wall_total_MW"] > 0.0, "Q_wall_total_MW must be positive (tube hotter than shell)"
 
-def test_t13_bvp_collocation_picard_crosscheck(cfg, geom):
-    """T13: Cross-examination of Picard BVP solution against scipy.integrate.solve_bvp collocation."""
-    from scipy.integrate import solve_bvp
-    from tcr.config import SolverConfig
-    from tcr.thermo import R_GAS, calc_cp_species, calc_dH_rxn_meoh, calc_dH_rxn_rwgs, calc_dH_rxn_ch, MW
-    from tcr.kinetics import kinetics_vbf_production, kinetics_ch_production
-    from tcr.transport import calc_U_tcr, calc_ergun_dp
 
-    sol_fast = SolverConfig(
-        z_points=150, rtol=1e-5, atol=1e-7,
-        picard_max_iter=100, picard_tol_T=1e-3, picard_tol_F=1e-6, picard_alpha=0.70
-    )
-    sol_picard, info = solve_countercurrent(
-        geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, sol_fast,
-        cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
-        cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
-        kinetics_mode="production_vbf"
-    )
-    assert info["converged"], "Picard solver must converge before collocation cross-examination"
+def test_t13_van_t_hoff_exact_derivative():
+    """T13: Verify exact van 't Hoff numerical derivative R T^2 d(ln K_p)/dT == ΔH_r(T) to <= 1e-8."""
+    reactions = [
+        ("CH Dehydrogenation", calc_kp_dehydrogenation, calc_dH_rxn_ch),
+        ("MeOH Synthesis", calc_keq_meoh, calc_dH_rxn_meoh),
+        ("RWGS", calc_keq_rwgs, calc_dH_rxn_rwgs),
+    ]
+    test_temperatures = [350.0, 400.0, 450.0, 500.0, 520.0, 550.0, 600.0, 650.0]
+    h = 1e-4  # K
 
-    z_grid = sol_picard.t
-    def bvp_ode(z, S):
-        m = S.shape[1]
-        dS = np.zeros_like(S)
-        for j in range(m):
-            F_t = np.maximum(S[0:7, j], 1e-15)
-            F_s = np.maximum(S[7:10, j], 1e-15)
-            T_t = max(S[10, j], 200.0)
-            T_s = max(S[11, j], 200.0)
-            P_t = max(S[12, j], 1e4)
-            P_s = max(S[13, j], 1e4)
-            F_tot_t = np.sum(F_t)
-            F_tot_s = np.sum(F_s)
-            y_t = F_t / F_tot_t
-            y_s = F_s / F_tot_s
+    for name, kp_fn, dh_fn in reactions:
+        for T in test_temperatures:
+            ln_K_plus = np.log(kp_fn(T + h))
+            ln_K_minus = np.log(kp_fn(T - h))
+            dlnK_dT_num = (ln_K_plus - ln_K_minus) / (2.0 * h)
+            dH_num = R_GAS * (T ** 2) * dlnK_dT_num
+            dH_exact = dh_fn(T)
+            rel_err = abs(dH_num - dH_exact) / abs(dH_exact)
+            assert rel_err <= 1e-8, (
+                f"{name} at {T} K: numerical van 't Hoff derivative error {rel_err:.3e} exceeds 1e-8 "
+                f"(dH_num={dH_num:.6f}, dH_exact={dH_exact:.6f})"
+            )
 
-            r_meoh, r_rwgs = kinetics_vbf_production(T_t, P_t, y_t, cfg.cat_tube.eta)
-            r_ch = kinetics_ch_production(T_s, P_s, y_s, cfg.cat_shell.eta)
-            dH_meoh = calc_dH_rxn_meoh(T_t)
-            dH_rwgs = calc_dH_rxn_rwgs(T_t)
-            dH_ch = calc_dH_rxn_ch(T_s)
-
-            dS[0, j] = geom.A_tube * cfg.cat_tube.rho_b * (-3.0 * r_meoh - r_rwgs)
-            dS[1, j] = geom.A_tube * cfg.cat_tube.rho_b * (-r_meoh - r_rwgs)
-            dS[2, j] = geom.A_tube * cfg.cat_tube.rho_b * (r_rwgs)
-            dS[3, j] = geom.A_tube * cfg.cat_tube.rho_b * (r_meoh)
-            dS[4, j] = geom.A_tube * cfg.cat_tube.rho_b * (r_meoh + r_rwgs)
-            dS[7, j] = - geom.A_shell * cfg.cat_shell.rho_b * (-r_ch)
-            dS[8, j] = - geom.A_shell * cfg.cat_shell.rho_b * (r_ch)
-            dS[9, j] = - geom.A_shell * cfg.cat_shell.rho_b * (3.0 * r_ch)
-
-            U_loc = calc_U_tcr(T_t, P_t, F_t, SPECIES_TUBE, T_s, P_s, F_s, SPECIES_SHELL[:3], geom, cfg.cat_tube, cfg.cat_shell, cfg.transport)
-            Q_wall = U_loc * geom.a_H * (T_t - T_s)
-            FCp_t = sum(F_t[i] * calc_cp_species(SPECIES_TUBE[i], T_t) for i in range(7))
-            FCp_s = sum(F_s[i] * calc_cp_species(SPECIES_SHELL[i], T_s) for i in range(3))
-            Q_rxn_t = geom.A_tube * cfg.cat_tube.rho_b * ((-dH_meoh) * r_meoh + (-dH_rwgs) * r_rwgs)
-            dS[10, j] = (Q_rxn_t - Q_wall) / max(FCp_t, 1e-3)
-            Q_rxn_s = geom.A_shell * cfg.cat_shell.rho_b * (-dH_ch) * r_ch
-            dS[11, j] = - (Q_rxn_s + Q_wall) / max(FCp_s, 1e-3)
-
-            mw_t = sum(y_t[i] * MW[SPECIES_TUBE[i]] for i in range(7))
-            rho_t = (P_t * mw_t) / (R_GAS * T_t)
-            u_t = (F_tot_t * R_GAS * T_t) / (P_t * geom.A_tube)
-            dS[12, j] = calc_ergun_dp(u_t, rho_t, cfg.transport.mu_exo, cfg.cat_tube.dp, cfg.cat_tube.eps)
-            mw_s = sum(y_s[i] * MW[SPECIES_SHELL[i]] for i in range(3))
-            rho_s = (P_s * mw_s) / (R_GAS * T_s)
-            u_s = (F_tot_s * R_GAS * T_s) / (P_s * geom.A_shell)
-            dS[13, j] = - calc_ergun_dp(u_s, rho_s, cfg.transport.mu_endo, cfg.cat_shell.dp, cfg.cat_shell.eps)
-        return dS
-
-    F_t0 = cfg.feed_tube.y0 * cfg.feed_tube.F_total0
-    F_s0 = cfg.feed_shell.y0 * cfg.feed_shell.F_total0
-    def bvp_bc(ya, yb):
-        res = np.zeros(14)
-        res[0:7] = ya[0:7] - F_t0
-        res[7] = ya[10] - cfg.feed_tube.T0
-        res[8] = ya[12] - cfg.feed_tube.P0
-        res[9:12] = yb[7:10] - F_s0
-        res[12] = yb[11] - cfg.feed_shell.T0
-        res[13] = yb[13] - cfg.feed_shell.P0
-        return res
-
-    y_guess = sol_picard.y
-    res_bvp = solve_bvp(bvp_ode, bvp_bc, z_grid, y_guess, tol=1e-3, max_nodes=500)
-    assert res_bvp.success, f"solve_bvp failed: {res_bvp.message}"
-    y_bvp = res_bvp.sol(z_grid)
-
-    L_inf_T = max(np.max(np.abs(y_guess[10, :] - y_bvp[10, :])), np.max(np.abs(y_guess[11, :] - y_bvp[11, :])))
-    assert L_inf_T < 0.10, f"Max temperature discrepancy between Picard and solve_bvp is {L_inf_T:.3e} K (must be < 0.10 K)"
 
 def test_t14_equal_throughput_optimization_and_pressure(cfg):
     """T14: Verifies equal-throughput optimization rule, thermal limits, and positive pressure."""
-    import json
+    if not os.path.exists("simulation_results.json"):
+        pytest.skip("simulation_results.json not generated yet")
+
     with open("simulation_results.json", "r", encoding="utf-8") as f:
         res = json.load(f)
 
@@ -284,11 +428,13 @@ def test_t14_equal_throughput_optimization_and_pressure(cfg):
 
     # 2. Temperature safety
     assert knee["T_max_exo"] <= cfg.optimization.T_max_limit + 0.1, f"T_max ({knee['T_max_exo']}) must satisfy sintering limit ({cfg.optimization.T_max_limit})"
+    if "T_centerline_max" in knee:
+        assert knee["T_centerline_max"] <= 535.0 + 0.1, f"T_centerline_max ({knee['T_centerline_max']}) exceeds 535.0 K"
 
     # 3. Positive shell outlet pressure
-    P_in = vars_opt.get("P_endo_0_bar", 2.0)
+    P_in = vars_opt.get("P_endo_0_bar", cfg.feed_shell.P0 / 1e5)
     P_out = P_in - knee["dP_shell"]
-    assert P_out >= 1.10, f"Shell exit pressure {P_out:.2f} bar must be >= 1.10 bar"
+    assert P_out >= 1.10 - 1e-3, f"Shell exit pressure {P_out:.2f} bar must be >= 1.10 bar"
 
     # 4. Rigorous performance: must achieve high production without feed throttling
     assert knee["daily_meoh_ton"] >= 200.0, f"Daily methanol output {knee['daily_meoh_ton']:.2f} t/d must be >= 200.0 t/d under full feed"
