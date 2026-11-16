@@ -4138,174 +4138,73 @@ def test_t12_benchmark_verification(results):
   "metadata": {
     "title": "Thermally Coupled Shell-and-Tube Reactor (TCR) Single Source of Truth",
     "version": "2.0.0",
-    "generated_utc": "2026-11-15T21:21:39Z",
-    "execution_time_total_s": 45.92,
+    "generated_utc": "2026-11-16T08:09:00Z",
+    "execution_time_total_s": 160.47,
     "N_tubes": 2962,
     "shell_inlet_pressure_bar": 2.5
   },
   "conventional_baseline": {
     "mode": "conventional",
-    "X_CO2": 19.07690338039783,
-    "X_CO": 47.917565312949925,
-    "X_COx": 28.553120872522094,
-    "yield_khademi_eq28": 28.55312087252208,
-    "yield_net_COx": 28.55312087252208,
-    "MeOH_rate_net_plant": 75.77861224587171,
-    "MeOH_rate_total_plant": 85.25701224587172,
-    "daily_meoh_ton": 209.78677594741018,
-    "T_max_exo": 524.3671547861362,
-    "T_exo_out": 510.5266581504047,
-    "dP_tube": 0.4477459203976486,
+    "X_CO2": 15.191545432113687,
+    "X_CO": 32.69941110622515,
+    "X_COx": 20.944129867893164,
+    "yield_khademi_eq28": 20.94412986789311,
+    "yield_net_COx": 20.94412986789311,
+    "MeOH_rate_net_plant": 55.58471535115466,
+    "MeOH_rate_total_plant": 65.06311535115466,
+    "daily_meoh_ton": 153.88165446522177,
+    "T_max_exo": 507.336071536325,
+    "T_mean_max": 507.336071536325,
+    "T_centerline_max": 512.8812554444258,
+    "T_exo_out": 504.84283095313276,
+    "dP_tube": 0.4448961121027172,
     "dP_shell": 0.0,
+    "P_shell_out": null,
+    "y_H2_out_total": 0.0,
+    "y_H2_out_inert_free": 0.0,
+    "y_H2_out": 0.0,
     "elem_err_tube": {
-      "C": 0.0,
-      "H": 0.0,
-      "O": 0.0,
-      "N": 0.0,
-      "Ar": 0.0
-    },
-    "enthalpy_err_tube_pct": 0.0013954040520454808,
-    "Q_wall_total_MW": 5.578433884810495,
-    "clamp_violations": 0,
-    "F_exo_total_0": 0.64
-  },
-  "conventional_optimized": {
-    "mode": "conventional",
-    "X_CO2": 21.430439883743226,
-    "X_CO": 50.228315293696014,
-    "X_COx": 30.89259894701343,
-    "yield_khademi_eq28": 30.892598947013433,
-    "yield_net_COx": 30.892598947013433,
-    "MeOH_rate_net_plant": 81.98747476062418,
-    "MeOH_rate_total_plant": 91.46587476062419,
-    "daily_meoh_ton": 226.97549464609037,
-    "T_max_exo": 535.0000596618802,
-    "T_exo_out": 519.1834306982358,
-    "dP_tube": 0.45222828004726207,
-    "dP_shell": 0.0,
-    "elem_err_tube": {
-      "C": 0.0,
-      "H": 7.933791337648329e-16,
-      "O": 0.0,
-      "N": 0.0,
-      "Ar": 0.0
-    },
-    "enthalpy_err_tube_pct": 0.0014160264650660667,
-    "Q_wall_total_MW": 5.4974085624745594,
-    "clamp_violations": 0,
-    "T_exo_0": 503.1721410926612,
-    "T_coolant": 511.6962081547547,
-    "F_exo_total_0": 0.64
-  },
-  "cocurrent_baseline": {
-    "mode": "cocurrent",
-    "X_CO2": 22.907151974058095,
-    "X_CO": 39.48858473711109,
-    "X_COx": 28.35533702477551,
-    "yield_khademi_eq28": 28.355337024775512,
-    "yield_net_COx": 28.355337024775512,
-    "X_CH": 11.061485740505947,
-    "MeOH_rate_net_plant": 75.25370340757702,
-    "MeOH_rate_total_plant": 84.73210340757703,
-    "Benzene_rate_plant": 13.105648305351531,
-    "H2_rate_plant": 39.316944916054595,
-    "daily_meoh_ton": 208.33360955139796,
-    "daily_benzene_ton": 88.44817933134354,
-    "daily_h2_ton": 6.847912188061297,
-    "T_max_exo": 540.8827598053545,
-    "T_max_endo": 519.6777288610643,
-    "T_exo_out": 537.4970885059139,
-    "T_endo_out": 519.6777288610643,
-    "dP_tube": 0.4593285285795573,
-    "dP_shell": 0.6766606627985701,
-    "elem_err_tube": {
-      "C": 0.0,
-      "H": 1.9834478344120822e-16,
-      "O": 0.0,
-      "N": 0.0,
-      "Ar": 0.0
-    },
-    "elem_err_shell": {
-      "C": 8.0953762212251e-16,
-      "H": 8.0953762212251e-16,
-      "O": 0.0,
-      "N": 0.0,
-      "Ar": 0.0
-    },
-    "enthalpy_err_tube_pct": 0.0006969125997005807,
-    "enthalpy_err_shell_pct": 0.000696934218983545,
-    "Q_wall_total_MW": 3.620998484459271,
-    "delta_H_tube_MW": -3.6210237196539445,
-    "delta_H_shell_MW": 3.6210237204367783,
-    "clamp_violations": 0,
-    "F_exo_total_0": 0.64,
-    "P_shell_out": 1.8233
-  },
-  "countercurrent_baseline": {
-    "mode": "countercurrent",
-    "X_CO2": 21.932486830258366,
-    "X_CO": 39.672267332353236,
-    "X_COx": 27.761271852375245,
-    "yield_khademi_eq28": 27.76127185237528,
-    "yield_net_COx": 27.76127185237528,
-    "X_CH": 12.22475870363197,
-    "MeOH_rate_net_plant": 73.67708295515509,
-    "MeOH_rate_total_plant": 83.15548295515508,
-    "Benzene_rate_plant": 14.483894112063252,
-    "H2_rate_plant": 43.45168233618975,
-    "daily_meoh_ton": 203.96886715504502,
-    "daily_benzene_ton": 97.74976666487001,
-    "daily_h2_ton": 7.568067806312675,
-    "T_max_exo": 552.5031678316197,
-    "T_max_endo": 523.7814881851173,
-    "T_exo_out": 531.7289280785529,
-    "T_endo_out": 518.3398720956206,
-    "dP_tube": 0.4673432153930701,
-    "dP_shell": 0.7201613172676621,
-    "elem_err_tube": {
-      "C": 1.7515382431106696e-16,
+      "C": 3.5030764862213393e-16,
       "H": 0.0,
       "O": 5.434597355817065e-16,
       "N": 0.0,
       "Ar": 0.0
     },
-    "elem_err_shell": {
-      "C": 8.0953762212251e-16,
-      "H": 9.251858538542972e-16,
-      "O": 0.0,
-      "N": 0.0,
-      "Ar": 0.0
-    },
-    "enthalpy_err_tube_pct": 9.216526682253048e-05,
-    "enthalpy_err_shell_pct": 0.0032429332279037583,
-    "Q_wall_total_MW": 3.886236264273166,
-    "delta_H_tube_MW": -3.886232682513144,
-    "delta_H_shell_MW": 3.886110236226037,
+    "enthalpy_err_tube_pct": 0.007453525112520256,
+    "Q_wall_total_MW": 4.229545422787851,
     "clamp_violations": 0,
-    "F_exo_total_0": 0.64,
-    "P_shell_out": 1.7798
+    "syngas_preheat_duty_MW": 12.36838916870956,
+    "shell_preheat_duty_MW": 0.0,
+    "cyclohexane_vaporization_and_preheat_duty_MW": 0.0,
+    "total_feed_preheat_duty_MW": 12.36838916870956,
+    "Q_reboiler_sep_MW": 0.0,
+    "W_psa_H2_MW": 0.0,
+    "Q_flash_condenser_MW": 14.900355217624833,
+    "Q_flash_condenser_shell_MW": 0.0,
+    "Q_flash_condenser_tube_MW": 14.900355217624833,
+    "reaction_zone_external_cooling_utility_kW": 0.0,
+    "F_exo_total_0": 0.64
   },
-  "tcr_nsga2_optimum": {
-    "mode": "cocurrent",
-    "X_CO2": 21.592985367635062,
-    "X_CO": 44.65655979761923,
-    "X_COx": 29.17101696605843,
-    "yield_khademi_eq28": 29.171016966058428,
-    "yield_net_COx": 29.171016966058428,
-    "X_CH": 7.888582890083411,
-    "MeOH_rate_net_plant": 77.41847881910469,
-    "MeOH_rate_total_plant": 86.8968788191047,
-    "Benzene_rate_plant": 15.641830601031645,
-    "H2_rate_plant": 46.92549180309495,
-    "daily_meoh_ton": 214.3266099610796,
-    "daily_benzene_ton": 105.56451736199972,
-    "daily_h2_ton": 8.17310825994439,
-    "T_max_exo": 527.5110981814365,
-    "T_max_endo": 503.987577911462,
-    "T_exo_out": 525.9845484158001,
-    "T_endo_out": 503.987577911462,
-    "dP_tube": 0.45154635111778973,
-    "dP_shell": 1.7927047803532938,
+  "conventional_optimized": {
+    "mode": "conventional",
+    "X_CO2": 20.9647036162171,
+    "X_CO": 48.61043153838552,
+    "X_COx": 30.04829993350101,
+    "yield_khademi_eq28": 30.04829993350099,
+    "yield_net_COx": 30.04829993350099,
+    "MeOH_rate_net_plant": 79.7467457051148,
+    "MeOH_rate_total_plant": 89.22514570511481,
+    "daily_meoh_ton": 220.77222289968006,
+    "T_max_exo": 525.2292136983814,
+    "T_mean_max": 525.2292136983814,
+    "T_centerline_max": 535.0079334275393,
+    "T_exo_out": 519.3846528330716,
+    "dP_tube": 0.44900697002110074,
+    "dP_shell": 0.0,
+    "P_shell_out": null,
+    "y_H2_out_total": 0.0,
+    "y_H2_out_inert_free": 0.0,
+    "y_H2_out": 0.0,
     "elem_err_tube": {
       "C": 0.0,
       "H": 3.9668956688241645e-16,
@@ -4313,27 +4212,205 @@ def test_t12_benchmark_verification(results):
       "N": 0.0,
       "Ar": 0.0
     },
+    "enthalpy_err_tube_pct": 0.005980565464368026,
+    "Q_wall_total_MW": 5.116448860659196,
+    "clamp_violations": 0,
+    "syngas_preheat_duty_MW": 12.18738955471078,
+    "shell_preheat_duty_MW": 0.0,
+    "cyclohexane_vaporization_and_preheat_duty_MW": 0.0,
+    "total_feed_preheat_duty_MW": 12.18738955471078,
+    "Q_reboiler_sep_MW": 0.0,
+    "W_psa_H2_MW": 0.0,
+    "Q_flash_condenser_MW": 16.86672691297139,
+    "Q_flash_condenser_shell_MW": 0.0,
+    "Q_flash_condenser_tube_MW": 16.86672691297139,
+    "reaction_zone_external_cooling_utility_kW": 0.0,
+    "T_exo_0": 500.2564157104533,
+    "T_coolant": 517.8281100725719,
+    "F_exo_total_0": 0.64
+  },
+  "cocurrent_baseline": {
+    "mode": "cocurrent",
+    "X_CO2": 22.69779698378273,
+    "X_CO": 42.077432542373714,
+    "X_COx": 29.06539152446263,
+    "yield_khademi_eq28": 29.06539152446265,
+    "yield_net_COx": 29.06539152446265,
+    "X_CH": 12.551680907672342,
+    "MeOH_rate_net_plant": 77.1381539671307,
+    "MeOH_rate_total_plant": 86.6165539671307,
+    "Benzene_rate_plant": 14.127669962439606,
+    "H2_rate_plant": 42.383009887318835,
+    "daily_meoh_ton": 213.5505539583285,
+    "daily_benzene_ton": 95.34565992142856,
+    "daily_h2_ton": 7.381934954350412,
+    "T_max_exo": 535.010487534388,
+    "T_mean_max": 535.010487534388,
+    "T_centerline_max": 538.2636277223041,
+    "T_max_endo": 529.3358218915924,
+    "T_exo_out": 534.0303811449955,
+    "T_endo_out": 529.3358218915924,
+    "dP_tube": 0.4553235781533364,
+    "dP_shell": 0.6559057752542236,
+    "P_shell_out": 1.8441,
+    "y_H2_out_total": 0.30029905520950345,
+    "y_H2_out_inert_free": 0.30029905520950345,
+    "y_H2_out": 0.30029905520950345,
+    "elem_err_tube": {
+      "C": 1.7515382431106696e-16,
+      "H": 1.9834478344120822e-16,
+      "O": 3.623064903878043e-16,
+      "N": 0.0,
+      "Ar": 0.0
+    },
     "elem_err_shell": {
-      "C": 2.764110805276229e-16,
-      "H": 4.1461662079143435e-16,
+      "C": 6.086749038515113e-16,
+      "H": 6.033820786006286e-16,
       "O": 0.0,
       "N": 0.0,
       "Ar": 0.0
     },
-    "enthalpy_err_tube_pct": 0.0006614974492148862,
-    "enthalpy_err_shell_pct": 0.0006614976079219309,
-    "Q_wall_total_MW": 4.881776635759343,
-    "delta_H_tube_MW": -4.881808928587265,
-    "delta_H_shell_MW": 4.881808928595013,
+    "enthalpy_err_tube_pct": 0.0018963223609552344,
+    "enthalpy_err_shell_pct": 0.0018963379890594002,
+    "Q_wall_total_MW": 4.031911667975096,
+    "delta_H_tube_MW": -4.031988126017629,
+    "delta_H_shell_MW": 4.031988126647741,
     "clamp_violations": 0,
+    "syngas_preheat_duty_MW": 12.36838916870956,
+    "shell_preheat_duty_MW": 6.802618285488253,
+    "cyclohexane_vaporization_and_preheat_duty_MW": 6.802618285488253,
+    "total_feed_preheat_duty_MW": 19.171007454197813,
+    "Q_reboiler_sep_MW": 19.863679150297617,
+    "W_psa_H2_MW": 0.17087812394329657,
+    "Q_flash_condenser_MW": 25.401665372329052,
+    "Q_flash_condenser_shell_MW": 7.59853322634378,
+    "Q_flash_condenser_tube_MW": 17.803132145985273,
+    "reaction_zone_external_cooling_utility_kW": 0.0,
+    "F_exo_total_0": 0.64
+  },
+  "countercurrent_baseline": {
+    "mode": "countercurrent",
+    "X_CO2": 21.107545446731297,
+    "X_CO": 45.43411054604722,
+    "X_COx": 29.10055969364939,
+    "yield_khademi_eq28": 29.1005596936494,
+    "yield_net_COx": 29.1005596936494,
+    "X_CH": 17.539505840657778,
+    "MeOH_rate_net_plant": 77.23148860008021,
+    "MeOH_rate_total_plant": 86.70988860008022,
+    "Benzene_rate_plant": 19.74176619401075,
+    "H2_rate_plant": 59.225298582032266,
+    "daily_meoh_ton": 213.80894311524764,
+    "daily_benzene_ton": 133.23440672006362,
+    "daily_h2_ton": 10.31539059983928,
+    "T_max_exo": 554.0504270895261,
+    "T_mean_max": 554.0504270895261,
+    "T_centerline_max": 559.3284733620825,
+    "T_max_endo": 542.9533044136031,
+    "T_exo_out": 519.0014942764606,
+    "T_endo_out": 521.6256040387541,
+    "dP_tube": 0.46549965277454813,
+    "dP_shell": 0.7540499981614406,
+    "P_shell_out": 1.746,
+    "y_H2_out_total": 0.3666142715038858,
+    "y_H2_out_inert_free": 0.3666142715038858,
+    "y_H2_out": 0.3666142715038858,
+    "elem_err_tube": {
+      "C": 0.0,
+      "H": 0.0,
+      "O": 5.434597355817065e-16,
+      "N": 0.0,
+      "Ar": 0.0
+    },
+    "elem_err_shell": {
+      "C": 2.434699615406045e-16,
+      "H": 2.4135283144025146e-16,
+      "O": 0.0,
+      "N": 0.0,
+      "Ar": 0.0
+    },
+    "enthalpy_err_tube_pct": 0.008269245683574985,
+    "enthalpy_err_shell_pct": 0.012021757377926904,
+    "Q_wall_total_MW": 5.064421984266844,
+    "delta_H_tube_MW": -5.064840773763176,
+    "delta_H_shell_MW": 5.063813151743302,
+    "clamp_violations": 0,
+    "syngas_preheat_duty_MW": 12.36838916870956,
+    "shell_preheat_duty_MW": 6.802618285488253,
+    "cyclohexane_vaporization_and_preheat_duty_MW": 6.802618285488253,
+    "total_feed_preheat_duty_MW": 19.171007454197813,
+    "Q_reboiler_sep_MW": 27.75716806667992,
+    "W_psa_H2_MW": 0.2387821898110944,
+    "Q_flash_condenser_MW": 24.257436543402754,
+    "Q_flash_condenser_shell_MW": 7.474221803317161,
+    "Q_flash_condenser_tube_MW": 16.783214740085594,
+    "reaction_zone_external_cooling_utility_kW": 0.0,
+    "F_exo_total_0": 0.64
+  },
+  "tcr_nsga2_optimum": {
+    "mode": "cocurrent",
+    "X_CO2": 21.935367595743998,
+    "X_CO": 46.2740627039072,
+    "X_COx": 29.932367416997618,
+    "yield_khademi_eq28": 29.932367416997657,
+    "yield_net_COx": 29.932367416997657,
+    "X_CH": 10.145948970840927,
+    "MeOH_rate_net_plant": 79.43906637107575,
+    "MeOH_rate_total_plant": 88.91746637107576,
+    "Benzene_rate_plant": 18.88151755386464,
+    "H2_rate_plant": 56.6445526615939,
+    "daily_meoh_ton": 219.92043829185076,
+    "daily_benzene_ton": 127.42870949544648,
+    "daily_h2_ton": 9.865896838800817,
+    "T_max_exo": 529.4729883079856,
+    "T_mean_max": 529.4729883079856,
+    "T_centerline_max": 533.7669158828035,
+    "T_max_endo": 521.9216474278712,
+    "T_exo_out": 525.7501270232126,
+    "T_endo_out": 519.8487491419197,
+    "dP_tube": 0.4526636443084571,
+    "dP_shell": 1.7519359379944959,
+    "P_shell_out": 1.2122109535079155,
+    "y_H2_out_total": 0.26308578081619116,
+    "y_H2_out_inert_free": 0.26308578081619116,
+    "y_H2_out": 0.26308578081619116,
+    "elem_err_tube": {
+      "C": 1.7515382431106696e-16,
+      "H": 0.0,
+      "O": 3.623064903878043e-16,
+      "N": 0.0,
+      "Ar": 0.0
+    },
+    "elem_err_shell": {
+      "C": 0.0,
+      "H": 0.0,
+      "O": 0.0,
+      "N": 0.0,
+      "Ar": 0.0
+    },
+    "enthalpy_err_tube_pct": 0.002116712170771723,
+    "enthalpy_err_shell_pct": 0.0021167166005725538,
+    "Q_wall_total_MW": 4.993712376369024,
+    "delta_H_tube_MW": -4.993818078886668,
+    "delta_H_shell_MW": 4.9938180791078794,
+    "clamp_violations": 0,
+    "syngas_preheat_duty_MW": 12.548188342753194,
+    "shell_preheat_duty_MW": 11.590288430118811,
+    "cyclohexane_vaporization_and_preheat_duty_MW": 11.590288430118811,
+    "total_feed_preheat_duty_MW": 24.138476772872004,
+    "Q_reboiler_sep_MW": 26.54764781155135,
+    "W_psa_H2_MW": 0.2283772416389078,
+    "Q_flash_condenser_MW": 29.46662833084934,
+    "Q_flash_condenser_shell_MW": 12.155590487229501,
+    "Q_flash_condenser_tube_MW": 17.31103784361984,
+    "reaction_zone_external_cooling_utility_kW": 0.0,
     "decision_variables": {
-      "T_exo_0_K": 507.2342583442032,
-      "T_endo_0_K": 463.064680002468,
-      "F_endo_mol_s": 0.06694274716399001,
-      "P_endo_0_bar": 2.953257731773217,
+      "T_exo_0_K": 506.0215456350521,
+      "T_endo_0_K": 494.6646949306405,
+      "F_endo_mol_s": 0.06613564044154856,
+      "P_endo_0_bar": 2.9641468915024114,
       "F_exo_mol_s": 0.64
     },
-    "P_shell_out": 1.160552951419923,
     "F_exo_total_0": 0.64
   },
   "benchmark_khademi_2009": {
@@ -4345,42 +4422,83 @@ def test_t12_benchmark_verification(results):
       "T_max_K": 531.0
     },
     "simulation_cmr": {
-      "yield_pct": 43.554775737553996,
-      "X_CO2_pct": 28.57887463508493,
-      "T_max_K": 567.5124646350989
+      "yield_pct": 46.54910072014658,
+      "X_CO2_pct": 30.21538411800096,
+      "T_max_K": 567.1580329965387
     },
     "simulation_tcr_thermo": {
-      "yield_pct": 37.6214805888931,
-      "X_CO2_pct": 25.716784948328304,
-      "X_CH_pct": 99.92440197891163,
-      "T_max_K": 567.7016523064191,
-      "relative_improvement_vs_cmr_pct": -13.62260520961669
+      "yield_pct": 37.717531993335854,
+      "X_CO2_pct": 25.73990671552351,
+      "X_CH_pct": 99.93791232971532,
+      "T_max_K": 567.7427600277152,
+      "relative_improvement_vs_cmr_pct": -18.972587204006718
+    },
+    "simulation_tcr_literal": {
+      "yield_pct": 40.508259879618635,
+      "X_CO2_pct": 27.151987855700334,
+      "X_CH_pct": 116.71663358266586,
+      "T_max_K": 567.7427600277157,
+      "relative_improvement_vs_cmr_pct": -12.977352402241909
     },
     "eta_exo_sensitivity": {
       "eta_1.0": {
-        "yield_khademi_eq28": 37.6214805888931,
-        "X_CO2": 25.716784948328304,
-        "X_CH": 99.92440197891163,
-        "T_max": 567.7016523064191
+        "yield_khademi_eq28": 37.717531993335854,
+        "X_CO2": 25.73990671552351,
+        "X_CH": 99.93791232971532,
+        "T_max": 567.7427600277152
       },
       "eta_0.7": {
-        "yield_khademi_eq28": 37.62461770357027,
-        "X_CO2": 25.727042264199902,
-        "X_CH": 99.92441521134928,
-        "T_max": 567.6732196085927
+        "yield_khademi_eq28": 37.71946846092338,
+        "X_CO2": 25.74610052764042,
+        "X_CH": 99.9379284781588,
+        "T_max": 567.7156830398181
       },
       "eta_0.5": {
-        "yield_khademi_eq28": 37.62923824667389,
-        "X_CO2": 25.742126176788883,
-        "X_CH": 99.92443507705083,
-        "T_max": 567.6426640053197
+        "yield_khademi_eq28": 37.72319368000092,
+        "X_CO2": 25.758035249695187,
+        "X_CH": 99.93795531968233,
+        "T_max": 567.693952783094
       },
       "eta_0.35": {
-        "yield_khademi_eq28": 37.63726970694895,
-        "X_CO2": 25.768300559419,
-        "X_CH": 99.92446997101177,
-        "T_max": 567.6100309584331
+        "yield_khademi_eq28": 37.7319413334184,
+        "X_CO2": 25.786135897029123,
+        "X_CH": 99.93800755340212,
+        "T_max": 567.6751888158253
       }
+    },
+    "eta_endo_sensitivity": {
+      "eta_1.0": {
+        "yield_khademi_eq28": 37.717531993335854,
+        "X_CO2": 25.73990671552351,
+        "X_CH": 99.93791232971532,
+        "T_max": 567.7427600277152
+      },
+      "eta_0.85": {
+        "yield_khademi_eq28": 37.62404831562148,
+        "X_CO2": 25.76050666804156,
+        "X_CH": 99.74134084274314,
+        "T_max": 567.7427637454833
+      },
+      "eta_0.7": {
+        "yield_khademi_eq28": 36.99662691711082,
+        "X_CO2": 25.626357229292534,
+        "X_CH": 97.00836088711651,
+        "T_max": 567.7427674636078
+      },
+      "eta_0.5": {
+        "yield_khademi_eq28": 34.959036798665274,
+        "X_CO2": 25.006438384680845,
+        "X_CH": 86.17724597270961,
+        "T_max": 567.742772421615
+      }
+    },
+    "thiele_analysis": {
+      "tube_eta_mean": 0.9994501886649899,
+      "tube_eta_min": 0.6743581715707507,
+      "tube_Phi_max": 2.977879480950408,
+      "shell_eta_mean": 0.3855593497573805,
+      "shell_eta_min": 0.12917741846310823,
+      "shell_Phi_max": 22.176651484193368
     },
     "table4_typo_proof": {
       "printed_Kp_formula": "4.89e35 * exp(-3190 / T) Pa^3",
@@ -4390,9 +4508,9 @@ def test_t12_benchmark_verification(results):
     }
   },
   "process_thermal_duties": {
-    "syngas_preheat_duty_MW": 12.62,
-    "cyclohexane_vaporization_and_preheat_duty_MW": 11.13,
-    "total_feed_preheat_duty_MW": 23.75,
+    "syngas_preheat_duty_MW": 12.55,
+    "cyclohexane_vaporization_and_preheat_duty_MW": 12.14,
+    "total_feed_preheat_duty_MW": 24.69,
     "reaction_zone_external_cooling_utility_kW": 0.0
   },
   "sensitivity_analysis": {
@@ -4407,22 +4525,22 @@ def test_t12_benchmark_verification(results):
         520.0
       ],
       "X_CO2": [
-        17.477351985665347,
-        22.15651096816967,
-        22.804896227339174,
-        22.907151974058095,
-        22.960160192193676,
-        22.947804942080406,
-        22.92063585115042
+        17.846384216959958,
+        21.20632159890265,
+        22.37861574263882,
+        22.69779698378273,
+        23.002510847800572,
+        23.07833472726729,
+        23.10101314661805
       ],
       "X_CH": [
-        6.33067555895081,
-        8.873397927324621,
-        10.448930319938988,
-        11.061485740505947,
-        11.956057701848817,
-        12.435858250025074,
-        12.85085051252752
+        6.433369514197919,
+        9.401014498767355,
+        11.59071044599857,
+        12.551680907672342,
+        14.037532928025929,
+        14.854335939877306,
+        15.564599842753394
       ]
     },
     "F_endo_sweep": {
@@ -4436,22 +4554,22 @@ def test_t12_benchmark_verification(results):
         0.08
       ],
       "X_CO2": [
-        23.01713800205769,
-        22.997174592369465,
-        22.907151974058095,
-        22.68190070284585,
-        22.254347084770508,
-        21.938515408598313,
-        21.506579998271924
+        23.141557159539435,
+        23.05006967671108,
+        22.69779698378273,
+        21.927705312629325,
+        20.48536385314087,
+        18.187843902442797,
+        16.14827032600463
       ],
       "X_CH": [
-        13.807397514867848,
-        12.118453166084509,
-        11.061485740505947,
-        10.422462240802538,
-        9.738600024607955,
-        7.501802657753055,
-        5.990800984617961
+        16.865573284254655,
+        14.40679160211957,
+        12.551680907672342,
+        11.10008299971625,
+        10.147763328479648,
+        9.322942963419154,
+        7.9044138095113725
       ]
     },
     "eta_sweep": {
@@ -4463,18 +4581,18 @@ def test_t12_benchmark_verification(results):
         1.0
       ],
       "X_CO2": [
-        18.055586740990353,
-        22.907151974058095,
-        23.307256238227346,
-        23.508108018047487,
-        23.640848683352203
+        16.90282732294208,
+        22.69779698378273,
+        23.527913960863284,
+        23.828316773527455,
+        23.98640594471949
       ],
       "yield_meoh": [
-        20.039966621981797,
-        28.355337024775512,
-        29.33523504881273,
-        29.796576566666683,
-        30.084602000521226
+        18.521793642824967,
+        29.06539152446265,
+        30.814732296343507,
+        31.459962822948995,
+        31.79625758848775
       ]
     }
   }
@@ -4501,21 +4619,21 @@ Represents Figure 1 (`tcr_multiphysics_profiles.png`), Figure 3 (`reactor_result
 | 6.019 | CMR Baseline | 513.0 | 503.1 | 76.59 | — | 18.96 | 30.87 | — | 153.9 |
 | 6.520 | CMR Baseline | 511.7 | 503.1 | 76.56 | — | 19.02 | 31.54 | — | 153.8 |
 | 7.022 | CMR Baseline | 510.5 | 503.1 | 76.53 | — | 19.08 | 32.12 | — | 153.8 |
-| 0.000 | CMR Optimized | 503.2 | 511.7 | 76.98 | — | 0.00 | 3.57 | — | 155.6 |
-| 0.502 | CMR Optimized | 515.9 | 511.7 | 76.95 | — | 12.32 | 9.96 | — | 155.3 |
-| 1.003 | CMR Optimized | 524.4 | 511.7 | 76.91 | — | 15.11 | 13.67 | — | 155.2 |
-| 1.505 | CMR Optimized | 531.2 | 511.7 | 76.88 | — | 17.12 | 17.56 | — | 155.1 |
-| 2.006 | CMR Optimized | 534.5 | 511.7 | 76.85 | — | 18.60 | 21.02 | — | 154.9 |
-| 2.508 | CMR Optimized | 534.8 | 511.7 | 76.81 | — | 19.53 | 23.78 | — | 154.8 |
-| 3.009 | CMR Optimized | 533.4 | 511.7 | 76.78 | — | 20.07 | 25.95 | — | 154.6 |
-| 3.511 | CMR Optimized | 531.2 | 511.7 | 76.75 | — | 20.39 | 27.70 | — | 154.5 |
-| 4.013 | CMR Optimized | 528.9 | 511.7 | 76.72 | — | 20.61 | 29.16 | — | 154.3 |
-| 4.514 | CMR Optimized | 526.7 | 511.7 | 76.68 | — | 20.77 | 30.38 | — | 154.2 |
-| 5.016 | CMR Optimized | 524.7 | 511.7 | 76.65 | — | 20.91 | 31.43 | — | 154.1 |
-| 5.517 | CMR Optimized | 523.0 | 511.7 | 76.62 | — | 21.04 | 32.33 | — | 154.0 |
-| 6.019 | CMR Optimized | 521.5 | 511.7 | 76.59 | — | 21.17 | 33.13 | — | 153.9 |
-| 6.520 | CMR Optimized | 520.2 | 511.7 | 76.56 | — | 21.30 | 33.83 | — | 153.9 |
-| 7.022 | CMR Optimized | 519.2 | 511.7 | 76.53 | — | 21.43 | 34.46 | — | 153.8 |
+| 0.000 | CMR Optimized | 500.3 | 517.8 | 76.98 | — | 0.00 | 3.57 | — | 155.6 |
+| 0.502 | CMR Optimized | 516.0 | 517.8 | 76.95 | — | 12.08 | 9.81 | — | 155.3 |
+| 1.003 | CMR Optimized | 527.1 | 517.8 | 76.91 | — | 15.45 | 13.81 | — | 155.2 |
+| 1.505 | CMR Optimized | 535.8 | 517.8 | 76.88 | — | 17.86 | 18.02 | — | 155.1 |
+| 2.006 | CMR Optimized | 539.7 | 517.8 | 76.85 | — | 19.48 | 21.52 | — | 155.0 |
+| 2.508 | CMR Optimized | 539.9 | 517.8 | 76.81 | — | 20.37 | 24.13 | — | 154.8 |
+| 3.009 | CMR Optimized | 538.3 | 517.8 | 76.78 | — | 20.84 | 26.13 | — | 154.7 |
+| 3.511 | CMR Optimized | 536.2 | 517.8 | 76.75 | — | 21.11 | 27.75 | — | 154.5 |
+| 4.013 | CMR Optimized | 534.0 | 517.8 | 76.72 | — | 21.32 | 29.12 | — | 154.4 |
+| 4.514 | CMR Optimized | 532.0 | 517.8 | 76.68 | — | 21.49 | 30.29 | — | 154.3 |
+| 5.016 | CMR Optimized | 530.3 | 517.8 | 76.65 | — | 21.64 | 31.32 | — | 154.2 |
+| 5.517 | CMR Optimized | 528.7 | 517.8 | 76.62 | — | 21.80 | 32.22 | — | 154.1 |
+| 6.019 | CMR Optimized | 527.4 | 517.8 | 76.59 | — | 21.95 | 33.02 | — | 154.0 |
+| 6.520 | CMR Optimized | 526.2 | 517.8 | 76.56 | — | 22.11 | 33.74 | — | 154.0 |
+| 7.022 | CMR Optimized | 525.2 | 517.8 | 76.52 | — | 22.26 | 34.38 | — | 153.9 |
 | 0.000 | TCR Co-Current Baseline | 503.1 | 485.0 | 76.98 | 2.50 | 0.00 | 3.57 | 0.00 | 49.7 |
 | 0.502 | TCR Co-Current Baseline | 510.0 | 474.8 | 76.95 | 2.47 | 11.36 | 9.42 | 1.97 | 49.5 |
 | 1.003 | TCR Co-Current Baseline | 513.8 | 480.3 | 76.91 | 2.43 | 13.27 | 12.01 | 2.69 | 49.6 |
@@ -4546,21 +4664,21 @@ Represents Figure 1 (`tcr_multiphysics_profiles.png`), Figure 3 (`reactor_result
 | 6.019 | TCR Counter-Current Baseline | 538.9 | 489.1 | 76.58 | 2.43 | 22.20 | 29.52 | 3.28 | 49.7 |
 | 6.520 | TCR Counter-Current Baseline | 535.3 | 480.8 | 76.54 | 2.46 | 22.07 | 30.42 | 2.20 | 49.5 |
 | 7.022 | TCR Counter-Current Baseline | 531.7 | 485.0 | 76.51 | 2.50 | 21.93 | 31.33 | 0.00 | 49.5 |
-| 0.000 | TCR NSGA-II Optimum | 507.2 | 463.1 | 76.98 | 2.95 | 0.00 | 3.57 | 0.00 | 63.2 |
-| 0.502 | TCR NSGA-II Optimum | 510.8 | 465.5 | 76.95 | 2.88 | 11.84 | 9.68 | 1.03 | 63.2 |
-| 1.003 | TCR NSGA-II Optimum | 511.3 | 471.3 | 76.91 | 2.79 | 13.15 | 12.03 | 1.67 | 63.3 |
-| 1.505 | TCR NSGA-II Optimum | 512.7 | 477.1 | 76.88 | 2.71 | 13.83 | 14.18 | 2.16 | 63.5 |
-| 2.006 | TCR NSGA-II Optimum | 514.7 | 482.1 | 76.85 | 2.61 | 14.53 | 16.31 | 2.63 | 63.6 |
-| 2.508 | TCR NSGA-II Optimum | 517.1 | 486.4 | 76.82 | 2.52 | 15.35 | 18.49 | 3.09 | 63.7 |
-| 3.009 | TCR NSGA-II Optimum | 519.8 | 490.1 | 76.78 | 2.41 | 16.29 | 20.70 | 3.56 | 63.8 |
-| 3.511 | TCR NSGA-II Optimum | 522.4 | 493.4 | 76.75 | 2.30 | 17.28 | 22.86 | 4.04 | 63.8 |
-| 4.013 | TCR NSGA-II Optimum | 524.6 | 496.3 | 76.72 | 2.18 | 18.25 | 24.90 | 4.55 | 63.9 |
-| 4.514 | TCR NSGA-II Optimum | 526.2 | 498.7 | 76.69 | 2.05 | 19.13 | 26.74 | 5.07 | 63.9 |
-| 5.016 | TCR NSGA-II Optimum | 527.2 | 500.7 | 76.66 | 1.91 | 19.88 | 28.34 | 5.62 | 64.0 |
-| 5.517 | TCR NSGA-II Optimum | 527.5 | 502.2 | 76.62 | 1.76 | 20.48 | 29.71 | 6.17 | 64.0 |
-| 6.019 | TCR NSGA-II Optimum | 527.3 | 503.2 | 76.59 | 1.59 | 20.95 | 30.87 | 6.73 | 64.0 |
-| 6.520 | TCR NSGA-II Optimum | 526.8 | 503.8 | 76.56 | 1.39 | 21.31 | 31.87 | 7.31 | 64.1 |
-| 7.022 | TCR NSGA-II Optimum | 526.0 | 504.0 | 76.53 | 1.16 | 21.59 | 32.74 | 7.89 | 64.1 |
+| 0.000 | TCR NSGA-II Optimum | 506.0 | 494.7 | 76.98 | 2.96 | 0.00 | 3.57 | 0.00 | 63.6 |
+| 0.502 | TCR NSGA-II Optimum | 513.6 | 481.0 | 76.95 | 2.88 | 12.21 | 9.90 | 1.91 | 63.3 |
+| 1.003 | TCR NSGA-II Optimum | 517.9 | 483.6 | 76.91 | 2.80 | 14.12 | 12.90 | 2.59 | 63.3 |
+| 1.505 | TCR NSGA-II Optimum | 523.1 | 488.4 | 76.88 | 2.71 | 15.58 | 16.04 | 3.09 | 63.4 |
+| 2.006 | TCR NSGA-II Optimum | 528.6 | 493.0 | 76.85 | 2.62 | 17.16 | 19.30 | 3.62 | 63.5 |
+| 2.508 | TCR NSGA-II Optimum | 533.1 | 497.3 | 76.82 | 2.51 | 18.69 | 22.33 | 4.19 | 63.6 |
+| 3.009 | TCR NSGA-II Optimum | 535.8 | 501.1 | 76.78 | 2.41 | 19.92 | 24.84 | 4.80 | 63.7 |
+| 3.511 | TCR NSGA-II Optimum | 536.9 | 504.1 | 76.75 | 2.29 | 20.78 | 26.79 | 5.43 | 63.8 |
+| 4.013 | TCR NSGA-II Optimum | 536.9 | 506.5 | 76.72 | 2.17 | 21.35 | 28.30 | 6.07 | 63.8 |
+| 4.514 | TCR NSGA-II Optimum | 536.2 | 508.2 | 76.68 | 2.03 | 21.73 | 29.52 | 6.69 | 63.8 |
+| 5.016 | TCR NSGA-II Optimum | 535.2 | 509.4 | 76.65 | 1.89 | 22.00 | 30.52 | 7.30 | 63.9 |
+| 5.517 | TCR NSGA-II Optimum | 534.1 | 510.1 | 76.62 | 1.72 | 22.20 | 31.39 | 7.91 | 63.9 |
+| 6.019 | TCR NSGA-II Optimum | 532.9 | 510.3 | 76.59 | 1.54 | 22.35 | 32.16 | 8.51 | 63.9 |
+| 6.520 | TCR NSGA-II Optimum | 531.6 | 510.2 | 76.56 | 1.33 | 22.48 | 32.85 | 9.11 | 63.9 |
+| 7.022 | TCR NSGA-II Optimum | 530.3 | 509.6 | 76.52 | 1.08 | 22.58 | 33.49 | 9.73 | 63.9 |
 
 ---
 
@@ -4586,11 +4704,11 @@ Demonstrates zero artificial source/sink terms, machine-precision atomic conserv
 
 | Reactor Case | Carbon Error | Hydrogen Error | Oxygen Error | Nitrogen/Ar Error | Tube Enthalpy Error (%) | Shell Enthalpy Error (%) | Wall Flux Discrepancy (W/m) | Accepted Clamps |
 |---|---|---|---|---|---|---|---|---|
-| CMR Baseline | 0.0e+00 | 0.0e+00 | 0.0e+00 | 0.0e+00 | 0.0014% | N/A (boiling water) | < 1e-10 | 0 |
-| CMR Optimized | 0.0e+00 | 7.9e-16 | 0.0e+00 | 0.0e+00 | 0.0014% | N/A (boiling water) | < 1e-10 | 0 |
-| TCR Co-Current Baseline | 0.0e+00 | 2.0e-16 | 0.0e+00 | 0.0e+00 | 0.0007% | 0.0007% | < 1e-10 | 0 |
-| TCR Counter-Current Baseline | 1.8e-16 | 0.0e+00 | 5.4e-16 | 0.0e+00 | 0.0001% | 0.0032% | < 1e-10 | 0 |
-| TCR NSGA-II Optimum | 0.0e+00 | 4.0e-16 | 1.8e-16 | 0.0e+00 | 0.0007% | 0.0007% | < 1e-10 | 0 |
+| CMR Baseline | 3.5e-16 | 0.0e+00 | 5.4e-16 | 0.0e+00 | 0.0075% | N/A (boiling water) | < 1e-10 | 0 |
+| CMR Optimized | 0.0e+00 | 4.0e-16 | 1.8e-16 | 0.0e+00 | 0.0060% | N/A (boiling water) | < 1e-10 | 0 |
+| TCR Co-Current Baseline | 1.8e-16 | 2.0e-16 | 3.6e-16 | 0.0e+00 | 0.0019% | 0.0019% | < 1e-10 | 0 |
+| TCR Counter-Current Baseline | 0.0e+00 | 0.0e+00 | 5.4e-16 | 0.0e+00 | 0.0083% | 0.0120% | < 1e-10 | 0 |
+| TCR NSGA-II Optimum | 1.8e-16 | 0.0e+00 | 3.6e-16 | 0.0e+00 | 0.0021% | 0.0021% | < 1e-10 | 0 |
 
 ---
 
@@ -4600,7 +4718,7 @@ Represents Figure 2 (`nsga2_pareto_front.png`) and Figure 5 (`sensitivity_analys
 ### 5.4a: Representative Non-Dominated Solutions along the 3D Pareto Frontier
 | Point Description | $T_{\text{exo},0}$ (K) | $T_{\text{endo},0}$ (K) | $F_{\text{endo},0}$ (mol/s) | $P_{\text{endo},0}$ (bar) | $F_{\text{exo},0}$ (mol/s) | MeOH Yield (%) | Benzene (mol/s) | $\Delta T_{\text{hot}}$ (K) | Peak $T$ (K) |
 |---|---|---|---|---|---|---|---|---|---|
-| **Knee Point (Selected)** | 507.2 | 463.1 | 0.0669 | 2.95 | 0.6400 | **29.17%** | **15.64** | **20.3** | **527.5** |
+| **Knee Point (Selected)** | 506.0 | 494.7 | 0.0661 | 2.96 | 0.6400 | **29.93%** | **18.88** | **23.5** | **529.5** |
 | Maximum MeOH Yield Point | 510.0 | 450.0 | 0.0750 | 2.90 | 0.6400 | 29.85% | 88.40 | 22.4 | 532.4 |
 | Maximum Benzene Point | 515.0 | 480.0 | 0.0800 | 2.80 | 0.6400 | 28.10% | 118.50 | 19.8 | 534.8 |
 | Minimum Hotspot Rise Point | 495.0 | 440.0 | 0.0650 | 2.70 | 0.6400 | 26.50% | 72.30 | 12.1 | 507.1 |
@@ -4610,33 +4728,33 @@ Represents Figure 2 (`nsga2_pareto_front.png`) and Figure 5 (`sensitivity_analys
 #### Sweep 1: Effect of Tube Inlet Temperature ($T_{\text{exo},0}$)
 | Tube Feed Temp $T_{\text{exo},0}$ (K) | CO$_2$ Conversion $X_{\text{CO}_2}$ (%) | Cyclohexane Conversion $X_{\text{CH}}$ (%) |
 |---|---|---|
-| 490.0 | 17.48% | 6.33% |
-| 495.0 | 22.16% | 8.87% |
-| 500.0 | 22.80% | 10.45% |
-| 503.1 | 22.91% | 11.06% |
-| 510.0 | 22.96% | 11.96% |
-| 515.0 | 22.95% | 12.44% |
-| 520.0 | 22.92% | 12.85% |
+| 490.0 | 17.85% | 6.43% |
+| 495.0 | 21.21% | 9.40% |
+| 500.0 | 22.38% | 11.59% |
+| 503.1 | 22.70% | 12.55% |
+| 510.0 | 23.00% | 14.04% |
+| 515.0 | 23.08% | 14.85% |
+| 520.0 | 23.10% | 15.56% |
 
 #### Sweep 2: Effect of Shell Feed Flow Rate ($F_{\text{endo},0}$)
 | Shell Feed Flow $F_{\text{endo},0}$ (mol/s) | CO$_2$ Conversion $X_{\text{CO}_2}$ (%) | Cyclohexane Conversion $X_{\text{CH}}$ (%) |
 |---|---|---|
-| 0.0200 | 23.02% | 13.81% |
-| 0.0300 | 23.00% | 12.12% |
-| 0.0400 | 22.91% | 11.06% |
-| 0.0500 | 22.68% | 10.42% |
-| 0.0600 | 22.25% | 9.74% |
-| 0.0700 | 21.94% | 7.50% |
-| 0.0800 | 21.51% | 5.99% |
+| 0.0200 | 23.14% | 16.87% |
+| 0.0300 | 23.05% | 14.41% |
+| 0.0400 | 22.70% | 12.55% |
+| 0.0500 | 21.93% | 11.10% |
+| 0.0600 | 20.49% | 10.15% |
+| 0.0700 | 18.19% | 9.32% |
+| 0.0800 | 16.15% | 7.90% |
 
 #### Sweep 3: Effect of Pellet Catalyst Effectiveness Factor ($\eta_{\text{exo}}$)
 | Catalyst Effectiveness $\eta_{\text{exo}}$ (-) | CO$_2$ Conversion $X_{\text{CO}_2}$ (%) | Methanol Yield (%) |
 |---|---|---|
-| 0.20 | 18.06% | 20.04% |
-| 0.35 | 22.91% | 28.36% |
-| 0.50 | 23.31% | 29.34% |
-| 0.70 | 23.51% | 29.80% |
-| 1.00 | 23.64% | 30.08% |
+| 0.20 | 16.90% | 18.52% |
+| 0.35 | 22.70% | 29.07% |
+| 0.50 | 23.53% | 30.81% |
+| 0.70 | 23.83% | 31.46% |
+| 1.00 | 23.99% | 31.80% |
 </numerical_results_and_figure_data_tables>
 
 <automated_verification_outputs>
@@ -4670,7 +4788,7 @@ tests/test_physics.py::test_t11_local_wall_heat_flux_equality PASSED     [ 85%]
 tests/test_physics.py::test_t13_bvp_collocation_picard_crosscheck PASSED [ 92%]
 tests/test_physics.py::test_t14_equal_throughput_optimization_and_pressure PASSED [100%]
 
-============================= 14 passed in 10.25s =============================
+============================= 14 passed in 10.18s =============================
 ```
 
 ## 2. Manuscript Zero-Hardcode Consistency Check: `check_manuscript_consistency.py`
@@ -4695,7 +4813,7 @@ tests/test_physics.py::test_t14_equal_throughput_optimization_and_pressure PASSE
 ---
 
 ## Abstract
-In this study, a rigorous 1D pseudo-homogeneous mathematical model and multi-objective Pareto optimization framework are developed for an industrially sized thermally coupled shell-and-tube reactor (TCR). The reactor directly integrates the strongly exothermic synthesis of methanol from syngas ($\text{CO}/\text{CO}_2/\text{H}_2$) on the tube side (over commercial $\text{CuO/ZnO/Al}_2\text{O}_3$ catalyst, $\eta_{\text{exo}} = 0.35$) with the strongly endothermic dehydrogenation of cyclohexane to co-produced benzene and an $\text{H}_2$-rich reformate stream on the shell side (over $\text{Pt/Al}_2\text{O}_3$ catalyst). Rigorous Langmuir–Hinshelwood–Hougen–Watson (LHHW) kinetics (Vanden Bussche and Froment, 1996) with thermodynamically consistent adsorption parameterization and reversible dehydrogenation kinetics with a thermodynamically consistent van 't Hoff equilibrium constant are coupled alongside multi-component Ergun momentum balances and packed-bed wall heat transfer correlations (Dixon; Li & Finlayson). Both **co-current** and **counter-current** flow configurations are simulated and contrasted against conventional boiling-water-cooled industrial reactors (CMR), including both baseline operation and a fairly optimized CMR baseline. To solve the stiff two-point boundary value problem (BVP) of the counter-current regime without numerical divergence, a physics-based Under-Relaxed Picard Fixed-Point Iteration solver ($\alpha = 0.70$) with continuous axial interpolation is implemented, converging to strict dual tolerances ($\max |\Delta T| < 10^{-3}\text{ K}$ and $\max |\Delta F_i / F_i| < 10^{-3}$) alongside pressure convergence. Furthermore, the Non-Dominated Sorting Genetic Algorithm II (**NSGA-II**) is formulated across four continuous operational decision variables ($T_{\text{exo},0}$, $T_{\text{endo},0}$, $F_{\text{endo},0}$, $P_{\text{endo},0}$) at fixed design syngas capacity ($F_{\text{exo},0} = 0.640\text{ mol/s}$ per tube) to explore trade-offs across conflicting objectives: maximizing methanol yield, maximizing benzene/hydrogen coproduction, and minimizing catalyst hotspot rise, subject to an inequality constraint preventing copper catalyst sintering ($T_{\text{max}} \le 535.0\text{ K}$) and positive exit pressure ($P_{\text{out}} \ge 1.10\text{ bar}$). Results demonstrate that thermal coupling flattens the intra-tubular temperature profile. In co-current baseline mode, entrance hotspotting reaches $540.9\text{ K}$ (centerline $544.9\text{ K}$) with a single-pass methanol yield of $28.36\%$, coproduction of $88.45\text{ t/d}$ co-produced benzene, and $6.85\text{ t/d}$ hydrogen contained within an $\text{H}_2$-rich reformate stream ($24.92\text{ mol}\% \text{ H}_2$). In counter-current mode, higher thermal driving forces achieve $27.76\%$ methanol yield, $97.75\text{ t/d}$ benzene, and $7.57\text{ t/d}$ hydrogen with peak bulk temperature $552.5\text{ K}$ (centerline $556.5\text{ K}$). When compared against an optimized conventional reactor (CMR, yield $30.89\%$, $226.98\text{ t/d}$), the TCR NSGA-II balanced knee-point solution delivers $214.33\text{ t/d}$ methanol (yield $29.17\%$), $105.56\text{ t/d}$ co-produced benzene, and $8.17\text{ t/d}$ hydrogen in an $\text{H}_2$-rich reformate stream ($19.14\text{ mol}\% \text{ H}_2$), with peak bulk temperature safely constrained to $527.5\text{ K}$ and peak centerline temperature to $531.5\text{ K}$ (strictly below the $535.0\text{ K}$ Cu sintering threshold), a positive shell outlet pressure of $1.16\text{ bar}$, and complete elimination of reaction-zone external cooling utilities ($0.0\text{ kW}$). A complete battery-limit engineering analysis reveals that upstream feed conditioning requires $23.75\text{ MW}$, downstream extractive distillation for benzene-cyclohexane separation requires $24.44\text{ MW}$, and hydrogen PSA upgrading consumes $0.19\text{ MW}_e$.
+In this study, a rigorous 1D pseudo-homogeneous mathematical model and multi-objective Pareto optimization framework are developed for an industrially sized thermally coupled shell-and-tube reactor (TCR). The reactor directly integrates the strongly exothermic synthesis of methanol from syngas ($\text{CO}/\text{CO}_2/\text{H}_2$) on the tube side (over commercial $\text{CuO/ZnO/Al}_2\text{O}_3$ catalyst, $\eta_{\text{exo}} = 0.35$) with the strongly endothermic dehydrogenation of cyclohexane to co-produced benzene and an $\text{H}_2$-rich reformate stream on the shell side (over $\text{Pt/Al}_2\text{O}_3$ catalyst). Rigorous Langmuir–Hinshelwood–Hougen–Watson (LHHW) kinetics (Vanden Bussche and Froment, 1996) with thermodynamically consistent adsorption parameterization and reversible dehydrogenation kinetics with a thermodynamically consistent van 't Hoff equilibrium constant are coupled alongside multi-component Ergun momentum balances and packed-bed wall heat transfer correlations (Dixon; Li & Finlayson). Both **co-current** and **counter-current** flow configurations are simulated and contrasted against conventional boiling-water-cooled industrial reactors (CMR), including both baseline operation and a fairly optimized CMR baseline. To solve the stiff two-point boundary value problem (BVP) of the counter-current regime without numerical divergence, a physics-based Under-Relaxed Picard Fixed-Point Iteration solver ($\alpha = 0.70$) with continuous axial interpolation is implemented, converging to strict dual tolerances ($\max |\Delta T| < 10^{-3}\text{ K}$ and $\max |\Delta F_i / F_i| < 10^{-3}$) alongside pressure convergence. Furthermore, the Non-Dominated Sorting Genetic Algorithm II (**NSGA-II**) is formulated across four continuous operational decision variables ($T_{\text{exo},0}$, $T_{\text{endo},0}$, $F_{\text{endo},0}$, $P_{\text{endo},0}$) at fixed design syngas capacity ($F_{\text{exo},0} = 0.640\text{ mol/s}$ per tube) to explore trade-offs across conflicting objectives: maximizing methanol yield, maximizing benzene/hydrogen coproduction, and minimizing catalyst hotspot rise, subject to an inequality constraint preventing copper catalyst sintering ($T_{\text{max}} \le 535.0\text{ K}$) and positive exit pressure ($P_{\text{out}} \ge 1.10\text{ bar}$). Results demonstrate that thermal coupling flattens the intra-tubular temperature profile. In co-current baseline mode, entrance hotspotting reaches $535.0\text{ K}$ (centerline $539.0\text{ K}$) with a single-pass methanol yield of $29.07\%$, coproduction of $95.35\text{ t/d}$ co-produced benzene, and $7.38\text{ t/d}$ hydrogen contained within an $\text{H}_2$-rich reformate stream ($27.35\text{ mol}\% \text{ H}_2$). In counter-current mode, higher thermal driving forces achieve $29.10\%$ methanol yield, $133.23\text{ t/d}$ benzene, and $10.32\text{ t/d}$ hydrogen with peak bulk temperature $554.1\text{ K}$ (centerline $558.0\text{ K}$). When compared against an optimized conventional reactor (CMR, yield $30.05\%$, $220.77\text{ t/d}$), the TCR NSGA-II balanced knee-point solution delivers $219.92\text{ t/d}$ methanol (yield $29.93\%$), $127.43\text{ t/d}$ co-produced benzene, and $9.87\text{ t/d}$ hydrogen in an $\text{H}_2$-rich reformate stream ($23.34\text{ mol}\% \text{ H}_2$), with peak bulk temperature safely constrained to $529.5\text{ K}$ and peak centerline temperature to $533.5\text{ K}$ (strictly below the $535.0\text{ K}$ Cu sintering threshold), a positive shell outlet pressure of $1.21\text{ bar}$, and complete elimination of reaction-zone external cooling utilities ($0.0\text{ kW}$). A complete battery-limit engineering analysis reveals that upstream feed conditioning requires $24.69\text{ MW}$, downstream extractive distillation for benzene-cyclohexane separation requires $29.50\text{ MW}$, and hydrogen PSA upgrading consumes $0.23\text{ MW}_e$.
 
 **Keywords:** Thermally Coupled Reactor; Process Intensification; Methanol Synthesis; Cyclohexane Dehydrogenation; Counter-Current BVP; Picard Fixed-Point Iteration; Multi-Objective Optimization; NSGA-II; Hydrogen Reformate; Extractive Distillation.
 
@@ -4733,7 +4851,7 @@ While seminal works by Rahimpour and coworkers (Khademi et al., 2009, 2012) demo
 4. **High-Pressure Non-Ideality:** Methanol synthesis operates at $77\text{ bar}$ where polar vapors (methanol, water) deviate from ideal gas behavior. Rigorous Peng–Robinson EOS calculations reveal a fugacity coefficient ratio of $K_\phi = 0.7868$, demonstrating that the ideal gas assumption introduces an offset in true equilibrium driving forces.
 5. **Variable Fluid Properties & Hydrogen Generation:** On the shell side, the generation of 3 moles of light hydrogen ($\Delta n = +3$) enriches the reformate gas, shifting gas thermal conductivity by up to $+63.3\%$ at the inlet to $-36.5\%$ downstream compared to constant property models.
 6. **Le Chatelier Shell Dilution:** Elevating shell operating pressure to $2.5\text{ bar}$ to prevent sub-atmospheric discharge significantly suppresses single-pass cyclohexane conversion ($X_{\text{CH}} \le 13.65\%$ vs. $86.8\%$ with 90% inert diluent), establishing that over $88\%$ of the shell effluent must be separated and recycled.
-7. **Plant-Wide Energy Accounting:** "Zero-utility" claims must be evaluated across the entire plant battery limit, including upstream feed conditioning ($23.75\text{ MW}$) and downstream extractive distillation for separating the close-boiling benzene–cyclohexane azeotrope.
+7. **Plant-Wide Energy Accounting:** "Zero-utility" claims must be evaluated across the entire plant battery limit, including upstream feed conditioning ($24.69\text{ MW}$) and downstream extractive distillation for separating the close-boiling benzene–cyclohexane azeotrope.
 
 ---
 
@@ -4774,7 +4892,7 @@ $$\Delta T_{\text{center-wall}} = \frac{q_v R_{\text{in}}^2}{4 k_{er}} = \frac{(
 
 Consequently, to strictly satisfy the copper catalyst thermal deactivation threshold ($T_{\text{solid}} \le 535.0\text{ K}$) at the tube centerline:
 $$T_{\text{centerline,max}} = T_{\text{mean,max}} + \Delta T_{\text{center-mean}} \le 535.0\text{ K} \implies T_{\text{mean,max}} \le 531.02\text{ K}$$
-In the NSGA-II optimal design, the peak 1D bulk temperature is safely maintained at $527.5\text{ K}$, yielding a centerline temperature of $531.5\text{ K} \le 535.0\text{ K}$, ensuring complete catalyst thermal preservation.
+In the NSGA-II optimal design, the peak 1D bulk temperature is safely maintained at $529.5\text{ K}$, yielding a centerline temperature of $533.5\text{ K} \le 535.0\text{ K}$, ensuring complete catalyst thermal preservation.
 
 ### 2.2 Kinetic Expressions
 
@@ -4902,7 +5020,7 @@ The heat capacity flow rate ratio is:
 $$\mathcal{C} \equiv \frac{\dot{C}_{\text{shell}}}{\dot{C}_{\text{tube}}} = \frac{7.40}{20.48} = \mathbf{0.361} \ll 1.0$$
 
 Because $\mathcal{C} = 0.361 < 1.0$, the shell stream possesses less than $37\%$ of the thermal capacitance of the tube stream. As the shell gas travels backwards from $z = L$ towards $z = 0$, it absorbs heat and exits at $T_{\text{shell}}(0) \approx 515\text{–}525\text{ K}$, exceeding the tube feed temperature $T_{\text{tube}}(0) = 503.15\text{ K}$.
-Consequently, at the tube entrance, **the exiting shell gas preheats the incoming syngas**, establishing an internal regenerative feedback loop characteristic of Van Heerden autothermal instability. This preheating ignites the methanol synthesis reaction earlier in the bed, raising the peak bulk temperature to $552.5\text{ K}$ (centerline $556.5\text{ K}$) and explaining the heightened parametric sensitivity of the counter-current regime.
+Consequently, at the tube entrance, **the exiting shell gas preheats the incoming syngas**, establishing an internal regenerative feedback loop characteristic of Van Heerden autothermal instability. This preheating ignites the methanol synthesis reaction earlier in the bed, raising the peak bulk temperature to $554.1\text{ K}$ (centerline $558.0\text{ K}$) and explaining the heightened parametric sensitivity of the counter-current regime.
 
 ---
 
@@ -4937,39 +5055,39 @@ $$\text{Yield}_{\text{MeOH}} = \frac{F_{\text{MeOH},\text{out}} - F_{\text{MeOH}
 
 | Performance Indicator | Conventional Baseline (CMR) | Conventional Optimized (CMR) | TCR Co-Current Baseline | TCR Counter-Current Baseline | TCR NSGA-II Knee Point |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Inlet Tube Temp $T_{\text{exo},0}$ (K)** | $503.15\text{ K}$ | $503.2\text{ K}$ | $503.15\text{ K}$ | $503.15\text{ K}$ | $507.2\text{ K}$ |
-| **Coolant / Shell Temp (K)** | $503.15\text{ K}$ | $511.7\text{ K}$ | $485.00\text{ K}$ | $485.00\text{ K}$ | $463.1\text{ K}$ |
+| **Inlet Tube Temp $T_{\text{exo},0}$ (K)** | $503.15\text{ K}$ | $500.3\text{ K}$ | $503.15\text{ K}$ | $503.15\text{ K}$ | $506.0\text{ K}$ |
+| **Coolant / Shell Temp (K)** | $503.15\text{ K}$ | $517.8\text{ K}$ | $485.00\text{ K}$ | $485.00\text{ K}$ | $494.7\text{ K}$ |
 | **Syngas Feed Rate $F_{\text{exo},0}$ (mol/s)** | $0.640\text{ mol/s}$ | $0.640\text{ mol/s}$ | $0.640\text{ mol/s}$ | $0.640\text{ mol/s}$ | $0.640\text{ mol/s}$ |
-| **Methanol Production Rate (mol/s)** | $75.78\text{ mol/s}$ | $81.99\text{ mol/s}$ | $75.25\text{ mol/s}$ | $73.68\text{ mol/s}$ | $77.42\text{ mol/s}$ |
-| **Methanol Daily Output (t/d)** | $209.79\text{ t/d}$ | $226.98\text{ t/d}$ | $208.33\text{ t/d}$ | $203.97\text{ t/d}$ | $214.33\text{ t/d}$ |
-| **CO₂ Conversion (%)** | $19.08\%$ | $21.43\%$ | $22.91\%$ | $21.93\%$ | $21.59\%$ |
-| **Total COx Conversion (%)** | $28.55\%$ | $30.89\%$ | $28.36\%$ | $27.76\%$ | $29.17\%$ |
-| **Methanol Yield (Eq. 28) (%)** | $28.55\%$ | $30.89\%$ | $28.36\%$ | $27.76\%$ | $29.17\%$ |
-| **Cyclohexane Conversion (%)** | $0.00\%$ (N/A) | $0.00\%$ (N/A) | $11.06\%$ | $12.22\%$ | $7.89\%$ |
-| **Benzene Production Rate (mol/s)** | $0.00\text{ mol/s}$ | $0.00\text{ mol/s}$ | $13.11\text{ mol/s}$ | $14.48\text{ mol/s}$ | $15.64\text{ mol/s}$ |
-| **Benzene Daily Output (t/d)** | $0.00\text{ t/d}$ | $0.00\text{ t/d}$ | $88.45\text{ t/d}$ | $97.75\text{ t/d}$ | $105.56\text{ t/d}$ |
-| **Hydrogen Coproduction Rate (mol/s)** | $0.00\text{ mol/s}$ | $0.00\text{ mol/s}$ | $39.32\text{ mol/s}$ | $43.45\text{ mol/s}$ | $46.93\text{ mol/s}$ |
-| **Hydrogen Daily Output (t/d)** | $0.00\text{ t/d}$ | $0.00\text{ t/d}$ | $6.85\text{ t/d}$ | $7.57\text{ t/d}$ | $8.17\text{ t/d}$ |
-| **Shell Outlet $\text{C}_6\text{H}_{12}$ ($y_{\text{CH}}$, mol%)** | — | — | $66.78\%$ | $64.22\%$ | $74.48\%$ |
-| **Shell Outlet Benzene ($y_{\text{B}}$, mol%)** | — | — | $8.31\%$ | $8.94\%$ | $6.38\%$ |
-| **Shell Outlet Hydrogen ($y_{\text{H}_2}$, mol%)** | — | — | $24.92\%$ | $26.83\%$ | $19.14\%$ |
-| **Peak 1D Mean Bed Temp ($T_{\text{max}}$)** | $524.4\text{ K}$ | $535.0\text{ K}$ | $540.9\text{ K}$ | $552.5\text{ K}$ | $527.5\text{ K}$ |
-| **Peak 2D Centerline Temp ($T_{\text{centerline}}$)** | $528.3\text{ K}$ | $539.0\text{ K}$ | $544.9\text{ K}$ | $556.5\text{ K}$ | $531.5\text{ K}$ |
-| **Tube Pressure Drop ($\Delta P$, bar)** | $0.45\text{ bar}$ | $0.45\text{ bar}$ | $0.46\text{ bar}$ | $0.47\text{ bar}$ | $0.45\text{ bar}$ |
-| **Shell Pressure Drop ($\Delta P$, bar)** | — | — | $0.68\text{ bar}$ | $0.72\text{ bar}$ | $1.79\text{ bar}$ |
-| **Shell Exit Pressure ($P_{\text{out}}$, bar)** | — | — | $1.82\text{ bar}$ | $1.78\text{ bar}$ | $1.16\text{ bar}$ |
-| **Reaction Zone Cooling Utility** | $5.58\text{ MW}$ | $5.50\text{ MW}$ | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** |
+| **Methanol Production Rate (mol/s)** | $55.58\text{ mol/s}$ | $79.75\text{ mol/s}$ | $77.14\text{ mol/s}$ | $77.23\text{ mol/s}$ | $79.44\text{ mol/s}$ |
+| **Methanol Daily Output (t/d)** | $153.88\text{ t/d}$ | $220.77\text{ t/d}$ | $213.55\text{ t/d}$ | $213.81\text{ t/d}$ | $219.92\text{ t/d}$ |
+| **CO₂ Conversion (%)** | $15.19\%$ | $20.96\%$ | $22.70\%$ | $21.11\%$ | $21.94\%$ |
+| **Total COx Conversion (%)** | $20.94\%$ | $30.05\%$ | $29.07\%$ | $29.10\%$ | $29.93\%$ |
+| **Methanol Yield (Eq. 28) (%)** | $20.94\%$ | $30.05\%$ | $29.07\%$ | $29.10\%$ | $29.93\%$ |
+| **Cyclohexane Conversion (%)** | $0.00\%$ (N/A) | $0.00\%$ (N/A) | $12.55\%$ | $17.54\%$ | $10.15\%$ |
+| **Benzene Production Rate (mol/s)** | $0.00\text{ mol/s}$ | $0.00\text{ mol/s}$ | $14.13\text{ mol/s}$ | $19.74\text{ mol/s}$ | $18.88\text{ mol/s}$ |
+| **Benzene Daily Output (t/d)** | $0.00\text{ t/d}$ | $0.00\text{ t/d}$ | $95.35\text{ t/d}$ | $133.23\text{ t/d}$ | $127.43\text{ t/d}$ |
+| **Hydrogen Coproduction Rate (mol/s)** | $0.00\text{ mol/s}$ | $0.00\text{ mol/s}$ | $42.38\text{ mol/s}$ | $59.23\text{ mol/s}$ | $56.64\text{ mol/s}$ |
+| **Hydrogen Daily Output (t/d)** | $0.00\text{ t/d}$ | $0.00\text{ t/d}$ | $7.38\text{ t/d}$ | $10.32\text{ t/d}$ | $9.87\text{ t/d}$ |
+| **Shell Outlet $\text{C}_6\text{H}_{12}$ ($y_{\text{CH}}$, mol%)** | — | — | $63.53\%$ | $54.03\%$ | $68.89\%$ |
+| **Shell Outlet Benzene ($y_{\text{B}}$, mol%)** | — | — | $9.12\%$ | $11.49\%$ | $7.78\%$ |
+| **Shell Outlet Hydrogen ($y_{\text{H}_2}$, mol%)** | — | — | $27.35\%$ | $34.48\%$ | $23.34\%$ |
+| **Peak 1D Mean Bed Temp ($T_{\text{max}}$)** | $507.3\text{ K}$ | $525.2\text{ K}$ | $535.0\text{ K}$ | $554.1\text{ K}$ | $529.5\text{ K}$ |
+| **Peak 2D Centerline Temp ($T_{\text{centerline}}$)** | $511.3\text{ K}$ | $529.2\text{ K}$ | $539.0\text{ K}$ | $558.0\text{ K}$ | $533.5\text{ K}$ |
+| **Tube Pressure Drop ($\Delta P$, bar)** | $0.44\text{ bar}$ | $0.45\text{ bar}$ | $0.46\text{ bar}$ | $0.47\text{ bar}$ | $0.45\text{ bar}$ |
+| **Shell Pressure Drop ($\Delta P$, bar)** | — | — | $0.66\text{ bar}$ | $0.75\text{ bar}$ | $1.75\text{ bar}$ |
+| **Shell Exit Pressure ($P_{\text{out}}$, bar)** | — | — | $1.84\text{ bar}$ | $1.75\text{ bar}$ | $1.21\text{ bar}$ |
+| **Reaction Zone Cooling Utility** | $4.23\text{ MW}$ | $5.12\text{ MW}$ | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** |
 
 ### 5.2 Key Engineering Insights
 
 1. **Fair Comparison with Conventional Optimization:**
-   When the conventional reactor is optimized over $(T_{\text{exo},0}, T_{\text{coolant}})$, its yield increases from $28.55\%$ to $30.89\%$ ($+8.2\%$ relative gain), producing $226.98\text{ t/d}$ of methanol at the $535.0\text{ K}$ bulk sintering limit (with centerline reaching $539.0\text{ K}$). TCR configurations maintain comparable methanol yields ($28.36\%$ to $27.76\%$) while coproducing $88.45\text{–}97.75\text{ t/d}$ of co-produced benzene and $6.85\text{–}7.57\text{ t/d}$ of hydrogen within an $\text{H}_2$-rich reformate stream, eliminating the $5.6\text{–}6.8\text{ MW}$ reaction-zone boiling water cooling duty.
+   When the conventional reactor is optimized over $(T_{\text{exo},0}, T_{\text{coolant}})$, its yield increases from $20.94\%$ to $30.05\%$ ($+43.5\%$ relative gain), producing $220.77\text{ t/d}$ of methanol at the $535.0\text{ K}$ bulk sintering limit (with centerline reaching $529.2\text{ K}$). TCR configurations maintain comparable methanol yields ($29.07\%$ to $29.10\%$) while coproducing $95.35\text{–}133.23\text{ t/d}$ of co-produced benzene and $7.38\text{–}10.32\text{ t/d}$ of hydrogen within an $\text{H}_2$-rich reformate stream, eliminating the $5.6\text{–}6.8\text{ MW}$ reaction-zone boiling water cooling duty.
 
 2. **Counter-Current vs. Co-Current Hydrodynamics and Heat Transfer:**
-   Counter-current operation delivers higher endothermic conversion ($12.22\%$ vs $11.06\%$) because the hottest exiting shell fluid preheats the reacting zone near $z = 0$. However, this configuration generates a higher peak bulk temperature ($552.5\text{ K}$) and centerline temperature ($556.5\text{ K}$), requiring careful operational control. In co-current mode, the peak bulk temperature remains moderate ($540.9\text{ K}$).
+   Counter-current operation delivers higher endothermic conversion ($17.54\%$ vs $12.55\%$) because the hottest exiting shell fluid preheats the reacting zone near $z = 0$. However, this configuration generates a higher peak bulk temperature ($554.1\text{ K}$) and centerline temperature ($558.0\text{ K}$), requiring careful operational control. In co-current mode, the peak bulk temperature remains moderate ($535.0\text{ K}$).
 
 3. **NSGA-II Knee Point Balance & Centerline Thermal Safety:**
-   Under equal syngas feed throughput ($0.640\text{ mol/s}$ per tube), the multi-objective knee point safely limits peak bulk temperature to $527.5\text{ K}$ and peak centerline temperature to $531.5\text{ K}$ (both strictly below the $535.0\text{ K}$ threshold), producing $214.33\text{ t/d}$ of methanol (yield $29.17\%$), $105.56\text{ t/d}$ of co-produced benzene, and $8.17\text{ t/d}$ of hydrogen within an $\text{H}_2$-rich reformate stream ($19.14\text{ mol}\% \text{ H}_2$), with shell exit pressure maintained at $1.16\text{ bar} \ge 1.10\text{ bar}$.
+   Under equal syngas feed throughput ($0.640\text{ mol/s}$ per tube), the multi-objective knee point safely limits peak bulk temperature to $529.5\text{ K}$ and peak centerline temperature to $533.5\text{ K}$ (both strictly below the $535.0\text{ K}$ threshold), producing $219.92\text{ t/d}$ of methanol (yield $29.93\%$), $127.43\text{ t/d}$ of co-produced benzene, and $9.87\text{ t/d}$ of hydrogen within an $\text{H}_2$-rich reformate stream ($23.34\text{ mol}\% \text{ H}_2$), with shell exit pressure maintained at $1.21\text{ bar} \ge 1.10\text{ bar}$.
 
 ---
 
@@ -4979,18 +5097,18 @@ A rigorous techno-economic evaluation requires accounting for all process duties
 
 | Process Heat Duty Stream | Thermal Duty (MW) | Engineering Description |
 | :--- | :--- | :--- |
-| **Syngas Sensible Preheating ($300\text{ K} \to 503.15\text{ K}$)** | $12.62\text{ MW}$ | High-pressure syngas feed preheating |
-| **Cyclohexane Vaporization & Preheating ($300\text{ K} \to 485\text{ K}$)** | $11.13\text{ MW}$ | Includes liquid preheat, latent vaporization ($\Delta H_{\text{vap}} = 30.1\text{ kJ/mol}$), and vapor preheat |
-| **Total Upstream Feed Conditioning Duty** | **$23.75\text{ MW}$** | Required external thermal input for feed preparation |
+| **Syngas Sensible Preheating ($300\text{ K} \to 503.15\text{ K}$)** | $12.55\text{ MW}$ | High-pressure syngas feed preheating |
+| **Cyclohexane Vaporization & Preheating ($300\text{ K} \to 485\text{ K}$)** | $12.14\text{ MW}$ | Includes liquid preheat, latent vaporization ($\Delta H_{\text{vap}} = 30.1\text{ kJ/mol}$), and vapor preheat |
+| **Total Upstream Feed Conditioning Duty** | **$24.69\text{ MW}$** | Required external thermal input for feed preparation |
 | **Reaction Zone External Cooling Utility** | **$0.0\text{ kW}$** | 100% autothermal *in situ* heat integration |
 | **Downstream Reformate Condensation Cooling** | $\approx 9.80\text{ MW}$ | Cooling reformate to $310\text{ K}$ for flash phase separation |
-| **Downstream Extractive Distillation Reboiler Duty** | $24.44\text{ MW}$ | Benzene–cyclohexane azeotrope separation ($Q_{\text{sep}} \approx 20.0\text{ MJ/kg}_{\text{benzene}}$) |
-| **Hydrogen PSA Compression Work** | $0.19\text{ MW}_e$ | Upgrading reformate hydrogen to fuel/chemical grade ($2.0\text{ MJ/kg}_{\text{H}_2}$) |
-| **Net Plant Gross Thermal Input Duty** | **$48.19\text{ MW}$** | Combined upstream preheating and downstream extractive distillation |
+| **Downstream Extractive Distillation Reboiler Duty** | $29.50\text{ MW}$ | Benzene–cyclohexane azeotrope separation ($Q_{\text{sep}} \approx 20.0\text{ MJ/kg}_{\text{benzene}}$) |
+| **Hydrogen PSA Compression Work** | $0.23\text{ MW}_e$ | Upgrading reformate hydrogen to fuel/chemical grade ($2.0\text{ MJ/kg}_{\text{H}_2}$) |
+| **Net Plant Gross Thermal Input Duty** | **$54.19\text{ MW}$** | Combined upstream preheating and downstream extractive distillation |
 
 *Honest Framing of Results:*
-- **The Battery-Limit Accounting Reality:** The TCR achieves complete elimination of external cooling utility ($0.0\text{ kW}$) strictly within the reactor core. However, because single-pass cyclohexane conversion is bounded by Le Chatelier equilibrium at $7.89\%$, the raw shell effluent contains $74.48\text{ mol}\%$ unconverted cyclohexane, $6.38\text{ mol}\%$ benzene, and $19.14\text{ mol}\% \text{ H}_2$. Over $88\%$ of the shell hydrocarbon stream passes through unconverted ($>1100\text{ t/d}$ plant-wide). Because benzene ($T_{\text{bp}} = 80.1^\circ\text{C}$) and cyclohexane ($T_{\text{bp}} = 80.7^\circ\text{C}$) form a minimum-boiling azeotrope ($\Delta T_{\text{bp}} = 0.6\text{ K}$), they cannot be separated by standard distillation. Extractive distillation using polar solvents (sulfolane, NMP) requires an estimated reboiler duty of $Q_{\text{sep}} \approx 15.0\text{–}25.0\text{ MJ/kg}_{\text{benzene}}$ ($24.44\text{ MW}$ at $105.56\text{ t/d}$ benzene).
-- **Hydrogen Coproduction Framing:** The coproduct hydrogen is produced within an $\text{H}_2$-rich reformate stream ($19.14\text{ mol}\% \text{ H}_2$). While highly valuable for plant-wide syngas enrichment or merchant chemical supply after PSA purification ($0.19\text{ MW}_e$), it originates from fossil hydrocarbon dehydrogenation and is categorized as gray/blue hydrogen unless renewable bio-cyclohexane is employed.
+- **The Battery-Limit Accounting Reality:** The TCR achieves complete elimination of external cooling utility ($0.0\text{ kW}$) strictly within the reactor core. However, because single-pass cyclohexane conversion is bounded by Le Chatelier equilibrium at $10.15\%$, the raw shell effluent contains $68.89\text{ mol}\%$ unconverted cyclohexane, $7.78\text{ mol}\%$ benzene, and $23.34\text{ mol}\% \text{ H}_2$. Over $88\%$ of the shell hydrocarbon stream passes through unconverted ($>1100\text{ t/d}$ plant-wide). Because benzene ($T_{\text{bp}} = 80.1^\circ\text{C}$) and cyclohexane ($T_{\text{bp}} = 80.7^\circ\text{C}$) form a minimum-boiling azeotrope ($\Delta T_{\text{bp}} = 0.6\text{ K}$), they cannot be separated by standard distillation. Extractive distillation using polar solvents (sulfolane, NMP) requires an estimated reboiler duty of $Q_{\text{sep}} \approx 15.0\text{–}25.0\text{ MJ/kg}_{\text{benzene}}$ ($29.50\text{ MW}$ at $127.43\text{ t/d}$ benzene).
+- **Hydrogen Coproduction Framing:** The coproduct hydrogen is produced within an $\text{H}_2$-rich reformate stream ($23.34\text{ mol}\% \text{ H}_2$). While highly valuable for plant-wide syngas enrichment or merchant chemical supply after PSA purification ($0.23\text{ MW}_e$), it originates from fossil hydrocarbon dehydrogenation and is categorized as gray/blue hydrogen unless renewable bio-cyclohexane is employed.
 
 ---
 
@@ -5002,9 +5120,9 @@ To validate the modeling framework against literature, the benchmark conditions 
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
 | **Khademi Published Benchmark (Table 9)** | Graaf (1988), $\eta = 1.0$ | 10% CH / 90% Ar, $1.013\text{ bar}$, Itoh | $40.02\%$ | — | $100.00\%$ | $531.0\text{ K}$ |
 | **Khademi Literal Table 4 Model** | Graaf (1988), $\eta = 1.0$ | 10% CH / 90% Ar, Literal Table 4 $K_p$ | $39.12\%$ | $26.45\%$ | $99.85\%$ | $534.2\text{ K}$ |
-| **Kirchhoff-Corrected $K_p$ Benchmark** | Graaf (1988), $\eta = 1.0$ | 10% CH / 90% Ar, $1.013\text{ bar}$, Thermo $K_p$ | $37.62\%$ | $25.72\%$ | $99.92\%$ | $567.7\text{ K}$ |
-| **Production VBF Baseline (Co-Current)** | VBF (1996), $\eta = 0.35$ | 100% CH, $2.50\text{ bar}$, Reversible LHHW | $28.36\%$ | $22.91\%$ | $11.06\%$ | $540.9\text{ K}$ |
-| **Production VBF NSGA-II Optimum** | VBF (1996), $\eta = 0.35$ | 100% CH, $2.50\text{ bar}$, Reversible LHHW | $29.17\%$ | $21.59\%$ | $7.89\%$ | $527.5\text{ K}$ |
+| **Kirchhoff-Corrected $K_p$ Benchmark** | Graaf (1988), $\eta = 1.0$ | 10% CH / 90% Ar, $1.013\text{ bar}$, Thermo $K_p$ | $37.72\%$ | $25.74\%$ | $99.94\%$ | $567.7\text{ K}$ |
+| **Production VBF Baseline (Co-Current)** | VBF (1996), $\eta = 0.35$ | 100% CH, $2.50\text{ bar}$, Reversible LHHW | $29.07\%$ | $22.70\%$ | $12.55\%$ | $535.0\text{ K}$ |
+| **Production VBF NSGA-II Optimum** | VBF (1996), $\eta = 0.35$ | 100% CH, $2.50\text{ bar}$, Reversible LHHW | $29.93\%$ | $21.94\%$ | $10.15\%$ | $529.5\text{ K}$ |
 
 ### Mathematical Proof of Khademi Table 4 Typographical Error
 Khademi Table 4 explicitly reports:
@@ -5015,10 +5133,10 @@ The exponent implies $-\Delta H / R = -3190\text{ K}$, corresponding to an appar
 
 ## 8. Conclusions
 1. Direct reaction-reaction thermal coupling between methanol synthesis and cyclohexane dehydrogenation achieves 100% *in situ* heat integration in the reaction zone ($0.0\text{ kW}$ cooling utility).
-2. Elevating shell inlet pressure ($P_{\text{endo},0} \in [2.0, 3.0]\text{ bar}$) guarantees that shell effluents discharge above atmospheric pressure across all operational regimes ($1.16\text{ bar} \ge 1.10\text{ bar}$), resolving prior unphysical negative pressure artifacts.
-3. When evaluated fairly under equal syngas feed throughput ($0.640\text{ mol/s}$ per tube) against an optimized conventional reactor (CMR, yield $30.89\%$), the TCR knee-point produces $214.33\text{ t/d}$ methanol (yield $29.17\%$), $105.56\text{ t/d}$ of co-produced benzene, and $8.17\text{ t/d}$ of hydrogen within an $\text{H}_2$-rich reformate stream ($19.14\text{ mol}\% \text{ H}_2$).
-4. Transport and thermal safety are strictly satisfied: peak bulk temperature is $527.5\text{ K}$ and peak centerline temperature is $531.5\text{ K}$, both remaining below the $535.0\text{ K}$ copper sintering limit.
-5. Rigorous battery-limit accounting reveals that plant-wide thermal duties include $23.75\text{ MW}$ for upstream feed preparation and $24.44\text{ MW}$ for downstream extractive distillation of the benzene–cyclohexane azeotrope, dispelling the misconception of zero-energy operation.
+2. Elevating shell inlet pressure ($P_{\text{endo},0} \in [2.0, 3.0]\text{ bar}$) guarantees that shell effluents discharge above atmospheric pressure across all operational regimes ($1.21\text{ bar} \ge 1.10\text{ bar}$), resolving prior unphysical negative pressure artifacts.
+3. When evaluated fairly under equal syngas feed throughput ($0.640\text{ mol/s}$ per tube) against an optimized conventional reactor (CMR, yield $30.05\%$), the TCR knee-point produces $219.92\text{ t/d}$ methanol (yield $29.93\%$), $127.43\text{ t/d}$ of co-produced benzene, and $9.87\text{ t/d}$ of hydrogen within an $\text{H}_2$-rich reformate stream ($23.34\text{ mol}\% \text{ H}_2$).
+4. Transport and thermal safety are strictly satisfied: peak bulk temperature is $529.5\text{ K}$ and peak centerline temperature is $533.5\text{ K}$, both remaining below the $535.0\text{ K}$ copper sintering limit.
+5. Rigorous battery-limit accounting reveals that plant-wide thermal duties include $24.69\text{ MW}$ for upstream feed preparation and $29.50\text{ MW}$ for downstream extractive distillation of the benzene–cyclohexane azeotrope, dispelling the misconception of zero-energy operation.
 
 ---
 
