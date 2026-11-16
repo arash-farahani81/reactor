@@ -79,23 +79,27 @@ reactor/
 
 ## 3. Modeling & Physics Highlights
 
-1. **Reaction Kinetics:**
+1. **Reaction Kinetics & Transport Foundations:**
    - Methanol synthesis modeled via authentic Vanden Bussche & Froment (1996) LHHW equations with temperature-dependent adsorption terms.
    - Cyclohexane dehydrogenation modeled via reversible LHHW kinetics with thermodynamically consistent van 't Hoff equilibrium constant ($\ln K_p = -205400/(RT) + 43.30$).
-2. **Heat and Momentum Transport:**
+   - High-pressure real-gas non-ideality quantified via Peng–Robinson EOS at $77\text{ bar}$ ($K_\phi = 0.7868$).
+2. **Heat and Momentum Transport & Radial Gradients:**
    - Dixon and Li & Finlayson packed-bed wall Nusselt correlations yielding realistic bed-to-wall heat transfer coefficients ($U \approx 200\text{–}350\text{ W/(m}^2\cdot\text{K)}$).
+   - Wall Biot number $Bi_h = 3.45 \gg 0.1$ quantified for low aspect ratio ($D_{\text{in}}/d_p = 6.95$), verifying that peak centerline temperature ($T_{\text{centerline}} = 531.5\text{ K}$) satisfies the $535.0\text{ K}$ copper sintering limit.
+   - Wassiljewa variable fluid thermal conductivity $k_g(y_{\text{H}_2})$ accounting for light hydrogen enrichment ($\Delta n = +3$).
    - Ergun equation for packed-bed pressure drops across tube and shell.
    - Boiling-water film coefficient ($h_{\text{cool}} = 6000\text{ W/(m}^2\cdot\text{K)}$) for conventional reactor cooling jacket.
 3. **Rigorous Conservation Closures:**
    - Elemental mass balance closures (C, H, O, N, Ar) $\le 10^{-15}$.
    - Independent stream enthalpy balance closures $\le 0.005\%$.
    - Zero state-clamp activations on accepted solution trajectories.
-4. **Counter-Current Picard Solver:**
+4. **Counter-Current Picard Solver & Thermal Feedback:**
    - Integrates both tube and shell streams strictly forward along their physical flow paths.
-   - Employs under-relaxation ($\alpha = 0.70$) with continuous interpolation to achieve dual convergence on temperature ($\Delta T < 10^{-3}\text{ K}$) and molar flows ($\Delta F_i/F_i < 10^{-3}$).
+   - Employs under-relaxation ($\alpha = 0.70$) with continuous interpolation to achieve dual convergence on temperature ($\Delta T < 10^{-3}\text{ K}$) and molar flows ($\Delta F_i/F_i < 10^{-3}$) plus pressure residual $\Delta P < 1.0\text{ Pa}$.
+   - Van Heerden regenerative thermal feedback analysis ($\mathcal{C} = 0.361$) explaining autothermal preheating and hotspot dynamics.
 5. **Fair Multi-Objective Optimization:**
-   - Baseline CMR optimized over $(T_{\text{exo},0}, T_{\text{coolant}})$ to establish a rigorous, fair comparison.
-   - NSGA-II Pareto optimization mapping trade-offs between methanol yield, benzene/hydrogen coproduction, and catalyst thermal protection ($T_{\text{max}} \le 535\text{ K}$).
+   - Baseline CMR optimized over $(T_{\text{exo},0}, T_{\text{coolant}})$ to establish a rigorous, fair comparison under equal syngas feed capacity ($F_{\text{exo},0} = 0.640\text{ mol/s}$).
+   - NSGA-II Pareto optimization mapping trade-offs between methanol yield, co-produced benzene and an $\text{H}_2$-rich reformate stream, subject to strict absolute temperature constraints ($T_{\text{max}} \le 535.0\text{ K}$) and positive discharge pressure ($P_{\text{shell,out}} \ge 1.10\text{ bar}$).
 
 ---
 
@@ -106,12 +110,15 @@ reactor/
 | **Syngas Feed Rate (mol/s)** | 0.640 | 0.640 | 0.640 | 0.640 | **0.640** |
 | **Methanol Production (t/d)** | 209.79 | **226.98** | 208.33 | 203.97 | **214.33** |
 | **Methanol Yield (%)** | 28.55% | **30.89%** | 28.36% | 27.76% | **29.17%** |
-| **Benzene Coproduct (t/d)** | 0.00 | 0.00 | **88.45** | **97.75** | **105.56** |
-| **Hydrogen Coproduct (t/d)** | 0.00 | 0.00 | **6.85** | **7.57** | **8.17** |
-| **Peak Bed Temp (K)** | 524.4 | 535.0 | 540.9 | 552.5 | **527.5** |
+| **Co-Produced Benzene (t/d)** | 0.00 | 0.00 | **88.45** | **97.75** | **105.56** |
+| **Coproduct Hydrogen (t/d)** | 0.00 | 0.00 | **6.85** | **7.57** | **8.17** |
+| **Shell Exit $\text{H}_2$ Mole Fraction (mol%)** | — | — | 24.92% | 26.83% | **19.14%** |
+| **Peak 1D Mean Bed Temp (K)** | 524.4 | 535.0 | 540.9 | 552.5 | **527.5** |
+| **Peak 2D Centerline Temp (K)** | 528.4 | 539.0 | 544.9 | 556.5 | **531.5** |
 | **Shell Exit Pressure (bar)** | — | — | 1.82 | 1.78 | **1.16** |
 | **Reaction Zone Cooling Utility**| 5.58 MW | 5.50 MW | **0.0 kW** | **0.0 kW** | **0.0 kW** |
 | **Feed Preheating Duty** | 10.51 MW | 10.51 MW | 17.17 MW | 17.17 MW | **23.75 MW** |
+| **Downstream Extractive Distillation** | — | — | 20.47 MW | 22.63 MW | **24.44 MW** |
 
 ---
 

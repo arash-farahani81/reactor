@@ -35,11 +35,29 @@ def check_consistency():
     if unrendered:
         errors.append(f"Found unrendered template tags: {unrendered}")
 
-    # 2. Check for forbidden misleading terms
+    # 2. Check for forbidden misleading terms & overstated purity claims
     if "multi-scale" in text.lower():
         errors.append("Forbidden term 'multi-scale' found in manuscript (must use 1D pseudo-homogeneous).")
     if "green hydrogen" in text:
         errors.append("Unqualified 'green hydrogen' found in manuscript (must specify fossil/dehydrogenation co-product).")
+    if "high-purity hydrogen" in text.lower():
+        errors.append("Forbidden overstated claim 'high-purity hydrogen' found in manuscript (must use 'H2-rich reformate stream').")
+    if "chemical-grade benzene" in text.lower():
+        errors.append("Forbidden overstated claim 'chemical-grade benzene' found in manuscript (must use 'co-produced benzene').")
+
+    # 2b. Check for mandatory quantitative engineering derivations (Category B & ChatGPT critique)
+    derivations = [
+        ("Peng-Robinson fugacity ratio K_phi = 0.7868", "0.7868"),
+        ("Wall Biot number Bi_h = 3.45", "3.45"),
+        ("Wassiljewa variable fluid thermal conductivity", "Wassiljewa"),
+        ("Le Chatelier equilibrium conversion penalty", "Le Chatelier"),
+        ("Van Heerden thermal capacity ratio C = 0.361", "0.361"),
+        ("Downstream extractive distillation reboiler duty", "extractive distillation"),
+        ("Downstream PSA hydrogen purification work", "PSA"),
+    ]
+    for name, snippet in derivations:
+        if snippet.lower() not in text.lower():
+            errors.append(f"Missing mandatory derivation in manuscript: {name} (keyword '{snippet}' not found).")
 
     # 3. Strict line-by-line LaTeX syntax gate (odd $ delimiters and unescaped % in math mode)
     for line_idx, line_str in enumerate(text.splitlines(), start=1):
