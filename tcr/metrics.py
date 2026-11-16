@@ -326,9 +326,9 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
     yield_net_COx = yield_khademi
 
     if mode == "cocurrent":
-        CH_in = F_endo[0, 0]
-        CH_out = F_endo[0, -1]
-        X_CH = (CH_in - CH_out) / CH_in * 100.0
+        CH_in = float(F_endo[0, 0])
+        CH_out = max(float(F_endo[0, -1]), 0.0)
+        X_CH = float(np.clip((CH_in - CH_out) / max(CH_in, 1e-15) * 100.0, 0.0, 100.0))
         Benzene_prod = F_endo[1, -1] - F_endo[1, 0]
         H2_prod = F_endo[2, -1] - F_endo[2, 0]
         elem_err_shell = check_element_balances(F_endo[:, 0], F_endo[:, -1], elem_shell_sub)
@@ -336,9 +336,9 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
         H_dot_endo_out = calc_stream_enthalpy_flow(F_endo[:, -1], species_shell, T_endo[-1])
         T_endo_out = T_endo[-1]
     else:  # counter-current: shell stream enters at z = L, exits at z = 0
-        CH_in = F_endo[0, -1]
-        CH_out = F_endo[0, 0]
-        X_CH = (CH_in - CH_out) / CH_in * 100.0
+        CH_in = float(F_endo[0, -1])
+        CH_out = max(float(F_endo[0, 0]), 0.0)
+        X_CH = float(np.clip((CH_in - CH_out) / max(CH_in, 1e-15) * 100.0, 0.0, 100.0))
         Benzene_prod = F_endo[1, 0] - F_endo[1, -1]
         H2_prod = F_endo[2, 0] - F_endo[2, -1]
         elem_err_shell = check_element_balances(F_endo[:, -1], F_endo[:, 0], elem_shell_sub)

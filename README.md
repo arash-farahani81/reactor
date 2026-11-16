@@ -117,7 +117,7 @@ reactor/
 | **Peak 2D Centerline Temp (K)** | 512.9 | 535.0 | 538.3 | 559.3 | **533.8** |
 | **Shell Exit Pressure (bar)** | — | — | 1.84 | 1.75 | **1.21** |
 | **Reaction Zone Cooling Utility**| 4.23 MW | 5.12 MW | **0.0 kW** | **0.0 kW** | **0.0 kW** |
-| **Feed Preheating Duty** | 12.37 MW | 12.19 MW | 19.17 MW | 19.17 MW | **24.69 MW** |
+| **Feed Preheating Duty** | 12.37 MW | 12.19 MW | 19.17 MW | 19.17 MW | **24.14 MW** |
 | **Downstream Extractive Distillation** | — | — | 19.86 MW | 27.76 MW | **26.55 MW** |
 
 ---

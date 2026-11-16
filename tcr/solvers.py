@@ -387,17 +387,20 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
     z_eval = np.linspace(0.0, geom.L, sol_cfg.z_points)
 
     def odes_co(z, S):
+        raw_F_CH = float(S[7])
         F_exo = np.maximum(S[0:7], 1e-15)
-        F_endo = np.maximum(S[7:7+len_endo], 1e-15)
+        F_endo = np.maximum(S[7:7+len_endo], 0.0)
         T_exo = max(S[7+len_endo], 200.0)
         T_endo = max(S[8+len_endo], 200.0)
         P_exo = max(S[9+len_endo], 1e4)
         P_endo = max(S[10+len_endo], 1e4)
 
         F_exo_tot = np.sum(F_exo)
-        F_endo_tot = np.sum(F_endo)
+        F_endo_tot = max(float(np.sum(F_endo)), 1e-15)
         y_exo = F_exo / F_exo_tot
         y_endo = F_endo / F_endo_tot
+        if raw_F_CH <= 0.0:
+            y_endo[0] = 0.0
 
         if kinetics_mode == "production_vbf":
             r_meoh, r_rwgs = kinetics_vbf_production(T_exo, P_exo, y_exo, cat_exo.eta)
@@ -407,6 +410,15 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
             r_meoh = r1 + r3
             r_rwgs = r2
             r_ch = kinetics_itoh_benchmark(T_endo, P_endo, y_endo, mode="khademi_thermo", eta_endo=cat_endo.eta)
+
+        # Smooth turn-off as raw_F_CH -> 0 to prevent numerical overshoot below zero
+        if raw_F_CH <= 0.0 and r_ch > 0.0:
+            r_ch_eff = 0.0
+        elif raw_F_CH < 1e-7 and r_ch > 0.0:
+            u = max(raw_F_CH / 1e-7, 0.0)
+            r_ch_eff = (3.0 * (u ** 2) - 2.0 * (u ** 3)) * r_ch
+        else:
+            r_ch_eff = r_ch
 
         dH_meoh = calc_dH_rxn_meoh(T_exo)
         dH_rwgs = calc_dH_rxn_rwgs(T_exo)
@@ -420,9 +432,9 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
         dF_exo[4] = geom.A_tube * cat_exo.rho_b * (r_meoh + r_rwgs)
 
         dF_endo = np.zeros(len_endo)
-        dF_endo[0] = geom.A_shell * cat_endo.rho_b * (-r_ch)
-        dF_endo[1] = geom.A_shell * cat_endo.rho_b * (r_ch)
-        dF_endo[2] = geom.A_shell * cat_endo.rho_b * (3.0 * r_ch)
+        dF_endo[0] = geom.A_shell * cat_endo.rho_b * (-r_ch_eff)
+        dF_endo[1] = geom.A_shell * cat_endo.rho_b * (r_ch_eff)
+        dF_endo[2] = geom.A_shell * cat_endo.rho_b * (3.0 * r_ch_eff)
 
         # Dynamic overall U evaluated from local states of both streams
         U_local = calc_U_tcr(T_exo, P_exo, F_exo, SPECIES_TUBE,
@@ -436,7 +448,7 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
         Q_rxn_exo = geom.A_tube * cat_exo.rho_b * ((-dH_meoh) * r_meoh + (-dH_rwgs) * r_rwgs)
         dT_exo = (Q_rxn_exo - Q_wall) / max(FCp_exo, 1e-3)
 
-        Q_rxn_endo = geom.A_shell * cat_endo.rho_b * (-dH_ch) * r_ch
+        Q_rxn_endo = geom.A_shell * cat_endo.rho_b * (-dH_ch) * r_ch_eff
         dT_endo = (Q_rxn_endo + Q_wall) / max(FCp_endo, 1e-3)
 
         # Ergun pressure drops
@@ -597,12 +609,15 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
         # ── Step 2: Integrate Shell Backward along Flow (xi = 0 -> L, z = L - xi) ──
         def ode_shell(xi, S_s):
             z_act = geom.L - xi
-            F_endo = np.maximum(S_s[0:len_endo], 1e-15)
+            raw_F_CH = float(S_s[0])
+            F_endo = np.maximum(S_s[0:len_endo], 0.0)
             T_endo = max(S_s[len_endo], 200.0)
             P_endo = max(S_s[len_endo+1], 1e4)
 
-            F_tot = np.sum(F_endo)
+            F_tot = max(float(np.sum(F_endo)), 1e-15)
             y_endo = F_endo / F_tot
+            if raw_F_CH <= 0.0:
+                y_endo[0] = 0.0
 
             # Interpolate local tube state at coordinate z_act
             T_t = float(np.interp(z_act, z_grid, T_tube_prof))
@@ -614,12 +629,21 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
             else:
                 r_ch = kinetics_itoh_benchmark(T_endo, P_endo, y_endo, mode="khademi_thermo", eta_endo=cat_endo.eta)
 
+            # Smooth turn-off as raw_F_CH -> 0 to prevent numerical overshoot below zero
+            if raw_F_CH <= 0.0 and r_ch > 0.0:
+                r_ch_eff = 0.0
+            elif raw_F_CH < 1e-7 and r_ch > 0.0:
+                u = max(raw_F_CH / 1e-7, 0.0)
+                r_ch_eff = (3.0 * (u ** 2) - 2.0 * (u ** 3)) * r_ch
+            else:
+                r_ch_eff = r_ch
+
             dH_ch = calc_dH_rxn_ch(T_endo)
 
             dF = np.zeros(len_endo)
-            dF[0] = geom.A_shell * cat_endo.rho_b * (-r_ch)
-            dF[1] = geom.A_shell * cat_endo.rho_b * (r_ch)
-            dF[2] = geom.A_shell * cat_endo.rho_b * (3.0 * r_ch)
+            dF[0] = geom.A_shell * cat_endo.rho_b * (-r_ch_eff)
+            dF[1] = geom.A_shell * cat_endo.rho_b * (r_ch_eff)
+            dF[2] = geom.A_shell * cat_endo.rho_b * (3.0 * r_ch_eff)
 
             # Local U(z) evaluated from local states of both streams
             U_local = calc_U_tcr(T_t, P_t, F_t, SPECIES_TUBE,
@@ -628,7 +652,7 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
             Q_wall = U_local * geom.a_H * (T_t - T_endo)
 
             FCp = sum(F_endo[i] * calc_cp_species(species_shell[i], T_endo) for i in range(len_endo))
-            Q_rxn = geom.A_shell * cat_endo.rho_b * (-dH_ch) * r_ch
+            Q_rxn = geom.A_shell * cat_endo.rho_b * (-dH_ch) * r_ch_eff
             dT = (Q_rxn + Q_wall) / max(FCp, 1e-3)
 
             mw_endo = sum(y_endo[i] * MW[species_shell[i]] for i in range(len_endo))

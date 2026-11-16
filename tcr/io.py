@@ -40,6 +40,7 @@ def calc_process_thermal_duties(cfg: AppConfig, geom: ReactorGeometry, res_knee:
     # 2. Cyclohexane liquid preheat & vaporization: ambient to normal boiling point (353.9 K) + Delta H_vap (30.1 kJ/mol) + vapor preheat to T_endo_0
     T_shell_in = float(res_knee.get('decision_variables', {}).get('T_endo_0_K', cfg.feed_shell.T0))
     F_shell_tot = float(res_knee.get('decision_variables', {}).get('F_endo_mol_s', cfg.feed_shell.F_total0))
+    y_shell = cfg.feed_shell.y0
 
     # Cyclohexane physical properties:
     T_boil_ch = 353.93  # K (80.78 °C, NIST)
@@ -56,7 +57,15 @@ def calc_process_thermal_duties(cfg: AppConfig, geom: ReactorGeometry, res_knee:
     q_superheat = np.trapezoid(Cp_vap_arr, T_arr_vap)
 
     q_ch_total_J_per_mol = q_liq_preheat + q_vap + q_superheat
-    preheat_shell_MW = F_shell_tot * q_ch_total_J_per_mol * geom.N_tubes * 1e-6
+    preheat_ch_W = F_shell_tot * float(y_shell[0]) * q_ch_total_J_per_mol
+
+    # H2 co-feed preheating (5 mol%):
+    T_arr_h2 = np.linspace(T_ambient, T_shell_in, 50)
+    Cp_h2_arr = np.array([calc_cp_species('H2', T) for T in T_arr_h2])
+    q_h2_preheat = np.trapezoid(Cp_h2_arr, T_arr_h2)
+    preheat_h2_W = F_shell_tot * float(y_shell[2]) * q_h2_preheat
+
+    preheat_shell_MW = (preheat_ch_W + preheat_h2_W) * geom.N_tubes * 1e-6
 
     return {
         "syngas_preheat_duty_MW": round(float(preheat_tube_MW), 2),

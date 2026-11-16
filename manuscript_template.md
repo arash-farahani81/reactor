@@ -69,6 +69,7 @@ The reactor is modeled on an industrial multitubular shell-and-tube geometry con
 | **Bed Voidage (Porosity)** | $\varepsilon$ | $0.39$ | $0.40$ | — | Khademi et al. (2009), Table 6 |
 | **Baseline Inlet Temperature** | $T_0$ | $503.15$ ($230.0^\circ\text{C}$) | $485.0$ ($211.85^\circ\text{C}$) | $\text{K}$ | Baseline design |
 | **Operating Pressure** | $P_0$ | $76.98$ | $2.50$ ($2.5 \times 10^5\text{ Pa}$) | $\text{bar}$ | Baseline design |
+| **Feed Composition** | $y_0$ | $y_{\text{H}_2}=0.669, y_{\text{CO}_2}=0.223, y_{\text{CO}}=0.046, y_{\text{CH}_3\text{OH}}=0.005, y_{\text{H}_2\text{O}}=0.004, y_{\text{CH}_4}=0.017, y_{\text{N}_2}=0.036$ | $y_{\text{CH}}=0.95, y_{\text{B}}=0.00, y_{\text{H}_2}=0.05, y_{\text{inert}}=0.00$ | — | Khademi et al. (2009) / This work |
 | **Inlet Molar Flow (per tube)** | $F_{\text{total},0}$ | $0.640$ | $0.040$ | $\text{mol/s}$ | Khademi et al. (2009), Table 7 |
 | **Wall Thermal Conductivity** | $K_w$ | $48.0$ | $48.0$ | $\text{W/(m}\cdot\text{K)}$ | Stainless Steel |
 
@@ -122,14 +123,20 @@ $$K_{\phi,2} = \frac{\phi_{\text{CO}} \phi_{\text{H}_2\text{O}}}{\phi_{\text{CO}
 Because the true thermodynamic equilibrium constant depends on fugacities ($K_a = K_\phi K_p$), the apparent equilibrium constant is $K_{p,\text{true}} = K_a / 0.7868 = 1.271 \times K_{p,\text{ideal}}$. Assuming an ideal gas ($K_\phi = 1$) introduces a $21.32\%$ offset in the equilibrium ratio, underpredicting equilibrium conversion by $3\text{–}6$ percentage points and ensuring that the 1D model predictions remain intrinsically conservative.
 
 #### B. Shell Side: Cyclohexane Dehydrogenation (Reversible LHHW Formulation)
-The catalytic endothermic conversion of cyclohexane ($\text{C}_6\text{H}_{12}$) to benzene ($\text{C}_6\text{H}_6$) and hydrogen over $\text{Pt/Al}_2\text{O}_3$ is governed by a reversible LHHW rate equation:
+The catalytic endothermic conversion of cyclohexane ($\text{C}_6\text{H}_{12}$) to benzene ($\text{C}_6\text{H}_6$) and hydrogen over $\text{Pt/Al}_2\text{O}_3$ is governed by the peer-reviewed rate law of Itoh (1987) / Kusakabe et al. (2003) / Khademi et al. (2009, Eq. 8 & Table 4), algebraically rationalized into a singularity-free reversible LHHW formulation:
 
-$$r_{\text{CH}} = \frac{k_{\text{CH}} \left[p_{\text{CH}} - \frac{p_{\text{B}} p_{\text{H}_2}^3}{K_p}\right]}{1 + K_{\text{ads,B}} p_{\text{B}}}$$
+$$r_{\text{CH}} = \eta_{\text{endo}}(z) \frac{k(T) \left[ K_p(T) P_{\text{CH}} - P_{\text{B}} P_{\text{H}_2}^3 \right]}{P_{\text{H}_2}^3 + K_{\text{B}}(T) K_p(T) P_{\text{CH}}}$$
 
-Where:
-$$k_{\text{CH}} = 2.45 \times 10^4 \exp\left(-\frac{68500}{R T}\right) \quad [\text{mol/(kg}_{\text{cat}}\cdot\text{s}\cdot\text{bar})]$$
-$$K_{\text{ads,B}} = 0.85 \exp\left(\frac{12000}{R T}\right) \quad [\text{bar}^{-1}]$$
-$$\ln(K_p) = -\frac{\Delta H^\circ_{\text{rxn}}}{R T} + \frac{\Delta S^\circ}{R} = -\frac{205400}{R T} + 43.30 \quad [\text{bar}^3]$$
+Where the kinetic, adsorption, and exact thermodynamic parameters are:
+$$k(T) = \frac{0.221}{\rho_b} \exp\left(-\frac{4270}{T}\right) \quad [\text{mol/(kg}_{\text{cat}}\cdot\text{s}\cdot\text{Pa})]$$
+$$K_{\text{B}}(T) = 2.03 \times 10^{-10} \exp\left(\frac{6270}{T}\right) \quad [\text{Pa}^{-1}]$$
+
+where partial pressures $P_i$ are in $\text{Pa}$, catalyst bulk density $\rho_b = 1077.0\text{ kg/m}^3$, and the thermodynamic equilibrium constant $K_p(T)$ is evaluated directly via rigorous Kirchhoff–Gibbs–Helmholtz enthalpy and entropy integration:
+$$\Delta H_r^\circ(T) = \Delta H_{r,298}^\circ + \int_{298.15}^T \Delta C_p(T')\,dT'$$
+$$\Delta S_r^\circ(T) = \Delta S_{r,298}^\circ + \int_{298.15}^T \frac{\Delta C_p(T')}{T'}\,dT'$$
+$$\ln K_{p,\text{bar}^3}(T) = -\frac{\Delta H_r^\circ(T) - T \Delta S_r^\circ(T)}{R T}, \quad K_{p,\text{Pa}^3}(T) = K_{p,\text{bar}^3}(T) \times 10^{15}$$
+
+This formulation guarantees that the numerical van 't Hoff derivative $R T^2 \frac{d\ln K_p}{dT} \equiv \Delta H_r(T)$ holds to machine precision ($\le 10^{-12}$ relative error) across $300\text{–}650\text{ K}$, and ensures microscopic reversibility ($r_{\text{CH}} \equiv 0$) at exact thermodynamic equilibrium without numerical division-by-zero singularities at zero hydrogen partial pressure.
 
 ##### Le Chatelier Principle & Shell Feed Dilution Analysis
 The reaction involves a net expansion of three moles ($\Delta \nu = +3$). In terms of total pressure $P$ and inert diluent mole fraction $y_{\text{inert}}$, the equilibrium conversion $X_{\text{eq}}$ satisfies the exact relation:
@@ -297,12 +304,12 @@ A rigorous techno-economic evaluation requires accounting for all process duties
 | **Total Upstream Feed Conditioning Duty** | **${{ process_thermal_duties.total_feed_preheat_duty_MW }}\text{ MW}$** | Required external thermal input for feed preparation |
 | **Reaction Zone External Cooling Utility** | **$0.0\text{ kW}$** | 100% autothermal *in situ* heat integration |
 | **Downstream Reformate Condensation Cooling** | $\approx {{ separation_duties.reformate_condenser_duty_MW }}\text{ MW}$ | Cooling reformate to $310\text{ K}$ for flash phase separation |
-| **Downstream Extractive Distillation Reboiler Duty** | ${{ separation_duties.extractive_distillation_duty_MW }}\text{ MW}$ | Benzene–cyclohexane azeotrope separation ($Q_{\text{sep}} \approx 20.0\text{ MJ/kg}_{\text{benzene}}$) |
+| **Downstream Extractive Distillation Reboiler Duty** | ${{ separation_duties.extractive_distillation_duty_MW }}\text{ MW}$ | Benzene–cyclohexane azeotrope separation ($Q_{\text{sep}} \approx 18.0\text{ MJ/kg}_{\text{benzene}}$) |
 | **Hydrogen PSA Compression Work** | ${{ separation_duties.psa_power_MW }}\text{ MW}_e$ | Upgrading reformate hydrogen to fuel/chemical grade ($2.0\text{ MJ/kg}_{\text{H}_2}$) |
 | **Net Plant Gross Thermal Input Duty** | **${{ separation_duties.total_plant_thermal_duty_MW }}\text{ MW}$** | Combined upstream preheating and downstream extractive distillation |
 
 *Honest Framing of Results:*
-- **The Battery-Limit Accounting Reality:** The TCR achieves complete elimination of external cooling utility ($0.0\text{ kW}$) strictly within the reactor core. However, because single-pass cyclohexane conversion is bounded by Le Chatelier equilibrium at ${{ tcr_nsga2_optimum.X_CH }}\%$, the raw shell effluent contains ${{ tcr_nsga2_optimum.outlet_y_CH }}\text{ mol}\%$ unconverted cyclohexane, ${{ tcr_nsga2_optimum.outlet_y_B }}\text{ mol}\%$ benzene, and ${{ tcr_nsga2_optimum.outlet_y_H2 }}\text{ mol}\% \text{ H}_2$. Over $88\%$ of the shell hydrocarbon stream passes through unconverted ($>1100\text{ t/d}$ plant-wide). Because benzene ($T_{\text{bp}} = 80.1^\circ\text{C}$) and cyclohexane ($T_{\text{bp}} = 80.7^\circ\text{C}$) form a minimum-boiling azeotrope ($\Delta T_{\text{bp}} = 0.6\text{ K}$), they cannot be separated by standard distillation. Extractive distillation using polar solvents (sulfolane, NMP) requires an estimated reboiler duty of $Q_{\text{sep}} \approx 15.0\text{–}25.0\text{ MJ/kg}_{\text{benzene}}$ (${{ separation_duties.extractive_distillation_duty_MW }}\text{ MW}$ at ${{ tcr_nsga2_optimum.daily_benzene_ton }}\text{ t/d}$ benzene).
+- **The Battery-Limit Accounting Reality:** The TCR achieves complete elimination of external cooling utility ($0.0\text{ kW}$) strictly within the reactor core. However, because single-pass cyclohexane conversion is bounded by Le Chatelier equilibrium at ${{ tcr_nsga2_optimum.X_CH }}\%$, the raw shell effluent contains ${{ tcr_nsga2_optimum.outlet_y_CH }}\text{ mol}\%$ unconverted cyclohexane, ${{ tcr_nsga2_optimum.outlet_y_B }}\text{ mol}\%$ benzene, and ${{ tcr_nsga2_optimum.outlet_y_H2 }}\text{ mol}\% \text{ H}_2$. Over $88\%$ of the shell hydrocarbon stream passes through unconverted ($>1100\text{ t/d}$ plant-wide). Because benzene ($T_{\text{bp}} = 80.1^\circ\text{C}$) and cyclohexane ($T_{\text{bp}} = 80.7^\circ\text{C}$) form a minimum-boiling azeotrope ($\Delta T_{\text{bp}} = 0.6\text{ K}$), they cannot be separated by standard distillation. Extractive distillation using polar solvents (sulfolane, NMP) requires an estimated reboiler duty of $Q_{\text{sep}} \approx 18.0\text{ MJ/kg}_{\text{benzene}}$ (${{ separation_duties.extractive_distillation_duty_MW }}\text{ MW}$ at ${{ tcr_nsga2_optimum.daily_benzene_ton }}\text{ t/d}$ benzene).
 - **Hydrogen Coproduction Framing:** The coproduct hydrogen is produced within an $\text{H}_2$-rich reformate stream (${{ tcr_nsga2_optimum.outlet_y_H2 }}\text{ mol}\% \text{ H}_2$). While highly valuable for plant-wide syngas enrichment or merchant chemical supply after PSA purification (${{ separation_duties.psa_power_MW }}\text{ MW}_e$), it originates from fossil hydrocarbon dehydrogenation and is categorized as gray/blue hydrogen unless renewable bio-cyclohexane is employed.
 
 ---
@@ -314,10 +321,10 @@ To validate the modeling framework against literature, the benchmark conditions 
 | Model Specification | Tube Kinetics & $\eta_{\text{exo}}$ | Shell Feed & Kinetics | Methanol Yield (%) | $\text{CO}_2$ Conv. (%) | $\text{C}_6\text{H}_{12}$ Conv. (%) | Peak Temp $T_{\text{max}}$ (K) |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
 | **Khademi Published Benchmark (Table 9)** | Graaf (1988), $\eta = 1.0$ | 10% CH / 90% Ar, $1.013\text{ bar}$, Itoh | ${{ benchmark.khademi_published.tcr_yield }}\%$ | — | ${{ benchmark.khademi_published.X_CH }}\%$ | ${{ benchmark.khademi_published.T_max }}\text{ K}$ |
-| **Khademi Literal Table 4 Model** | Graaf (1988), $\eta = 1.0$ | 10% CH / 90% Ar, Literal Table 4 $K_p$ | $39.12\%$ | $26.45\%$ | $99.85\%$ | $534.2\text{ K}$ |
+| **Khademi Literal Table 4 Model** | Graaf (1988), $\eta = 1.0$ | 10% CH / 90% Ar, Literal Table 4 $K_p$ | ${{ benchmark.simulation_tcr_literal.yield }}\%$ | ${{ benchmark.simulation_tcr_literal.X_CO2 }}\%$ | ${{ benchmark.simulation_tcr_literal.X_CH }}\%$ | ${{ benchmark.simulation_tcr_literal.T_max }}\text{ K}$ |
 | **Kirchhoff-Corrected $K_p$ Benchmark** | Graaf (1988), $\eta = 1.0$ | 10% CH / 90% Ar, $1.013\text{ bar}$, Thermo $K_p$ | ${{ benchmark.simulation_tcr.yield }}\%$ | ${{ benchmark.simulation_tcr.X_CO2 }}\%$ | ${{ benchmark.simulation_tcr.X_CH }}\%$ | ${{ benchmark.simulation_tcr.T_max }}\text{ K}$ |
-| **Production VBF Baseline (Co-Current)** | VBF (1996), $\eta = 0.35$ | 100% CH, $2.50\text{ bar}$, Reversible LHHW | ${{ cocurrent_baseline.yield_khademi_eq28 }}\%$ | ${{ cocurrent_baseline.X_CO2 }}\%$ | ${{ cocurrent_baseline.X_CH }}\%$ | ${{ cocurrent_baseline.T_max_exo }}\text{ K}$ |
-| **Production VBF NSGA-II Optimum** | VBF (1996), $\eta = 0.35$ | 100% CH, $2.50\text{ bar}$, Reversible LHHW | ${{ tcr_nsga2_optimum.yield_khademi_eq28 }}\%$ | ${{ tcr_nsga2_optimum.X_CO2 }}\%$ | ${{ tcr_nsga2_optimum.X_CH }}\%$ | ${{ tcr_nsga2_optimum.T_max_exo }}\text{ K}$ |
+| **Production VBF Baseline (Co-Current)** | VBF (1996), $\eta = 0.35$ | 95% CH / 5% H2, $2.50\text{ bar}$, Reversible LHHW | ${{ cocurrent_baseline.yield_khademi_eq28 }}\%$ | ${{ cocurrent_baseline.X_CO2 }}\%$ | ${{ cocurrent_baseline.X_CH }}\%$ | ${{ cocurrent_baseline.T_max_exo }}\text{ K}$ |
+| **Production VBF NSGA-II Optimum** | VBF (1996), $\eta = 0.35$ | 95% CH / 5% H2, $2.50\text{ bar}$, Reversible LHHW | ${{ tcr_nsga2_optimum.yield_khademi_eq28 }}\%$ | ${{ tcr_nsga2_optimum.X_CO2 }}\%$ | ${{ tcr_nsga2_optimum.X_CH }}\%$ | ${{ tcr_nsga2_optimum.T_max_exo }}\text{ K}$ |
 
 ### Mathematical Proof of Khademi Table 4 Typographical Error
 Khademi Table 4 explicitly reports:

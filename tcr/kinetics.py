@@ -266,10 +266,19 @@ def kinetics_ch_production(T_endo: float, P_endo: float, y_endo: np.ndarray,
         y_endo: [C6H12, C6H6, H2, (inert Ar/N2)]
     """
     P_Pa = max(float(P_endo) * 1e5 if P_endo < 1000.0 else float(P_endo), 1e4)
+    raw_y_CH = max(float(y_endo[0]), 0.0)
     y_safe = np.maximum(y_endo, 1e-15)
     p_Pa = y_safe * P_Pa
 
-    P_CH = max(p_Pa[0], 1e-15)
+    # Numerator P_CH reflects raw physical presence with smooth turn-off as y_CH -> 0
+    if raw_y_CH <= 0.0:
+        P_CH = 0.0
+    elif raw_y_CH < 1e-6:
+        u = raw_y_CH / 1e-6
+        P_CH = (3.0 * (u ** 2) - 2.0 * (u ** 3)) * raw_y_CH * P_Pa
+    else:
+        P_CH = raw_y_CH * P_Pa
+
     P_B  = max(p_Pa[1], 1e-15)
     P_H2 = max(p_Pa[2], 1e-15)
     T = max(T_endo, 200.0)
@@ -412,10 +421,19 @@ def kinetics_itoh_benchmark(T_endo: float, P_endo: float, y_endo: np.ndarray,
     effective_mode = _ITOH_BENCHMARK_MODE_OVERRIDE if _ITOH_BENCHMARK_MODE_OVERRIDE is not None else mode
 
     P_Pa = max(float(P_endo) * 1e5 if P_endo < 1000.0 else float(P_endo), 1e4)
+    raw_y_CH = max(float(y_endo[0]), 0.0)
     y_safe = np.maximum(y_endo, 1e-15)
     p_Pa = y_safe * P_Pa
 
-    P_CH = max(p_Pa[0], 1e-15)
+    # Numerator P_CH reflects raw physical presence with smooth turn-off as y_CH -> 0
+    if raw_y_CH <= 0.0:
+        P_CH = 0.0
+    elif raw_y_CH < 1e-6:
+        u = raw_y_CH / 1e-6
+        P_CH = (3.0 * (u ** 2) - 2.0 * (u ** 3)) * raw_y_CH * P_Pa
+    else:
+        P_CH = raw_y_CH * P_Pa
+
     P_B  = max(p_Pa[1], 1e-15)
     P_H2 = max(p_Pa[2], 1e-15)
     T = max(T_endo, 200.0)

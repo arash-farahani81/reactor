@@ -30,27 +30,30 @@ def build_replacement_dict(results):
 
     delta_cmr_yield = (c_opt["yield_khademi_eq28"] - c_base["yield_khademi_eq28"]) / c_base["yield_khademi_eq28"] * 100.0
 
-    # Radial hotspot centerline calculations (ΔT_center-mean ≈ 3.98 K from Biot Bi_h = 3.45)
-    c_base_T_center = c_base["T_max_exo"] + 3.98
-    c_opt_T_center = c_opt["T_max_exo"] + 3.98
-    co_T_center = co["T_max_exo"] + 3.98
-    counter_T_center = counter["T_max_exo"] + 3.98
-    knee_T_center = knee["T_max_exo"] + 3.98
+    # Radial hotspot centerline calculations (from 2D radial profile / Biot Bi_h = 3.45)
+    c_base_T_center = c_base.get("T_centerline_max", c_base["T_max_exo"] + 3.98)
+    c_opt_T_center = c_opt.get("T_centerline_max", c_opt["T_max_exo"] + 3.98)
+    co_T_center = co.get("T_centerline_max", co["T_max_exo"] + 3.98)
+    counter_T_center = counter.get("T_centerline_max", counter["T_max_exo"] + 3.98)
+    knee_T_center = knee.get("T_centerline_max", knee["T_max_exo"] + 3.98)
 
-    # Shell outlet mole fractions (exact Le Chatelier stoichiometry: 1 mol CH0 -> (1-X) CH, X B, 3X H2)
-    def calc_shell_outlet_mol_pct(X_CH_pct):
+    # Shell outlet mole fractions (accounting for 5 mol% H2 co-feed: y0 = [0.95, 0, 0.05, 0])
+    def calc_shell_outlet_mol_pct(run_dict):
+        if "y_H2_out_total" in run_dict and "y_CH_out" in run_dict and "y_B_out" in run_dict:
+            return run_dict["y_CH_out"] * 100.0, run_dict["y_B_out"] * 100.0, run_dict["y_H2_out_total"] * 100.0
+        X_CH_pct = run_dict.get("X_CH", 0.0)
         x = X_CH_pct / 100.0
-        tot = 1.0 + 3.0 * x
-        return (1.0 - x) / tot * 100.0, x / tot * 100.0, 3.0 * x / tot * 100.0
+        tot = 1.0 + 2.85 * x
+        return 0.95 * (1.0 - x) / tot * 100.0, 0.95 * x / tot * 100.0, (0.05 + 2.85 * x) / tot * 100.0
 
-    co_ych, co_yb, co_yh2 = calc_shell_outlet_mol_pct(co["X_CH"])
-    ct_ych, ct_yb, ct_yh2 = calc_shell_outlet_mol_pct(counter["X_CH"])
-    kn_ych, kn_yb, kn_yh2 = calc_shell_outlet_mol_pct(knee["X_CH"])
+    co_ych, co_yb, co_yh2 = calc_shell_outlet_mol_pct(co)
+    ct_ych, ct_yb, ct_yh2 = calc_shell_outlet_mol_pct(counter)
+    kn_ych, kn_yb, kn_yh2 = calc_shell_outlet_mol_pct(knee)
 
     # Downstream separation duties (ChatGPT §4.1 & Swarm Critic-14)
-    # Extractive distillation reboiler duty for Benzene-Cyclohexane separation (Q_sep ~ 20.0 MJ/kg_benzene)
+    # Extractive distillation reboiler duty for Benzene-Cyclohexane separation (Q_sep ~ 18.0 MJ/kg_benzene)
     m_dot_benzene_kg_s = knee["daily_benzene_ton"] * 1000.0 / 86400.0
-    q_extractive_distillation_MW = m_dot_benzene_kg_s * 20.0
+    q_extractive_distillation_MW = m_dot_benzene_kg_s * 18.0
 
     # Hydrogen PSA purification work (W_PSA ~ 2.0 MJ/kg_H2)
     m_dot_h2_kg_s = knee["daily_h2_ton"] * 1000.0 / 86400.0
@@ -66,6 +69,7 @@ def build_replacement_dict(results):
     bench_pub = bench.get("khademi_published", {})
     bench_cmr = bench.get("simulation_cmr", {})
     bench_tcr = bench.get("simulation_tcr_thermo", {})
+    bench_lit = bench.get("simulation_tcr_literal", {})
 
     rep = {
         "conventional_baseline.T_exo_0": "503.15",
@@ -181,6 +185,10 @@ def build_replacement_dict(results):
         "benchmark.simulation_tcr.X_CO2": f"{bench_tcr.get('X_CO2_pct', 25.72):.2f}",
         "benchmark.simulation_tcr.X_CH": f"{bench_tcr.get('X_CH_pct', 99.92):.2f}",
         "benchmark.simulation_tcr.T_max": f"{bench_tcr.get('T_max_K', 567.7):.1f}",
+        "benchmark.simulation_tcr_literal.yield": f"{bench_lit.get('yield_pct', 0.0):.2f}",
+        "benchmark.simulation_tcr_literal.X_CO2": f"{bench_lit.get('X_CO2_pct', 0.0):.2f}",
+        "benchmark.simulation_tcr_literal.X_CH": f"{bench_lit.get('X_CH_pct', 0.0):.2f}",
+        "benchmark.simulation_tcr_literal.T_max": f"{bench_lit.get('T_max_K', 0.0):.1f}",
     }
     return rep
 
