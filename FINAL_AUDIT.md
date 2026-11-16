@@ -31,7 +31,7 @@ All 10 defects identified in the baseline audit (D1 through D10) have been perma
 
 ---
 
-## 3. Automated Test Suite Summary (T1 – T12)
+## 3. Automated Test Suite Summary (T1 – T14)
 
 Command executed:
 `& "C:\Users\arash\AppData\Local\Programs\Python\Python313\python.exe" -m pytest tests/ -v`
@@ -61,22 +61,22 @@ tests/test_physics.py::test_t14_equal_throughput_optimization_and_pressure PASSE
 
 | Metric | CMR Baseline | CMR Optimized | TCR Co-Current Baseline | TCR Counter-Current Baseline | TCR NSGA-II Knee Point |
 |---|---|---|---|---|---|
-| **Tube Feed Temp $T_{\text{exo},0}$ (K)** | $503.15$ | $500.26$ | $503.15$ | $503.15$ | $506.02$ |
-| **Coolant / Shell Feed Temp (K)** | $503.15$ | $517.83$ | $485.00$ | $485.00$ | $494.66$ |
+| **Tube Feed Temp $T_{\text{exo},0}$ (K)** | $503.15$ | $490.00$ | $503.15$ | $503.15$ | $490.28$ |
+| **Coolant / Shell Feed Temp (K)** | $503.15$ | $507.56$ | $485.00$ | $485.00$ | $460.33$ |
 | **Syngas Feed Rate (mol/s·tube)** | $0.640$ | $0.640$ | $0.640$ | $0.640$ | **$0.640$** |
-| **Methanol Production (mol/s)** | $55.58$ | $79.75$ | $77.14$ | $77.23$ | **$79.44$** |
-| **Methanol Daily Production (t/d)** | $153.88$ | **$220.77$** | $213.55$ | $213.81$ | **$219.92$** |
-| **Methanol Yield (Eq. 28) (%)** | $20.94\%$ | **$30.05\%$** | $29.07\%$ | $29.10\%$ | **$29.93\%$** |
-| **Co-Produced Benzene (t/d)** | $0.00$ | $0.00$ | **$95.35$** | **$133.23$** | **$127.43$** |
-| **Coproduct Hydrogen (t/d)** | $0.00$ | $0.00$ | **$7.38$** | **$10.32$** | **$9.87$** |
-| **Shell Exit $\text{H}_2$ Mole Fraction (mol%)** | — | — | $30.03\%$ | $36.66\%$ | **$26.31\%$** |
-| **Peak 1D Mean Bed Temp $T_{\text{max}}$ (K)** | $507.3$ | $525.2$ | $535.0$ | $554.1$ | **$529.5$** |
-| **Peak 2D Centerline Temp $T_{\text{centerline}}$ (K)** | $512.9$ | $535.0$ | $538.3$ | $559.3$ | **$533.8$** |
-| **Tube Pressure Drop (bar)** | $0.44$ | $0.45$ | $0.46$ | $0.47$ | $0.45$ |
-| **Shell Exit Pressure (bar)** | — | — | $1.84$ | $1.75$ | **$1.21$** |
-| **Reaction Zone Cooling Utility** | $4.23\text{ MW}$ | $5.12\text{ MW}$ | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** |
-| **Total Feed Preheating Duty** | $12.37\text{ MW}$ | $12.19\text{ MW}$ | $19.17\text{ MW}$ | $19.17\text{ MW}$ | **$24.69\text{ MW}$** |
-| **Downstream Extractive Distillation** | — | — | $19.86\text{ MW}$ | $27.76\text{ MW}$ | **$26.55\text{ MW}$** |
+| **Methanol Production (mol/s)** | $88.76$ | $95.97$ | $84.94$ | $76.29$ | **$89.21$** |
+| **Methanol Daily Production (t/d)** | $245.72$ | **$265.68$** | $235.14$ | $211.19$ | **$246.98$** |
+| **Methanol Yield (Eq. 28) (%)** | $33.44\%$ | **$36.16\%$** | $32.00\%$ | $28.74\%$ | **$33.62\%$** |
+| **Co-Produced Benzene (t/d)** | $0.00$ | $0.00$ | **$99.80$** | **$91.28$** | **$62.12$** |
+| **Coproduct Hydrogen (t/d)** | $0.00$ | $0.00$ | **$7.73$** | **$7.07$** | **$4.81$** |
+| **Shell Exit $\text{H}_2$ Mole Fraction (mol%)** | — | — | $30.88\%$ | $29.24\%$ | **$15.98\%$** |
+| **Peak 1D Mean Bed Temp $T_{\text{max}}$ (K)** | $514.3$ | $519.4$ | $545.7$ | $544.5$ | **$531.0$** |
+| **Peak 2D Centerline Temp $T_{\text{centerline}}$ (K)** | $528.9$ | $535.0$ | $550.0$ | $551.5$ | **$534.9$** |
+| **Tube Pressure Drop (bar)** | $0.45$ | $0.45$ | $0.47$ | $0.48$ | $0.46$ |
+| **Shell Exit Pressure (bar)** | — | — | $1.81$ | $1.80$ | **$1.16$** |
+| **Reaction Zone Cooling Utility** | $7.04\text{ MW}$ | $6.50\text{ MW}$ | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** |
+| **Total Feed Preheating Duty** | $12.37\text{ MW}$ | $11.55\text{ MW}$ | $19.17\text{ MW}$ | $19.17\text{ MW}$ | **$22.78\text{ MW}$** |
+| **Downstream Extractive Distillation** | — | — | $20.79\text{ MW}$ | $19.02\text{ MW}$ | **$12.94\text{ MW}$** |
 
 ---
 

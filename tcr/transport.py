@@ -235,10 +235,15 @@ def calc_centerline_temp(
 # ---------------------------------------------------------------------------
 # Ergun Packed-Bed Momentum Balance
 # ---------------------------------------------------------------------------
-def calc_ergun_dp(u_s: float, rho_g: float, mu: float, dp: float, eps: float) -> float:
+def calc_ergun_dp(u_s: float, rho_g: float, mu: float, dp: float, eps: float,
+                  Dh: Optional[float] = None) -> float:
     """
-    Ergun equation for packed-bed pressure drop (Pa/m).
-    dP/dz = - [ 150 * mu * (1 - eps)^2 / (eps^3 * dp^2) * u_s + 1.75 * (1 - eps) / (eps^3 * dp) * rho_g * u_s^2 ]
+    Ergun equation for packed-bed pressure drop (Pa/m) with Eisfeld & Schnitzlein (2001)
+    wall-effect correction factors:
+      dP/dz = - [ 150 * mu * (1 - eps)^2 / (eps^3 * dp^2) * u_s * A_w + 1.75 * (1 - eps) / (eps^3 * dp) * rho_g * u_s^2 * B_w ]
+    where:
+      A_w = 1 + 2 / (3 * (Dh / dp) * (1 - eps))
+      B_w = [k1 * (dp / Dh)^2 + k2]^2  (k1 = 0.45, k2 = 1.0)
     """
     eps_safe = float(np.clip(eps, 0.05, 0.95))
     dp_safe = max(float(dp), 1e-6)
@@ -246,8 +251,18 @@ def calc_ergun_dp(u_s: float, rho_g: float, mu: float, dp: float, eps: float) ->
     rho_safe = max(float(rho_g), 1e-4)
 
     u_s_abs = abs(float(u_s))
-    term_visc = 150.0 * mu_safe * ((1.0 - eps_safe) ** 2) / ((eps_safe ** 3) * (dp_safe ** 2)) * u_s_abs
-    term_turb = 1.75 * (1.0 - eps_safe) / ((eps_safe ** 3) * dp_safe) * rho_safe * (u_s_abs ** 2)
+
+    if Dh is not None and float(Dh) > 0.0:
+        Dh_over_dp = max(float(Dh) / dp_safe, 1.0)
+        Aw = 1.0 + 2.0 / (3.0 * Dh_over_dp * (1.0 - eps_safe))
+        k1, k2 = 0.45, 1.0
+        Bw = (k1 * ((1.0 / Dh_over_dp) ** 2) + k2) ** 2
+    else:
+        Aw = 1.0
+        Bw = 1.0
+
+    term_visc = 150.0 * mu_safe * ((1.0 - eps_safe) ** 2) / ((eps_safe ** 3) * (dp_safe ** 2)) * u_s_abs * Aw
+    term_turb = 1.75 * (1.0 - eps_safe) / ((eps_safe ** 3) * dp_safe) * rho_safe * (u_s_abs ** 2) * Bw
     return -(term_visc + term_turb)
 
 # ---------------------------------------------------------------------------

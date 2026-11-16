@@ -135,7 +135,6 @@ def test_t3_equilibrium_limit(cfg, geom):
     # --- Part A: Cyclohexane Dehydrogenation on Shell Side ---
     P_shell = cfg.feed_shell.P0  # Pa
     P_shell_bar = P_shell / 1e5
-    Kp_ch = calc_kp_dehydrogenation(T_iso)  # bar^3
 
     len_shell = len(cfg.feed_shell.y0)
     F0_shell = np.array(cfg.feed_shell.y0, dtype=float) * float(cfg.feed_shell.F_total0)
@@ -160,14 +159,13 @@ def test_t3_equilibrium_limit(cfg, geom):
     p_b = y_out_shell[1] * P_shell_bar
     p_h2 = y_out_shell[2] * P_shell_bar
     Q_ch = (p_b * (p_h2 ** 3)) / max(p_ch, 1e-15)
+    Kp_ch = calc_kp_dehydrogenation(T_iso, P=P_shell_bar, y=y_out_shell)  # bar^3 (real-gas or ideal per active EOS)
     ratio_ch = Q_ch / Kp_ch
     assert 0.99 <= ratio_ch <= 1.01, f"Shell dehydrogenation Q/Kp={ratio_ch:.4f} not in [0.99, 1.01]"
 
     # --- Part B: Methanol Synthesis and RWGS on Tube Side ---
     P_tube = cfg.feed_tube.P0  # Pa
     P_tube_bar = P_tube / 1e5
-    Keq1 = calc_keq_meoh(T_iso)  # bar^-2
-    Keq2 = calc_keq_rwgs(T_iso)  # dimensionless
 
     F0_tube = np.array(cfg.feed_tube.y0, dtype=float) * float(cfg.feed_tube.F_total0)
 
@@ -192,6 +190,8 @@ def test_t3_equilibrium_limit(cfg, geom):
     p_tube = y_out_tube * P_tube_bar
     Q1 = (p_tube[3] * p_tube[4]) / (p_tube[1] * (p_tube[0] ** 3))
     Q2 = (p_tube[2] * p_tube[4]) / (p_tube[1] * p_tube[0])
+    Keq1 = calc_keq_meoh(T_iso, P=P_tube_bar, y=y_out_tube)  # bar^-2 (real-gas or ideal per active EOS)
+    Keq2 = calc_keq_rwgs(T_iso, P=P_tube_bar, y=y_out_tube)  # dimensionless
     ratio_1 = Q1 / Keq1
     ratio_2 = Q2 / Keq2
     assert 0.99 <= ratio_1 <= 1.01, f"Methanol Q1/Keq1={ratio_1:.4f} not in [0.99, 1.01]"

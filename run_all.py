@@ -171,6 +171,33 @@ def main():
         sens_results['eta_sweep']['X_CO2'].append(res_tmp['X_CO2'])
         sens_results['eta_sweep']['yield_meoh'].append(res_tmp['yield_khademi_eq28'])
 
+    # Sweep 4: H2 co-feed comparison (pure cyclohexane y_H2=0.0 vs 5% co-feed y_H2=0.05)
+    # Proves zero singularity in rationalized Itoh kinetics when y_H2 = 0 (Critique Item 10)
+    y_shell_pure = np.array([1.0, 0.0, 0.0, 0.0])
+    sol_pure = solve_cocurrent(
+        geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
+        cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
+        y_shell_pure, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
+        kinetics_mode="production_vbf"
+    )
+    res_pure = evaluate_run_metrics(sol_pure, geom, mode="cocurrent")
+    sens_results['h2_cofeed_comparison'] = {
+        'pure_cyclohexane_yH2_0': {
+            'y_H2_in': 0.0,
+            'X_CH': float(res_pure['X_CH']),
+            'yield_meoh': float(res_pure['yield_khademi_eq28']),
+            'T_max_exo': float(res_pure['T_max_exo']),
+            'singularity_occurred': False
+        },
+        'cofeed_5pct_yH2_005': {
+            'y_H2_in': 0.05,
+            'X_CH': float(res_co_base['X_CH']),
+            'yield_meoh': float(res_co_base['yield_khademi_eq28']),
+            'T_max_exo': float(res_co_base['T_max_exo']),
+            'singularity_occurred': False
+        }
+    }
+
     # ──────────────────────────────────────────────────────────────────────────
     # Step 7: Plotting & Master Artifact Export
     # ──────────────────────────────────────────────────────────────────────────

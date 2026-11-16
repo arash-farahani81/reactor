@@ -8,7 +8,8 @@ Numerical solvers for:
 import numpy as np
 from scipy.integrate import solve_ivp, solve_bvp
 from .thermo import (
-    R_GAS, calc_cp_species, calc_dH_rxn_meoh, calc_dH_rxn_rwgs, calc_dH_rxn_ch, MW
+    R_GAS, calc_cp_species, calc_dH_rxn_meoh, calc_dH_rxn_rwgs, calc_dH_rxn_ch, MW,
+    is_use_real_gas_eos, calc_compressibility_factor_pr
 )
 from .geometry import ReactorGeometry
 from .config import CatalystBedConfig, TransportConfig, SolverConfig
@@ -20,6 +21,48 @@ from .transport import calc_U_tcr, calc_U_cmr, calc_ergun_dp
 
 SPECIES_TUBE = ['H2', 'CO2', 'CO', 'CH3OH', 'H2O', 'CH4', 'N2']
 SPECIES_SHELL = ['C6H12', 'C6H6', 'H2', 'Ar']
+
+
+def calc_tube_kinetics_radial_quadrature(T_exo: float, P_exo: float, y_exo: np.ndarray,
+                                         cat_exo: CatalystBedConfig, geom: ReactorGeometry,
+                                         kinetics_mode: str = "production_vbf",
+                                         use_dynamic_thiele: bool = True) -> tuple[float, float, float, float]:
+    """
+    Evaluates tube-side reaction rates using 2-point Gauss-Legendre quadrature
+    across the parabolic radial temperature profile:
+        T(r, z) = T_mean(z) + Delta_T_rad(z) * (1 - 2*(r/R)^2)
+    at radial quadrature nodes (r/R)^2 = 0.5 - sqrt(3)/6 and 0.5 + sqrt(3)/6.
+
+    Returns:
+        (r_meoh, r_rwgs, dH_meoh, dH_rwgs)
+    """
+    if kinetics_mode != "production_vbf":
+        r1, r2, r3 = kinetics_graaf_benchmark(T_exo, P_exo, y_exo, cat_exo.eta)
+        return float(r1 + r3), float(r2), calc_dH_rxn_meoh(T_exo), calc_dH_rxn_rwgs(T_exo)
+
+    eff_eta = "dynamic" if use_dynamic_thiele else cat_exo.eta
+
+    # Preliminary rates at cup-average temperature to compute local volumetric heat release q_v:
+    r_m_pre, r_r_pre = kinetics_vbf_production(T_exo, P_exo, y_exo, eff_eta)
+    dH_m = calc_dH_rxn_meoh(T_exo)
+    dH_r = calc_dH_rxn_rwgs(T_exo)
+
+    q_v = cat_exo.rho_b * ((-dH_m) * r_m_pre + (-dH_r) * r_r_pre)
+    k_er = 2.20  # W/(m·K), packed bed effective radial thermal conductivity
+    delta_T_rad = max(q_v * (geom.R_in ** 2) / (8.0 * k_er), 0.0)
+
+    # 2-point Gauss-Legendre quadrature nodes across parabolic radial profile:
+    sqrt3_over_3 = 0.5773502691896257
+    T1 = T_exo + delta_T_rad * sqrt3_over_3
+    T2 = max(T_exo - delta_T_rad * sqrt3_over_3, 273.15)
+
+    r_m1, r_r1 = kinetics_vbf_production(T1, P_exo, y_exo, eff_eta)
+    r_m2, r_r2 = kinetics_vbf_production(T2, P_exo, y_exo, eff_eta)
+
+    r_meoh_eff = 0.5 * (r_m1 + r_m2)
+    r_rwgs_eff = 0.5 * (r_r1 + r_r2)
+
+    return float(r_meoh_eff), float(r_rwgs_eff), dH_m, dH_r
 
 
 class FluxArray(np.ndarray):
@@ -120,7 +163,8 @@ def cross_check_countercurrent_bvp(sol_picard: object, geom: ReactorGeometry,
                                    max_rel_dev_tol: float = 0.002,
                                    bvp_tol: float = 1e-3,
                                    max_nodes: int = 1000,
-                                   assert_pass: bool = True) -> dict:
+                                   assert_pass: bool = True,
+                                   use_dynamic_thiele: bool = True) -> dict:
     """
     Cross-verifies the Under-Relaxed Picard BVP solution against scipy.integrate.solve_bvp (collocation)
     across all 14 state variables (< 0.2% maximum relative deviation).
@@ -150,16 +194,20 @@ def cross_check_countercurrent_bvp(sol_picard: object, geom: ReactorGeometry,
             y_s = F_s / F_tot_s
 
             if kinetics_mode == "production_vbf":
-                r_meoh, r_rwgs = kinetics_vbf_production(T_t, P_t, y_t, cat_exo.eta)
-                r_ch = kinetics_ch_production(T_s, P_s, y_s, cat_endo.eta)
+                r_meoh, r_rwgs, dH_meoh, dH_rwgs = calc_tube_kinetics_radial_quadrature(
+                    T_t, P_t, y_t, cat_exo, geom, kinetics_mode="production_vbf",
+                    use_dynamic_thiele=use_dynamic_thiele
+                )
+                eff_endo = "dynamic" if use_dynamic_thiele else cat_endo.eta
+                r_ch = kinetics_ch_production(T_s, P_s, y_s, eta_endo=eff_endo)
             else:
                 r1, r2, r3 = kinetics_graaf_benchmark(T_t, P_t, y_t, cat_exo.eta)
                 r_meoh = r1 + r3
                 r_rwgs = r2
                 r_ch = kinetics_itoh_benchmark(T_s, P_s, y_s, mode="khademi_thermo", eta_endo=cat_endo.eta)
+                dH_meoh = calc_dH_rxn_meoh(T_t)
+                dH_rwgs = calc_dH_rxn_rwgs(T_t)
 
-            dH_meoh = calc_dH_rxn_meoh(T_t)
-            dH_rwgs = calc_dH_rxn_rwgs(T_t)
             dH_ch = calc_dH_rxn_ch(T_s)
 
             # Tube flow (+z direction)
@@ -188,13 +236,17 @@ def cross_check_countercurrent_bvp(sol_picard: object, geom: ReactorGeometry,
             dS[8+len_endo, j] = - (Q_rxn_s + Q_wall) / max(FCp_s, 1e-3)
 
             mw_t = sum(y_t[i] * MW[SPECIES_TUBE[i]] for i in range(7))
-            rho_t = (P_t * mw_t) / (R_GAS * T_t)
-            u_t = (F_tot_t * R_GAS * T_t) / (P_t * geom.A_tube)
-            dS[9+len_endo, j] = calc_ergun_dp(u_t, rho_t, trans.mu_exo, cat_exo.dp, cat_exo.eps)
+            if is_use_real_gas_eos():
+                Z_t = calc_compressibility_factor_pr(T_t, P_t, y_t, species_list=SPECIES_TUBE)
+            else:
+                Z_t = 1.0
+            rho_t = (P_t * mw_t) / (Z_t * R_GAS * T_t)
+            u_t = (Z_t * F_tot_t * R_GAS * T_t) / (P_t * geom.A_tube)
+            dS[9+len_endo, j] = calc_ergun_dp(u_t, rho_t, trans.mu_exo, cat_exo.dp, cat_exo.eps, Dh=geom.Dh_tube)
             mw_s = sum(y_s[i] * MW[species_shell[i]] for i in range(len_endo))
             rho_s = (P_s * mw_s) / (R_GAS * T_s)
             u_s = (F_tot_s * R_GAS * T_s) / (P_s * geom.A_shell)
-            dS[10+len_endo, j] = - calc_ergun_dp(u_s, rho_s, trans.mu_endo, cat_endo.dp, cat_endo.eps)
+            dS[10+len_endo, j] = - calc_ergun_dp(u_s, rho_s, trans.mu_endo, cat_endo.dp, cat_endo.eps, Dh=geom.Dh_shell)
         return dS
 
     def bvp_bc(ya, yb):
@@ -276,7 +328,8 @@ def make_event_negative_flow():
 def solve_conventional(geom: ReactorGeometry, cat: CatalystBedConfig, trans: TransportConfig,
                        sol_cfg: SolverConfig, y0: np.ndarray, T0: float, P0: float,
                        F_total0: float, T_coolant: float = 503.15,
-                       kinetics_mode: str = "production_vbf") -> object:
+                       kinetics_mode: str = "production_vbf",
+                       use_dynamic_thiele: bool = True) -> object:
     """
     Solves conventional methanol reactor cooled by boiling water jacket.
     State vector: [F_exo (7), T_exo, P_exo]
@@ -295,9 +348,10 @@ def solve_conventional(geom: ReactorGeometry, cat: CatalystBedConfig, trans: Tra
         y_exo = F_exo / F_tot
 
         if kinetics_mode == "production_vbf":
-            r_meoh, r_rwgs = kinetics_vbf_production(T_exo, P_exo, y_exo, cat.eta)
-            dH_meoh = calc_dH_rxn_meoh(T_exo)
-            dH_rwgs = calc_dH_rxn_rwgs(T_exo)
+            r_meoh, r_rwgs, dH_meoh, dH_rwgs = calc_tube_kinetics_radial_quadrature(
+                T_exo, P_exo, y_exo, cat, geom, kinetics_mode="production_vbf",
+                use_dynamic_thiele=use_dynamic_thiele
+            )
         else:
             r1, r2, r3 = kinetics_graaf_benchmark(T_exo, P_exo, y_exo, cat.eta)
             r_meoh = r1 + r3
@@ -324,11 +378,15 @@ def solve_conventional(geom: ReactorGeometry, cat: CatalystBedConfig, trans: Tra
         Q_rxn = geom.A_tube * cat.rho_b * ((-dH_meoh) * r_meoh + (-dH_rwgs) * r_rwgs)
         dT = (Q_rxn - Q_wall) / max(FCp, 1e-3)
 
-        # Ergun pressure drop
+        # Ergun pressure drop with PR-EOS compressibility and Eisfeld-Schnitzlein wall effect
         mw_avg = sum(y_exo[i] * MW[SPECIES_TUBE[i]] for i in range(7))
-        rho_g = (P_exo * mw_avg) / (R_GAS * T_exo)
-        u_s = (F_tot * R_GAS * T_exo) / (P_exo * geom.A_tube)
-        dP = calc_ergun_dp(u_s, rho_g, trans.mu_exo, cat.dp, cat.eps)
+        if is_use_real_gas_eos():
+            Z = calc_compressibility_factor_pr(T_exo, P_exo, y_exo, species_list=SPECIES_TUBE)
+        else:
+            Z = 1.0
+        rho_g = (P_exo * mw_avg) / (Z * R_GAS * T_exo)
+        u_s = (Z * F_tot * R_GAS * T_exo) / (P_exo * geom.A_tube)
+        dP = calc_ergun_dp(u_s, rho_g, trans.mu_exo, cat.dp, cat.eps, Dh=geom.Dh_tube)
 
         return np.concatenate([dF, [dT, dP]])
 
@@ -373,7 +431,8 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
                     trans: TransportConfig, sol_cfg: SolverConfig,
                     y_exo_0: np.ndarray, T_exo_0: float, P_exo_0: float, F_exo_total_0: float,
                     y_endo_0: np.ndarray, T_endo_0: float, P_endo_0: float, F_endo_total_0: float,
-                    kinetics_mode: str = "production_vbf") -> object:
+                    kinetics_mode: str = "production_vbf",
+                    use_dynamic_thiele: bool = True) -> object:
     """
     Solves Co-Current TCR (IVP from z=0 to z=L) using Radau IIA.
     State vector: [F_exo (7), F_endo (len_endo), T_exo, T_endo, P_exo, P_endo]
@@ -403,13 +462,19 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
             y_endo[0] = 0.0
 
         if kinetics_mode == "production_vbf":
-            r_meoh, r_rwgs = kinetics_vbf_production(T_exo, P_exo, y_exo, cat_exo.eta)
-            r_ch = kinetics_ch_production(T_endo, P_endo, y_endo, cat_endo.eta)
+            r_meoh, r_rwgs, dH_meoh, dH_rwgs = calc_tube_kinetics_radial_quadrature(
+                T_exo, P_exo, y_exo, cat_exo, geom, kinetics_mode="production_vbf",
+                use_dynamic_thiele=use_dynamic_thiele
+            )
+            eff_eta_endo = "dynamic" if use_dynamic_thiele else cat_endo.eta
+            r_ch = kinetics_ch_production(T_endo, P_endo, y_endo, eta_endo=eff_eta_endo)
         else:
             r1, r2, r3 = kinetics_graaf_benchmark(T_exo, P_exo, y_exo, cat_exo.eta)
             r_meoh = r1 + r3
             r_rwgs = r2
             r_ch = kinetics_itoh_benchmark(T_endo, P_endo, y_endo, mode="khademi_thermo", eta_endo=cat_endo.eta)
+            dH_meoh = calc_dH_rxn_meoh(T_exo)
+            dH_rwgs = calc_dH_rxn_rwgs(T_exo)
 
         # Smooth turn-off as raw_F_CH -> 0 to prevent numerical overshoot below zero
         if raw_F_CH <= 0.0 and r_ch > 0.0:
@@ -420,8 +485,6 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
         else:
             r_ch_eff = r_ch
 
-        dH_meoh = calc_dH_rxn_meoh(T_exo)
-        dH_rwgs = calc_dH_rxn_rwgs(T_exo)
         dH_ch = calc_dH_rxn_ch(T_endo)
 
         dF_exo = np.zeros(7)
@@ -451,16 +514,20 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
         Q_rxn_endo = geom.A_shell * cat_endo.rho_b * (-dH_ch) * r_ch_eff
         dT_endo = (Q_rxn_endo + Q_wall) / max(FCp_endo, 1e-3)
 
-        # Ergun pressure drops
+        # Ergun pressure drops with PR-EOS compressibility and Eisfeld-Schnitzlein wall effect
         mw_exo = sum(y_exo[i] * MW[SPECIES_TUBE[i]] for i in range(7))
-        rho_exo = (P_exo * mw_exo) / (R_GAS * T_exo)
-        u_exo = (F_exo_tot * R_GAS * T_exo) / (P_exo * geom.A_tube)
-        dP_exo = calc_ergun_dp(u_exo, rho_exo, trans.mu_exo, cat_exo.dp, cat_exo.eps)
+        if is_use_real_gas_eos():
+            Z_exo = calc_compressibility_factor_pr(T_exo, P_exo, y_exo, species_list=SPECIES_TUBE)
+        else:
+            Z_exo = 1.0
+        rho_exo = (P_exo * mw_exo) / (Z_exo * R_GAS * T_exo)
+        u_exo = (Z_exo * F_exo_tot * R_GAS * T_exo) / (P_exo * geom.A_tube)
+        dP_exo = calc_ergun_dp(u_exo, rho_exo, trans.mu_exo, cat_exo.dp, cat_exo.eps, Dh=geom.Dh_tube)
 
         mw_endo = sum(y_endo[i] * MW[species_shell[i]] for i in range(len_endo))
         rho_endo = (P_endo * mw_endo) / (R_GAS * T_endo)
         u_endo = (F_endo_tot * R_GAS * T_endo) / (P_endo * geom.A_shell)
-        dP_endo = calc_ergun_dp(u_endo, rho_endo, trans.mu_endo, cat_endo.dp, cat_endo.eps)
+        dP_endo = calc_ergun_dp(u_endo, rho_endo, trans.mu_endo, cat_endo.dp, cat_endo.eps, Dh=geom.Dh_shell)
 
         return np.concatenate([dF_exo, dF_endo, [dT_exo, dT_endo, dP_exo, dP_endo]])
 
@@ -515,7 +582,8 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
                          trans: TransportConfig, sol_cfg: SolverConfig,
                          y_exo_0: np.ndarray, T_exo_0: float, P_exo_0: float, F_exo_total_0: float,
                          y_endo_0: np.ndarray, T_endo_0: float, P_endo_0: float, F_endo_total_0: float,
-                         kinetics_mode: str = "production_vbf", cross_check_bvp: bool = False) -> tuple[object, dict]:
+                         kinetics_mode: str = "production_vbf", cross_check_bvp: bool = False,
+                         use_dynamic_thiele: bool = True) -> tuple[object, dict]:
     """
     Solves Counter-Current TCR (Two-Point BVP) via Under-Relaxed Picard Fixed-Point Iteration.
     - Tube integrates forward from z = 0 to L given interpolated shell fields.
@@ -563,14 +631,16 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
             F_s = np.array([float(np.interp(z, z_grid, F_shell_prof[k, :])) for k in range(len_endo)])
 
             if kinetics_mode == "production_vbf":
-                r_meoh, r_rwgs = kinetics_vbf_production(T_exo, P_exo, y_exo, cat_exo.eta)
+                r_meoh, r_rwgs, dH_meoh, dH_rwgs = calc_tube_kinetics_radial_quadrature(
+                    T_exo, P_exo, y_exo, cat_exo, geom, kinetics_mode="production_vbf",
+                    use_dynamic_thiele=use_dynamic_thiele
+                )
             else:
                 r1, r2, r3 = kinetics_graaf_benchmark(T_exo, P_exo, y_exo, cat_exo.eta)
                 r_meoh = r1 + r3
                 r_rwgs = r2
-
-            dH_meoh = calc_dH_rxn_meoh(T_exo)
-            dH_rwgs = calc_dH_rxn_rwgs(T_exo)
+                dH_meoh = calc_dH_rxn_meoh(T_exo)
+                dH_rwgs = calc_dH_rxn_rwgs(T_exo)
 
             dF = np.zeros(7)
             dF[0] = geom.A_tube * cat_exo.rho_b * (-3.0 * r_meoh - r_rwgs)
@@ -590,9 +660,13 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
             dT = (Q_rxn - Q_wall) / max(FCp, 1e-3)
 
             mw_exo = sum(y_exo[i] * MW[SPECIES_TUBE[i]] for i in range(7))
-            rho_g = (P_exo * mw_exo) / (R_GAS * T_exo)
-            u_s = (F_tot * R_GAS * T_exo) / (P_exo * geom.A_tube)
-            dP = calc_ergun_dp(u_s, rho_g, trans.mu_exo, cat_exo.dp, cat_exo.eps)
+            if is_use_real_gas_eos():
+                Z_exo = calc_compressibility_factor_pr(T_exo, P_exo, y_exo, species_list=SPECIES_TUBE)
+            else:
+                Z_exo = 1.0
+            rho_g = (P_exo * mw_exo) / (Z_exo * R_GAS * T_exo)
+            u_s = (Z_exo * F_tot * R_GAS * T_exo) / (P_exo * geom.A_tube)
+            dP = calc_ergun_dp(u_s, rho_g, trans.mu_exo, cat_exo.dp, cat_exo.eps, Dh=geom.Dh_tube)
 
             return np.concatenate([dF, [dT, dP]])
 
@@ -625,7 +699,8 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
             F_t = np.array([float(np.interp(z_act, z_grid, F_tube_prof[k, :])) for k in range(7)])
 
             if kinetics_mode == "production_vbf":
-                r_ch = kinetics_ch_production(T_endo, P_endo, y_endo, cat_endo.eta)
+                eff_eta_endo = "dynamic" if use_dynamic_thiele else cat_endo.eta
+                r_ch = kinetics_ch_production(T_endo, P_endo, y_endo, eta_endo=eff_eta_endo)
             else:
                 r_ch = kinetics_itoh_benchmark(T_endo, P_endo, y_endo, mode="khademi_thermo", eta_endo=cat_endo.eta)
 
@@ -658,7 +733,7 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
             mw_endo = sum(y_endo[i] * MW[species_shell[i]] for i in range(len_endo))
             rho_g = (P_endo * mw_endo) / (R_GAS * T_endo)
             u_s = (F_tot * R_GAS * T_endo) / (P_endo * geom.A_shell)
-            dP = calc_ergun_dp(u_s, rho_g, trans.mu_endo, cat_endo.dp, cat_endo.eps)
+            dP = calc_ergun_dp(u_s, rho_g, trans.mu_endo, cat_endo.dp, cat_endo.eps, Dh=geom.Dh_shell)
 
             return np.concatenate([dF, [dT, dP]])
 
@@ -799,7 +874,8 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
             sol_final, geom, cat_exo, cat_endo, trans,
             y_exo_0, T_exo_0, P_exo_0, F_exo_total_0,
             y_endo_0, T_endo_0, P_endo_0, F_endo_total_0,
-            kinetics_mode=kinetics_mode
+            kinetics_mode=kinetics_mode,
+            use_dynamic_thiele=use_dynamic_thiele
         )
         info['bvp_cross_check'] = cross_res
         info['max_relative_deviation'] = cross_res['max_rel_deviation']

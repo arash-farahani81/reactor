@@ -24,12 +24,15 @@ class GeometryConfig:
     D_shell_eff: float
     N_tubes: int
     Kw: float
+    p_t: Optional[float] = None
     # Derived quantities
     A_tube: float = field(init=False)
     A_shell: float = field(init=False)
     a_H: float = field(init=False)
 
     def __post_init__(self):
+        if self.p_t is None:
+            self.p_t = float(np.sqrt(np.pi / (2.0 * np.sqrt(3.0))) * self.D_shell_eff)
         self.A_tube = (np.pi / 4.0) * (self.D_in ** 2)
         self.A_shell = (np.pi / 4.0) * (self.D_shell_eff ** 2 - self.D_out ** 2)
         self.a_H = np.pi * self.D_in
@@ -95,7 +98,8 @@ class AppConfig:
     solver: SolverConfig
     optimization: OptimizationConfig
     raw_yaml: Dict[str, Any]
-    use_real_gas_eos: bool = False
+    use_real_gas_eos: bool = True
+    use_dynamic_thiele: bool = True
 
 def load_config(config_path: str = "config.yaml") -> AppConfig:
     """Loads configuration from YAML file into typed dataclasses."""
@@ -108,13 +112,15 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         data = yaml.safe_load(f)
 
     geo_data = data["geometry"]
+    p_t_val = float(geo_data["p_t"]["value"]) if "p_t" in geo_data and "value" in geo_data["p_t"] else None
     geom = GeometryConfig(
         L=float(geo_data["L"]["value"]),
         D_in=float(geo_data["D_in"]["value"]),
         D_out=float(geo_data["D_out"]["value"]),
         D_shell_eff=float(geo_data["D_shell_eff"]["value"]),
         N_tubes=int(geo_data["N_tubes"]["value"]),
-        Kw=float(geo_data["Kw"]["value"])
+        Kw=float(geo_data["Kw"]["value"]),
+        p_t=p_t_val
     )
 
     cat_data = data["catalyst"]
@@ -185,8 +191,9 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         picard_tol_P=float(sol_data.get("picard_tol_P", 1.0))
     )
 
-    use_real_gas_eos = bool(data.get("use_real_gas_eos", False))
+    use_real_gas_eos = bool(data.get("use_real_gas_eos", True))
     set_use_real_gas_eos(use_real_gas_eos)
+    use_dynamic_thiele = bool(data.get("use_dynamic_thiele", True))
 
     opt_data = data["optimization"]
     optimization = OptimizationConfig(
@@ -214,5 +221,6 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         solver=solver,
         optimization=optimization,
         raw_yaml=data,
-        use_real_gas_eos=use_real_gas_eos
+        use_real_gas_eos=use_real_gas_eos,
+        use_dynamic_thiele=use_dynamic_thiele
     )

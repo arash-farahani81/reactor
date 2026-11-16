@@ -113,6 +113,35 @@ def calc_centerline_temp(T_mean: float, q_vol: float, R_in: float, k_er: float =
     return float(T_mean + (q_vol * (R_in ** 2)) / (8.0 * max(k_er, 1e-3)))
 
 
+def calc_mechanical_hoop_stress(geom: ReactorGeometry,
+                                 P_tube_Pa: float,
+                                 P_shell_Pa: float = 1.01325e5,
+                                 S_allow_MPa: float = 138.0) -> dict[str, float]:
+    """
+    Computes thick-wall Lamé hoop stress at the inner tube wall:
+        sigma_theta = Delta_P * (D_out^2 + D_in^2) / (D_out^2 - D_in^2)
+    and verifies compliance against ASME Section VIII Div. 1 maximum allowable stress
+    for SA-213 T22 seamless alloy steel (S_allow = 138.0 MPa at 550 K).
+    """
+    delta_P_Pa = abs(P_tube_Pa - P_shell_Pa)
+    delta_P_MPa = delta_P_Pa * 1e-6
+    D_o = geom.D_out
+    D_i = geom.D_in
+    lame_factor = (D_o ** 2 + D_i ** 2) / (D_o ** 2 - D_i ** 2)
+    sigma_theta_MPa = delta_P_MPa * lame_factor
+    safety_factor = S_allow_MPa / max(sigma_theta_MPa, 1e-6)
+    is_asme_compliant = bool(safety_factor >= 1.50)
+
+    return {
+        "delta_P_bar": float(delta_P_Pa / 1e5),
+        "delta_P_MPa": float(delta_P_MPa),
+        "sigma_theta_inner_MPa": float(sigma_theta_MPa),
+        "S_allow_MPa": float(S_allow_MPa),
+        "safety_factor": float(safety_factor),
+        "is_asme_compliant": is_asme_compliant
+    }
+
+
 def calc_downstream_separation_and_duties(
     sol: object,
     geom: ReactorGeometry,
@@ -271,6 +300,8 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
         else:
             T_centerline_max = T_mean_max + 4.0
 
+        stress_info = calc_mechanical_hoop_stress(geom, float(np.max(P_exo)), P_shell_Pa=1.01325e5)
+
         ret = {
             'mode': 'conventional',
             'X_CO2': float(X_CO2),
@@ -294,6 +325,10 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
             'elem_err_tube': elem_err_tube,
             'enthalpy_err_tube_pct': enthalpy_err_tube,
             'Q_wall_total_MW': float(Q_wall_total * geom.N_tubes * 1e-6),
+            'hoop_stress': stress_info,
+            'hoop_stress_MPa': float(stress_info['sigma_theta_inner_MPa']),
+            'asme_safety_factor': float(stress_info['safety_factor']),
+            'asme_compliant': bool(stress_info['is_asme_compliant']),
             'clamp_violations': int(getattr(sol, 'clamp_violations', 0))
         }
         ret.update(duties)
@@ -386,6 +421,8 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
     y_H2_out_inert_free = float(F_endo_out[2] / max(F_inert_free_out, 1e-15))
     y_H2_out = y_H2_out_total
 
+    stress_info = calc_mechanical_hoop_stress(geom, float(np.max(P_exo)), float(np.min(P_endo)))
+
     ret = {
         'mode': mode,
         'X_CO2': float(X_CO2),
@@ -420,6 +457,10 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
         'Q_wall_total_MW': float(Q_wall_total * geom.N_tubes * 1e-6),
         'delta_H_tube_MW': float(delta_H_tube * geom.N_tubes * 1e-6),
         'delta_H_shell_MW': float(delta_H_shell * geom.N_tubes * 1e-6),
+        'hoop_stress': stress_info,
+        'hoop_stress_MPa': float(stress_info['sigma_theta_inner_MPa']),
+        'asme_safety_factor': float(stress_info['safety_factor']),
+        'asme_compliant': bool(stress_info['is_asme_compliant']),
         'clamp_violations': int(getattr(sol, 'clamp_violations', 0))
     }
     ret.update(duties)

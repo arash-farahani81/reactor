@@ -464,6 +464,8 @@ def get_use_real_gas_eos() -> bool:
     """Returns current state of Peng-Robinson real gas fugacity flag."""
     return USE_REAL_GAS_EOS
 
+is_use_real_gas_eos = get_use_real_gas_eos
+
 # Standard species order for vector/matrix conversions
 SPECIES_TUBE: Tuple[str, ...] = ('H2', 'CO2', 'CO', 'CH3OH', 'H2O', 'CH4', 'N2')
 SPECIES_SHELL: Tuple[str, ...] = ('C6H12', 'C6H6', 'H2', 'Ar')

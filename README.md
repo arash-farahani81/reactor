@@ -108,17 +108,17 @@ reactor/
 | Performance Metric | CMR Baseline | CMR Optimized | TCR Co-Current | TCR Counter-Current | TCR NSGA-II Optimum |
 |---|---|---|---|---|---|
 | **Syngas Feed Rate (mol/s)** | 0.640 | 0.640 | 0.640 | 0.640 | **0.640** |
-| **Methanol Production (t/d)** | 153.88 | **220.77** | 213.55 | 213.81 | **219.92** |
-| **Methanol Yield (%)** | 20.94% | **30.05%** | 29.07% | 29.10% | **29.93%** |
-| **Co-Produced Benzene (t/d)** | 0.00 | 0.00 | **95.35** | **133.23** | **127.43** |
-| **Coproduct Hydrogen (t/d)** | 0.00 | 0.00 | **7.38** | **10.32** | **9.87** |
-| **Shell Exit $\text{H}_2$ Mole Fraction (mol%)** | — | — | 30.03% | 36.66% | **26.31%** |
-| **Peak 1D Mean Bed Temp (K)** | 507.3 | 525.2 | 535.0 | 554.1 | **529.5** |
-| **Peak 2D Centerline Temp (K)** | 512.9 | 535.0 | 538.3 | 559.3 | **533.8** |
-| **Shell Exit Pressure (bar)** | — | — | 1.84 | 1.75 | **1.21** |
-| **Reaction Zone Cooling Utility**| 4.23 MW | 5.12 MW | **0.0 kW** | **0.0 kW** | **0.0 kW** |
-| **Feed Preheating Duty** | 12.37 MW | 12.19 MW | 19.17 MW | 19.17 MW | **24.14 MW** |
-| **Downstream Extractive Distillation** | — | — | 19.86 MW | 27.76 MW | **26.55 MW** |
+| **Methanol Production (t/d)** | 245.72 | **265.68** | 235.14 | 211.19 | **246.98** |
+| **Methanol Yield (%)** | 33.44% | **36.16%** | 32.00% | 28.74% | **33.62%** |
+| **Co-Produced Benzene (t/d)** | 0.00 | 0.00 | **99.80** | **91.28** | **62.12** |
+| **Coproduct Hydrogen (t/d)** | 0.00 | 0.00 | **7.73** | **7.07** | **4.81** |
+| **Shell Exit $\text{H}_2$ Mole Fraction (mol%)** | — | — | 30.88% | 29.24% | **15.98%** |
+| **Peak 1D Mean Bed Temp (K)** | 514.3 | 519.4 | 545.7 | 544.5 | **531.0** |
+| **Peak 2D Centerline Temp (K)** | 528.9 | 535.0 | 550.0 | 551.5 | **534.9** |
+| **Shell Exit Pressure (bar)** | — | — | 1.81 | 1.80 | **1.16** |
+| **Reaction Zone Cooling Utility**| 7.04 MW | 6.50 MW | **0.0 kW** | **0.0 kW** | **0.0 kW** |
+| **Feed Preheating Duty** | 12.37 MW | 11.55 MW | 19.17 MW | 19.17 MW | **22.78 MW** |
+| **Downstream Extractive Distillation** | — | — | 20.79 MW | 19.02 MW | **12.94 MW** |
 
 ---
 

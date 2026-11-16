@@ -14,10 +14,14 @@ geometry:
     value: 0.042
     unit: "m"
     source: "Khademi et al. (2009), Table 6"
+  p_t:
+    value: 0.05523
+    unit: "m"
+    source: "Triangular pitch unit-cell method (pt/D_out = 1.315, Khademi et al. 2009 Fig. 1)"
   D_shell_eff:
     value: 0.058
     unit: "m"
-    source: "Khademi et al. (2009), Table 6 (effective shell diameter per tube)"
+    source: "Khademi et al. (2009), Table 6 (effective shell diameter per tube: D_shell_eff = pt * sqrt(2*sqrt(3)/pi))"
   N_tubes:
     value: 2962
     unit: "-"
@@ -73,15 +77,15 @@ feed:
       T0:
         value: 503.15
         unit: "K"
-        source: "Khademi et al. (2009), Table 7"
+        source: "Khademi et al. (2009), Tables 7 & 8"
       P0:
         value: 76.98e5
         unit: "Pa"
-        source: "Khademi et al. (2009), Table 7"
+        source: "Khademi et al. (2009), Tables 7 & 8"
       F_total0:
         value: 0.640
         unit: "mol/s"
-        source: "Khademi et al. (2009), Table 7 (locked strictly at 0.640 mol/s across all baseline and optimized reactors for equal-throughput comparison)"
+        source: "Khademi et al. (2009), Tables 7 & 8 (locked strictly at 0.640 mol/s across all baseline and optimized reactors for equal-throughput comparison)"
     shell:
       # Components: [C6H12, C6H6, H2, Ar] (4-component shell mixture supporting Ar diluent and 5% H2 co-feed)
       y0: [0.95, 0.0, 0.05, 0.0]
@@ -105,30 +109,30 @@ feed:
       T0:
         value: 527.8
         unit: "K"
-        source: "Khademi et al. (2009), Table 7"
+        source: "Khademi et al. (2009), Tables 7 & 8"
       P0:
         value: 76.98e5
         unit: "Pa"
-        source: "Khademi et al. (2009), Table 7"
+        source: "Khademi et al. (2009), Tables 7 & 8"
       F_total0:
         value: 0.640
         unit: "mol/s"
-        source: "Khademi et al. (2009), Table 7 (locked strictly at 0.640 mol/s across all baseline and optimized reactors for equal-throughput comparison)"
+        source: "Khademi et al. (2009), Tables 7 & 8 (locked strictly at 0.640 mol/s across all baseline and optimized reactors for equal-throughput comparison)"
     shell:
       # Components: [C6H12, C6H6, H2, Ar]
       y0: [0.10, 0.0, 0.0, 0.90]
       T0:
         value: 423.0
         unit: "K"
-        source: "Khademi et al. (2009), Table 7"
+        source: "Khademi et al. (2009), Tables 7 & 8"
       P0:
         value: 1.01325e5
         unit: "Pa"
-        source: "Khademi et al. (2009), Table 7"
+        source: "Khademi et al. (2009), Tables 7 & 8"
       F_total0:
         value: 0.111
         unit: "mol/s"
-        source: "Khademi et al. (2009), Table 7"
+        source: "Khademi et al. (2009), Tables 7 & 8"
 
 transport:
   conventional:
@@ -172,3 +176,7 @@ optimization:
   T_max_limit: 535.0
   P_shell_out_min: 1.10
   P_shell_out_knee: 1.15
+
+use_real_gas_eos: true
+use_dynamic_thiele: true
+

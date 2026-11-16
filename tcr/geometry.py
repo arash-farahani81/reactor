@@ -23,24 +23,29 @@ class ReactorGeometry:
         # Single cross-sectional flow areas per tube (strictly self-consistent)
         self.A_tube = (np.pi / 4.0) * (self.D_in ** 2)
 
-        # Bundle pitch and shell cross-sectional areas:
-        # In triangular pitch bundle geometry: A_cell = (sqrt(3)/2) * p_pitch^2
-        # Equivalent circular cell diameter: D_shell_eff = sqrt(2*sqrt(3)/pi) * p_pitch
-        # Giving p_pitch = sqrt(pi / (2 * sqrt(3))) * D_shell_eff ~ 1.315 * D_out (within standard 1.25-1.33 TEMA range)
-        self.p_pitch = float(np.sqrt(np.pi / (2.0 * np.sqrt(3.0))) * self.D_shell_eff)
+        # Bundle pitch and shell cross-sectional areas via Triangular Tube Pitch Unit-Cell Method:
+        # For unbaffled axial packed-bed shell reactors (Khademi et al., 2009 Fig. 1):
+        # Unit-cell area: A_cell = (sqrt(3)/2) * p_t^2
+        # Equivalent circular cell diameter: D_shell_eff = p_t * sqrt(2*sqrt(3)/pi)
+        # Inverting: p_t = D_shell_eff * sqrt(pi / (2*sqrt(3))) ~ 0.05523 m (pt/D_out = 1.315, within TEMA 1.25-1.33)
+        if getattr(cfg, 'p_t', None) is not None and cfg.p_t is not None:
+            self.p_pitch = float(cfg.p_t)
+        else:
+            self.p_pitch = float(np.sqrt(np.pi / (2.0 * np.sqrt(3.0))) * self.D_shell_eff)
+        self.p_t = self.p_pitch
         self.pitch_ratio = float(self.p_pitch / self.D_out)
 
-        # Total shell bundle vessel cross-sectional area enclosed by N_tubes pitch cells:
-        self.A_shell_bundle = float(self.N_tubes * (np.pi / 4.0) * (self.D_shell_eff ** 2))
-        self.D_shell_vessel = float(np.sqrt(self.N_tubes) * self.D_shell_eff)
-
-        # Net cross-sectional shell flow area across the entire bundle:
-        # A_flow,shell = A_shell_bundle - N_tubes * (pi/4 * D_out^2)
-        self.A_flow_shell = float(self.A_shell_bundle - self.N_tubes * (np.pi / 4.0) * (self.D_out ** 2))
-
-        # Single consistent net shell flow area per tube
-        self.A_shell = float(self.A_flow_shell / self.N_tubes)
+        # Unit-cell cross-sectional area and net shell flow area per tube:
+        # A_cell = (sqrt(3)/2) * p_t^2
+        # A_shell = A_cell - (pi/4) * D_out^2 == (pi/4) * (D_shell_eff^2 - D_out^2)
+        self.A_cell = float((np.sqrt(3.0) / 2.0) * (self.p_pitch ** 2))
+        self.A_shell = float(self.A_cell - (np.pi / 4.0) * (self.D_out ** 2))
         self.A_flow_shell_per_tube = self.A_shell
+
+        # Total shell bundle vessel cross-sectional area enclosed by N_tubes pitch cells:
+        self.A_shell_bundle = float(self.N_tubes * self.A_cell)
+        self.D_shell_vessel = float(np.sqrt(self.N_tubes) * self.D_shell_eff)
+        self.A_flow_shell = float(self.A_shell * self.N_tubes)
 
         # Inter-stream heat transfer perimeter based on tube inner diameter (m²/m)
         self.a_H = float(np.pi * self.D_in)
@@ -49,16 +54,18 @@ class ReactorGeometry:
         # 1. Tube inner hydraulic diameter:
         self.Dh_tube = float(self.D_in)
 
-        # 2. Shell annular equivalent hydraulic diameter per tube:
+        # 2. Shell unit-cell hydraulic diameter: Dh = 4 * A_shell / (pi * D_out)
+        self.Dh_shell_unit_cell = float(4.0 * self.A_shell / (np.pi * self.D_out))
+
+        # 3. Shell annular equivalent hydraulic diameter per tube:
         self.Dh_shell_annular = float(self.D_shell_eff - self.D_out)
 
-        # 3. Shell bundle hydraulic diameter (4 * A_flow / P_wetted across the bundle):
-        # Wetted perimeter includes tube outer walls and outer shell vessel wall:
+        # 4. Shell bundle hydraulic diameter (4 * A_flow / P_wetted across the bundle):
         self.P_wetted_shell = float(self.N_tubes * np.pi * self.D_out + np.pi * self.D_shell_vessel)
         self.Dh_shell_bundle = float(4.0 * self.A_flow_shell / self.P_wetted_shell)
 
-        # Default shell hydraulic diameter maintained for consistency with annular/bundle correlations:
-        self.Dh_shell = float(self.Dh_shell_annular)
+        # Default shell hydraulic diameter maintained for consistency:
+        self.Dh_shell = float(self.Dh_shell_unit_cell)
 
         # Total plant catalyst volumes (m³)
         self.V_tube_total = float(self.A_tube * self.L * self.N_tubes)
@@ -69,17 +76,19 @@ class ReactorGeometry:
         """Inner tube radius in meters (R_in = D_in / 2)."""
         return self.R_in
 
-    def calc_superficial_velocity(self, F_total: float, T: float, P: float, side: str = "tube") -> float:
+    def calc_superficial_velocity(self, F_total: float, T: float, P: float, side: str = "tube",
+                                  Z: float = 1.0) -> float:
         """
         Computes superficial gas velocity u_s (m/s) per tube from total molar flow F_total (mol/s)
-        at temperature T (K) and pressure P (Pa):
-          u_s = (F_total * R_GAS * T / P) / A_flow
+        at temperature T (K) and pressure P (Pa), accounting for compressibility Z:
+          u_s = (Z * F_total * R_GAS * T / P) / A_flow
         """
         from .thermo import R_GAS
         P_safe = max(float(P), 1.0)
         T_safe = max(float(T), 100.0)
+        Z_safe = max(float(Z), 0.1)
         A = self.A_tube if side.lower() in ("tube", "exo") else self.A_shell
-        return float((F_total * R_GAS * T_safe / P_safe) / A)
+        return float((Z_safe * F_total * R_GAS * T_safe / P_safe) / A)
 
     def get_summary(self) -> dict:
         return {

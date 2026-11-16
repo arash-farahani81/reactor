@@ -69,8 +69,8 @@ The reactor is modeled on an industrial multitubular shell-and-tube geometry con
 | **Bed Voidage (Porosity)** | $\varepsilon$ | $0.39$ | $0.40$ | — | Khademi et al. (2009), Table 6 |
 | **Baseline Inlet Temperature** | $T_0$ | $503.15$ ($230.0^\circ\text{C}$) | $485.0$ ($211.85^\circ\text{C}$) | $\text{K}$ | Baseline design |
 | **Operating Pressure** | $P_0$ | $76.98$ | $2.50$ ($2.5 \times 10^5\text{ Pa}$) | $\text{bar}$ | Baseline design |
-| **Feed Composition** | $y_0$ | $y_{\text{H}_2}=0.669, y_{\text{CO}_2}=0.223, y_{\text{CO}}=0.046, y_{\text{CH}_3\text{OH}}=0.005, y_{\text{H}_2\text{O}}=0.004, y_{\text{CH}_4}=0.017, y_{\text{N}_2}=0.036$ | $y_{\text{CH}}=0.95, y_{\text{B}}=0.00, y_{\text{H}_2}=0.05, y_{\text{inert}}=0.00$ | — | Khademi et al. (2009) / This work |
-| **Inlet Molar Flow (per tube)** | $F_{\text{total},0}$ | $0.640$ | $0.040$ | $\text{mol/s}$ | Khademi et al. (2009), Table 7 |
+| **Feed Composition** | $y_0$ | $y_{\text{H}_2}=0.669, y_{\text{CO}_2}=0.223, y_{\text{CO}}=0.046, y_{\text{CH}_3\text{OH}}=0.005, y_{\text{H}_2\text{O}}=0.004, y_{\text{CH}_4}=0.017, y_{\text{N}_2}=0.036$ | $y_{\text{CH}}=0.95, y_{\text{B}}=0.00, y_{\text{H}_2}=0.05, y_{\text{inert}}=0.00$ | — | Khademi et al. (2009), Tables 7 & 8 |
+| **Inlet Molar Flow (per tube)** | $F_{\text{total},0}$ | $0.640$ | $0.040$ | $\text{mol/s}$ | Khademi et al. (2009), Tables 7 & 8 |
 | **Wall Thermal Conductivity** | $K_w$ | $48.0$ | $48.0$ | $\text{W/(m}\cdot\text{K)}$ | Stainless Steel |
 
 #### Radial Conduction Resistance, Wall Biot Number, and Centerline Hotspots
@@ -89,6 +89,38 @@ $$\Delta T_{\text{center-wall}} = \frac{q_v R_{\text{in}}^2}{4 k_{er}} = \frac{(
 Consequently, to strictly satisfy the copper catalyst thermal deactivation threshold ($T_{\text{solid}} \le 535.0\text{ K}$) at the tube centerline:
 $$T_{\text{centerline,max}} = T_{\text{mean,max}} + \Delta T_{\text{center-mean}} \le 535.0\text{ K} \implies T_{\text{mean,max}} \le 531.02\text{ K}$$
 In the NSGA-II optimal design, the peak 1D bulk temperature is safely maintained at ${{ tcr_nsga2_optimum.T_max_exo }}\text{ K}$, yielding a centerline temperature of ${{ tcr_nsga2_optimum.T_centerline_max }}\text{ K} \le 535.0\text{ K}$, ensuring complete catalyst thermal preservation.
+
+#### Triangular Tube Pitch Unit-Cell Geometry & Hydraulic Diameter
+The industrial shell-and-tube bundle is arranged on an equilateral triangular tube pitch ($p_t = 0.05523\text{ m}$, yielding pitch-to-diameter ratio $p_t / D_{\text{out}} = 1.315$). In an equilateral triangular layout, the unit-cell area associated with each tube is:
+$$A_{\text{cell}} = \frac{\sqrt{3}}{2} p_t^2 = \frac{\sqrt{3}}{2} (0.05523\text{ m})^2 = 2.6419 \times 10^{-3}\text{ m}^2$$
+Subtracting the tube outer cross-sectional area yields the net shell-side flow area per tube:
+$$A_{\text{shell}} = A_{\text{cell}} - \frac{\pi}{4} D_{\text{out}}^2 = 2.6419 \times 10^{-3} - \frac{\pi}{4} (0.042\text{ m})^2 = 1.2563 \times 10^{-3}\text{ m}^2$$
+The equivalent shell diameter $D_{\text{shell,eff}} = p_t \sqrt{\frac{2\sqrt{3}}{\pi}} = 0.0580\text{ m}$ matches Khademi et al. (2009, Table 6). The shell-side hydraulic diameter based on wetted perimeter ($\pi D_{\text{out}}$) is rigorously:
+$$D_{h,\text{shell}} = \frac{4 A_{\text{shell}}}{\pi D_{\text{out}}} = \frac{4 (1.2563 \times 10^{-3}\text{ m}^2)}{\pi (0.042\text{ m})} = \mathbf{0.03808\text{ m}} \quad (38.08\text{ mm})$$
+
+#### Wall-Effect Ergun Momentum Correction (Eisfeld & Schnitzlein, 2001)
+In confined packed beds with moderate aspect ratio ($D_h / d_p < 20$), packing disorder and elevated voidage near solid walls reduce viscous drag and inertial resistance. In accordance with the peer-reviewed correlations of Eisfeld & Schnitzlein (2001), the Ergun pressure drop equation incorporates wall-effect correction factors $A_w$ and $B_w$:
+$$\frac{dP}{dz} = -\left[ 150 \frac{\mu (1-\varepsilon)^2}{\varepsilon^3 d_p^2} u_s A_w + 1.75 \frac{(1-\varepsilon)}{\varepsilon^3 d_p} \rho_g u_s^2 B_w \right]$$
+$$A_w = 1 + \frac{2}{3 (D_h/d_p) (1 - \varepsilon)}, \quad B_w = \left[ k_1 \left(\frac{d_p}{D_h}\right)^2 + k_2 \right]^2$$
+where for cylindrical/spherical pellets $k_1 = 0.45$ and $k_2 = 1.00$. For the tube side ($D_h / d_p = 6.95$, $\varepsilon = 0.39$), $A_w \approx 1.157$ and $B_w \approx 1.019$, accounting for near-wall channeling and friction.
+
+#### Mechanical Integrity & Lamé Thick-Wall Hoop Stress Verification
+Operating at an intra-tubular pressure of $P_{\text{tube}} \approx 76.98\text{ bar}$ against a shell pressure of $P_{\text{shell}} \approx 2.50\text{ bar}$ produces a differential pressure of $\Delta P \approx 74.48\text{ bar}$ ($7.448\text{ MPa}$). For thick-walled seamless cylindrical tubing ($D_{\text{out}} = 42\text{ mm}, D_{\text{in}} = 38\text{ mm}$, wall thickness $t_w = 2.0\text{ mm}$), the peak elastic hoop stress occurs at the inner tube radius and is calculated from Lamé's thick-wall formulation:
+$$\sigma_\theta = \Delta P \frac{D_{\text{out}}^2 + D_{\text{in}}^2}{D_{\text{out}}^2 - D_{\text{in}}^2} = (7.448\text{ MPa}) \frac{(0.042)^2 + (0.038)^2}{(0.042)^2 - (0.038)^2} = \mathbf{74.67\text{ MPa}}$$
+Per ASME Boiler and Pressure Vessel Code (Section VIII, Division 1, Part UCS), seamless alloy steel tubing (SA-213 Grade T22 / 2.25Cr-1Mo) possesses an allowable design stress of $S_{\text{allow}} = 138.0\text{ MPa}$ at design metal temperatures up to $550\text{ K}$. The resulting mechanical safety factor is:
+$$\text{SF} = \frac{S_{\text{allow}}}{\sigma_\theta} = \frac{138.0\text{ MPa}}{74.67\text{ MPa}} = \mathbf{1.85} \ge 1.50$$
+satisfying mandatory ASME Section VIII Division 1 structural design criteria with a 23% safety margin above the code minimum ($1.50$).
+
+#### 2-Point Radial Gauss–Legendre Quadrature Feedback into ODE Reaction Kinetics
+To capture the impact of internal radial temperature gradients on highly non-linear Arrhenius kinetics without incurring the prohibitive computational overhead of a full 2D PDE discretization, a 2-point Gauss–Legendre radial quadrature is coupled directly into the 1D ODE solver. Assuming a classical parabolic radial temperature distribution:
+$$T(r, z) = T_{\text{mean}}(z) + \Delta T_{\text{rad}}(z) \left( 1 - 2 \left(\frac{r}{R}\right)^2 \right)$$
+where $\Delta T_{\text{rad}}(z) = \frac{q_v(z) R_{\text{in}}^2}{8 k_{er}}$. Mapping radial coordinate $u = (r/R)^2 \in [0, 1]$, the Gauss–Legendre quadrature nodes and weights are:
+$$u_1 = \frac{1}{2} - \frac{\sqrt{3}}{6} \approx 0.2113, \quad u_2 = \frac{1}{2} + \frac{\sqrt{3}}{6} \approx 0.7887, \quad w_1 = w_2 = 0.5$$
+The corresponding radial evaluation temperatures are:
+$$T_1(z) = T_{\text{mean}}(z) + \Delta T_{\text{rad}}(z) \frac{\sqrt{3}}{3}, \quad T_2(z) = T_{\text{mean}}(z) - \Delta T_{\text{rad}}(z) \frac{\sqrt{3}}{3}$$
+The effective cross-sectional reaction rates evaluated at each axial ODE step are:
+$$r_{\text{eff}}(z) = 0.5 \left[ r(T_1, P, \mathbf{y}) + r(T_2, P, \mathbf{y}) \right]$$
+This formulation captures non-linear Arrhenius acceleration near the hotter tube center and deceleration near the cooler tube wall, providing a conservative, physically grounded reaction rate.
 
 ### 2.2 Kinetic Expressions
 
@@ -339,6 +371,7 @@ The exponent implies $-\Delta H / R = -3190\text{ K}$, corresponding to an appar
 3. When evaluated fairly under equal syngas feed throughput ($0.640\text{ mol/s}$ per tube) against an optimized conventional reactor (CMR, yield ${{ conventional_optimized.yield_khademi_eq28 }}\%$), the TCR knee-point produces ${{ tcr_nsga2_optimum.daily_meoh_ton }}\text{ t/d}$ methanol (yield ${{ tcr_nsga2_optimum.yield_khademi_eq28 }}\%$), ${{ tcr_nsga2_optimum.daily_benzene_ton }}\text{ t/d}$ of co-produced benzene, and ${{ tcr_nsga2_optimum.daily_h2_ton }}\text{ t/d}$ of hydrogen within an $\text{H}_2$-rich reformate stream (${{ tcr_nsga2_optimum.outlet_y_H2 }}\text{ mol}\% \text{ H}_2$).
 4. Transport and thermal safety are strictly satisfied: peak bulk temperature is ${{ tcr_nsga2_optimum.T_max_exo }}\text{ K}$ and peak centerline temperature is ${{ tcr_nsga2_optimum.T_centerline_max }}\text{ K}$, both remaining below the $535.0\text{ K}$ copper sintering limit.
 5. Rigorous battery-limit accounting reveals that plant-wide thermal duties include ${{ process_thermal_duties.total_feed_preheat_duty_MW }}\text{ MW}$ for upstream feed preparation and ${{ separation_duties.extractive_distillation_duty_MW }}\text{ MW}$ for downstream extractive distillation of the benzene–cyclohexane azeotrope, dispelling the misconception of zero-energy operation.
+6. The results presented herein constitute a conceptual reactor design and plant-wide battery-limit engineering study. While grounded in rigorous transport phenomena, thermodynamic equilibrium, and peer-reviewed kinetics, commercial deployment will require pilot-scale experimental validation to confirm long-term catalyst stability, multi-tube flow distribution, and dynamic controllability.
 
 ---
 
@@ -351,3 +384,5 @@ The exponent implies $-\Delta H / R = -3190\text{ K}$, corresponding to an appar
 6. Deb, K., Pratap, A., Agarwal, S., & Meyarivan, T. (2002). A fast and elitist multiobjective genetic algorithm: NSGA-II. *IEEE Transactions on Evolutionary Computation*, 6(2), 182–197.
 7. Ergun, S. (1952). Fluid flow through packed columns. *Chemical Engineering Progress*, 48, 89–94.
 8. Dixon, A. G. (1997). Wall and particle-fluid heat transfer in packed beds. *Chemical Engineering and Processing*, 36(4), 283–290.
+9. Eisfeld, B., & Schnitzlein, K. (2001). The influence of wall effects on the pressure drop in packed beds—the Ergun equation revisited. *Chemical Engineering Science*, 56(14), 4323–4329.
+10. American Society of Mechanical Engineers (ASME). (2021). Boiler and Pressure Vessel Code, Section VIII, Division 1: Rules for Construction of Pressure Vessels.
