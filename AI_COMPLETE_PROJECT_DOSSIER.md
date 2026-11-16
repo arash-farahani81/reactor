@@ -4569,11 +4569,11 @@ Rigorous mathematical verification demonstrating that the Counter-Current BVP so
 
 | Numerical Solver Metric | Picard Fixed-Point Iteration | Collocation (`solve_bvp`) | Max Absolute Deviation ($L_\infty$) | Relative Agreement |
 |---|---|---|---|---|
-| Convergence Status | Converged (18 iters) | Converged (161 mesh nodes) | — | 100% |
+| Convergence Status | Converged (17 iters) | Converged (161 mesh nodes) | — | 100% |
 | Relaxation Factor $\alpha$ | 0.70 | — | — | — |
-| Final $T$ Residual | 3.975e-05 K | 9.756e-04 | — | — |
+| Final $T$ Residual | 2.580e-04 K | < 1e-3 | — | — |
 | Tube Temperature $T_{tube}(z)$ | Verified | Verified | **0.0034 K** | < 0.05% |
-| Shell Temperature $T_{shell}(z)$ | Verified | Verified | **0.0112 K** | < 0.05% |
+| Shell Temperature $T_{shell}(z)$ | Verified | Verified | **0.0111 K** | < 0.05% |
 | Tube Pressure $P_{tube}(z)$ | Verified | Verified | **0.00000 bar** | < 0.01% |
 | Shell Pressure $P_{shell}(z)$ | Verified | Verified | **0.00000 bar** | < 0.01% |
 | Methanol Flow Rate $F_{MeOH}(z)$ | Verified | Verified | **0.000000 mol/s** | < 0.1% |
@@ -4670,7 +4670,7 @@ tests/test_physics.py::test_t11_local_wall_heat_flux_equality PASSED     [ 85%]
 tests/test_physics.py::test_t13_bvp_collocation_picard_crosscheck PASSED [ 92%]
 tests/test_physics.py::test_t14_equal_throughput_optimization_and_pressure PASSED [100%]
 
-============================= 14 passed in 11.10s =============================
+============================= 14 passed in 10.25s =============================
 ```
 
 ## 2. Manuscript Zero-Hardcode Consistency Check: `check_manuscript_consistency.py`
