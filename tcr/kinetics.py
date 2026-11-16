@@ -202,8 +202,9 @@ def kinetics_vbf_production(T_exo: float, P_exo: float, y_exo: np.ndarray,
     K_ratio = 3453.38
 
     # Thermodynamic equilibrium constants strictly obeying van 't Hoff equation: d(ln K)/dT = Delta H_r(T) / (R * T^2)
-    keq1 = calc_keq1(T)  # bar^-2
-    keq2 = calc_keq2(T)  # dimensionless
+    # Passed P and y to enable real-gas Peng-Robinson fugacity corrections K_phi when active
+    keq1 = calc_keq1(T, P=P_bar, y=y_safe)  # bar^-2
+    keq2 = calc_keq2(T, P=P_bar, y=y_safe)  # dimensionless
 
     # Reversible driving forces via (1 - eta) formulation ensuring microscopic reversibility:
     eta1 = (pMeOH * pH2O) / (max(keq1, 1e-30) * pCO2 * (pH2 ** 3))
@@ -281,7 +282,8 @@ def kinetics_ch_production(T_endo: float, P_endo: float, y_endo: np.ndarray,
     K_B = 2.03e-10 * np.exp(6270.0 / T)
 
     # Exact Kirchhoff thermodynamic equilibrium constant in Pa^3: Kp_bar3 * (1e5)^3
-    Kp_bar3 = calc_kp_dehydrogenation(T)
+    P_bar = P_Pa / 1e5
+    Kp_bar3 = calc_kp_dehydrogenation(T, P=P_bar, y=y_safe)
     Kp_Pa3 = Kp_bar3 * 1e15
 
     # Reversible driving force via approach to equilibrium ensuring microscopic reversibility
@@ -430,7 +432,8 @@ def kinetics_itoh_benchmark(T_endo: float, P_endo: float, y_endo: np.ndarray,
         Kp_Pa3 = 4.89e35 * np.exp(-3190.0 / T)
     else:
         # Thermodynamically consistent Kirchhoff Kp in Pa^3: Kp_bar3 * (1e5)^3
-        Kp_bar3 = calc_kp_dehydrogenation(T)
+        P_bar = P_Pa / 1e5
+        Kp_bar3 = calc_kp_dehydrogenation(T, P=P_bar, y=y_safe)
         Kp_Pa3 = Kp_bar3 * 1e15
 
     # Reversible driving force via approach to equilibrium

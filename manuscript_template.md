@@ -36,7 +36,7 @@ $$\text{C}_6\text{H}_{12} \rightleftharpoons \text{C}_6\text{H}_6 + 3\text{H}_2 
 This pairing presents multiple synergistic advantages:
 - **In Situ Reaction Zone Cooling:** The endothermic reaction absorbs the reaction heat *in situ*, eliminating the need for high-pressure boiling water jackets in the reaction zone ($0.0\text{ kW}$ cooling utility).
 - **Continuous Heat Sink:** Hotspot formation in the methanol catalyst bed is mitigated by the endothermic reaction, maintaining favorable kinetic rates while protecting the catalyst.
-- **Valuable Chemical Coproduction:** In addition to co-produced benzene, the endothermic stream generates three moles of hydrogen per mole of converted cyclohexane, producing an $\text{H}_2$-rich reformate stream ($y_{\text{H}_2} \approx 19.1\text{–}26.8\text{ mol}\%$) that can be upgraded via pressure swing adsorption (PSA) or membrane separation for syngas recycle or merchant chemical use.
+- **Valuable Chemical Coproduction:** In addition to co-produced benzene, the endothermic stream generates three moles of hydrogen per mole of converted cyclohexane, producing an $\text{H}_2$-rich reformate stream ($y_{\text{H}_2} \approx {{ tcr_nsga2_optimum.outlet_y_H2 }}\text{–}{{ countercurrent_baseline.outlet_y_H2 }}\text{ mol}\%$) that can be upgraded via pressure swing adsorption (PSA) or membrane separation for syngas recycle or merchant chemical use.
 
 ### 1.3 Literature Gap and Contributions of this Study
 While seminal works by Rahimpour and coworkers (Khademi et al., 2009, 2012) demonstrated the conceptual feasibility of thermally coupled reactors, several crucial physical, transport, and methodological issues require first-principles resolution:
@@ -193,7 +193,7 @@ flowchart TD
     end
 
     subgraph Optimization ["NSGA-II Multi-Objective Optimization"]
-        G["Decision Variables: T_exo, T_endo, F_endo, F_exo"] --> H["Evaluate Co-Current Model + Dynamic U"]
+        G["Decision Variables: T_exo,0, T_endo,0, F_endo,0, P_endo,0"] --> H["Evaluate Co-Current Model + Dynamic U"]
         H --> I["Non-Dominated Sorting & Crowding Distance"]
         I --> J["Generate Pareto Optimal Frontier & Knee Point"]
     end
@@ -332,18 +332,6 @@ The exponent implies $-\Delta H / R = -3190\text{ K}$, corresponding to an appar
 3. When evaluated fairly under equal syngas feed throughput ($0.640\text{ mol/s}$ per tube) against an optimized conventional reactor (CMR, yield ${{ conventional_optimized.yield_khademi_eq28 }}\%$), the TCR knee-point produces ${{ tcr_nsga2_optimum.daily_meoh_ton }}\text{ t/d}$ methanol (yield ${{ tcr_nsga2_optimum.yield_khademi_eq28 }}\%$), ${{ tcr_nsga2_optimum.daily_benzene_ton }}\text{ t/d}$ of co-produced benzene, and ${{ tcr_nsga2_optimum.daily_h2_ton }}\text{ t/d}$ of hydrogen within an $\text{H}_2$-rich reformate stream (${{ tcr_nsga2_optimum.outlet_y_H2 }}\text{ mol}\% \text{ H}_2$).
 4. Transport and thermal safety are strictly satisfied: peak bulk temperature is ${{ tcr_nsga2_optimum.T_max_exo }}\text{ K}$ and peak centerline temperature is ${{ tcr_nsga2_optimum.T_centerline_max }}\text{ K}$, both remaining below the $535.0\text{ K}$ copper sintering limit.
 5. Rigorous battery-limit accounting reveals that plant-wide thermal duties include ${{ process_thermal_duties.total_feed_preheat_duty_MW }}\text{ MW}$ for upstream feed preparation and ${{ separation_duties.extractive_distillation_duty_MW }}\text{ MW}$ for downstream extractive distillation of the benzene–cyclohexane azeotrope, dispelling the misconception of zero-energy operation.
-
----
-
-## 9. References
-1. Vanden Bussche, K. M., & Froment, G. F. (1996). A steady-state kinetic model for synthesis of methanol and the water gas shift reaction on a commercial $\text{Cu/ZnO/Al}_2\text{O}_3$ catalyst. *Journal of Catalysis*, 161(1), 1–10.
-2. Khademi, M. H., Setoodeh, P., Rahimpour, M. R., & Jahanmiri, A. (2009). Optimization of methanol synthesis and cyclohexane dehydrogenation in a thermally coupled reactor using differential evolution (DE) method. *International Journal of Hydrogen Energy*, 34(16), 6930–6944.
-3. Khademi, M. H., Rahimpour, M. R., & Jahanmiri, A. (2012). A comparison of a novel recuperative configuration and conventional methanol synthesis reactor. *Drying Technology*, 30(11-12), 1332–1343.
-4. Graaf, G. H., Stamhuis, E. J., & Beenackers, A. A. C. M. (1988). Kinetics of low-pressure methanol synthesis. *Chemical Engineering Science*, 43(12), 3185–3195.
-5. Itoh, N. (1987). A membrane reactor for dehydrogenation of cyclohexane. *AIChE Journal*, 33(9), 1576–1578.
-6. Deb, K., Pratap, A., Agarwal, S., & Meyarivan, T. (2002). A fast and elitist multiobjective genetic algorithm: NSGA-II. *IEEE Transactions on Evolutionary Computation*, 6(2), 182–197.
-7. Ergun, S. (1952). Fluid flow through packed columns. *Chemical Engineering Progress*, 48, 89–94.
-8. Dixon, A. G. (1997). Wall and particle-fluid heat transfer in packed beds. *Chemical Engineering and Processing*, 36(4), 283–290.
 
 ---
 

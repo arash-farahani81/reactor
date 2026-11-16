@@ -488,6 +488,7 @@ from typing import List, Dict, Any, Optional
 import yaml
 import os
 import numpy as np
+from .thermo import set_use_real_gas_eos
 
 @dataclass
 class Parameter:
@@ -546,6 +547,7 @@ class SolverConfig:
     picard_tol_T: float
     picard_tol_F: float
     picard_alpha: float
+    picard_tol_P: float = 1.0
 
 @dataclass
 class OptimizationConfig:
@@ -573,6 +575,7 @@ class AppConfig:
     solver: SolverConfig
     optimization: OptimizationConfig
     raw_yaml: Dict[str, Any]
+    use_real_gas_eos: bool = False
 
 def load_config(config_path: str = "config.yaml") -> AppConfig:
     """Loads configuration from YAML file into typed dataclasses."""
@@ -658,8 +661,12 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         picard_max_iter=int(sol_data["picard_max_iter"]),
         picard_tol_T=float(sol_data["picard_tol_T"]),
         picard_tol_F=float(sol_data["picard_tol_F"]),
-        picard_alpha=float(sol_data["picard_alpha"])
+        picard_alpha=float(sol_data["picard_alpha"]),
+        picard_tol_P=float(sol_data.get("picard_tol_P", 1.0))
     )
+
+    use_real_gas_eos = bool(data.get("use_real_gas_eos", False))
+    set_use_real_gas_eos(use_real_gas_eos)
 
     opt_data = data["optimization"]
     optimization = OptimizationConfig(
@@ -686,7 +693,8 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         transport=transport,
         solver=solver,
         optimization=optimization,
-        raw_yaml=data
+        raw_yaml=data,
+        use_real_gas_eos=use_real_gas_eos
     )
 
 ```
@@ -2160,8 +2168,9 @@ def kinetics_vbf_production(T_exo: float, P_exo: float, y_exo: np.ndarray,
     K_ratio = 3453.38
 
     # Thermodynamic equilibrium constants strictly obeying van 't Hoff equation: d(ln K)/dT = Delta H_r(T) / (R * T^2)
-    keq1 = calc_keq1(T)  # bar^-2
-    keq2 = calc_keq2(T)  # dimensionless
+    # Passed P and y to enable real-gas Peng-Robinson fugacity corrections K_phi when active
+    keq1 = calc_keq1(T, P=P_bar, y=y_safe)  # bar^-2
+    keq2 = calc_keq2(T, P=P_bar, y=y_safe)  # dimensionless
 
     # Reversible driving forces via (1 - eta) formulation ensuring microscopic reversibility:
     eta1 = (pMeOH * pH2O) / (max(keq1, 1e-30) * pCO2 * (pH2 ** 3))
@@ -2239,7 +2248,8 @@ def kinetics_ch_production(T_endo: float, P_endo: float, y_endo: np.ndarray,
     K_B = 2.03e-10 * np.exp(6270.0 / T)
 
     # Exact Kirchhoff thermodynamic equilibrium constant in Pa^3: Kp_bar3 * (1e5)^3
-    Kp_bar3 = calc_kp_dehydrogenation(T)
+    P_bar = P_Pa / 1e5
+    Kp_bar3 = calc_kp_dehydrogenation(T, P=P_bar, y=y_safe)
     Kp_Pa3 = Kp_bar3 * 1e15
 
     # Reversible driving force via approach to equilibrium ensuring microscopic reversibility
@@ -2388,7 +2398,8 @@ def kinetics_itoh_benchmark(T_endo: float, P_endo: float, y_endo: np.ndarray,
         Kp_Pa3 = 4.89e35 * np.exp(-3190.0 / T)
     else:
         # Thermodynamically consistent Kirchhoff Kp in Pa^3: Kp_bar3 * (1e5)^3
-        Kp_bar3 = calc_kp_dehydrogenation(T)
+        P_bar = P_Pa / 1e5
+        Kp_bar3 = calc_kp_dehydrogenation(T, P=P_bar, y=y_safe)
         Kp_Pa3 = Kp_bar3 * 1e15
 
     # Reversible driving force via approach to equilibrium
@@ -3721,7 +3732,9 @@ Optimization module:
 4. Non-dominated Knee Point selection satisfying strict centerline temperature and shell exit pressure constraints.
 """
 
+import os
 import time
+from concurrent.futures import ProcessPoolExecutor
 from typing import Optional, List, Dict, Any, Tuple
 import numpy as np
 from scipy.optimize import minimize as scipy_minimize
@@ -4162,14 +4175,30 @@ def run_nsga2_tcr(cfg: AppConfig, mode: str = "cocurrent",
     seed_results = []
     total_opt_time = 0.0
 
-    for s in seeds:
-        res_s = run_nsga2_single_seed(
-            cfg, geom, sol_fast, mode=mode, seed=int(s),
-            pop_size=pop_size, n_gen=n_gen,
-            has_inert_var=has_inert_var, xl=xl, xu=xu
-        )
-        seed_results.append(res_s)
-        total_opt_time += res_s['opt_time_s']
+    if len(seeds) > 1:
+        max_workers = min(len(seeds), os.cpu_count() or 4)
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                executor.submit(
+                    run_nsga2_single_seed,
+                    cfg, geom, sol_fast, mode, int(s),
+                    pop_size, n_gen, has_inert_var, xl, xu
+                )
+                for s in seeds
+            ]
+            for fut in futures:
+                res_s = fut.result()
+                seed_results.append(res_s)
+                total_opt_time += res_s['opt_time_s']
+    else:
+        for s in seeds:
+            res_s = run_nsga2_single_seed(
+                cfg, geom, sol_fast, mode=mode, seed=int(s),
+                pop_size=pop_size, n_gen=n_gen,
+                has_inert_var=has_inert_var, xl=xl, xu=xu
+            )
+            seed_results.append(res_s)
+            total_opt_time += res_s['opt_time_s']
 
     # Primary run (seed 42)
     prim_res = seed_results[0]
@@ -6062,8 +6091,8 @@ def test_t12_benchmark_verification(results):
   "metadata": {
     "title": "Thermally Coupled Shell-and-Tube Reactor (TCR) Single Source of Truth",
     "version": "2.0.0",
-    "generated_utc": "2026-11-16T08:09:00Z",
-    "execution_time_total_s": 160.47,
+    "generated_utc": "2026-11-16T09:08:11Z",
+    "execution_time_total_s": 74.36,
     "N_tubes": 2962,
     "shell_inlet_pressure_bar": 2.5
   },
@@ -6693,7 +6722,7 @@ Subprocess execution logs demonstrating 100% automated test compliance and numer
 ============================= test session starts =============================
 platform win32 -- Python 3.13.9, pytest-9.2.0, pluggy-1.7.0 -- C:\Users\arash\AppData\Local\Programs\Python\Python313\python.exe
 cachedir: .pytest_cache
-rootdir: C:\Users\arash\.gemini\antigravity\worktrees\ae84a2b0-7e69-425f-bd74-dc43752696cd\swarm-redteam-verifier-2-41d4a665
+rootdir: C:\Users\arash\Desktop\reactor
 plugins: platformdirs-4.14.5
 collecting ... collected 14 items
 
@@ -6712,7 +6741,7 @@ tests/test_physics.py::test_t11_local_wall_heat_flux_equality PASSED     [ 85%]
 tests/test_physics.py::test_t13_van_t_hoff_exact_derivative PASSED       [ 92%]
 tests/test_physics.py::test_t14_equal_throughput_optimization_and_pressure PASSED [100%]
 
-======================= 14 passed in 176.70s (0:02:56) ========================
+======================= 14 passed in 176.17s (0:02:56) ========================
 ```
 
 ## 2. Manuscript Zero-Hardcode Consistency Check: `check_manuscript_consistency.py`
@@ -6765,7 +6794,7 @@ $$\text{C}_6\text{H}_{12} \rightleftharpoons \text{C}_6\text{H}_6 + 3\text{H}_2 
 This pairing presents multiple synergistic advantages:
 - **In Situ Reaction Zone Cooling:** The endothermic reaction absorbs the reaction heat *in situ*, eliminating the need for high-pressure boiling water jackets in the reaction zone ($0.0\text{ kW}$ cooling utility).
 - **Continuous Heat Sink:** Hotspot formation in the methanol catalyst bed is mitigated by the endothermic reaction, maintaining favorable kinetic rates while protecting the catalyst.
-- **Valuable Chemical Coproduction:** In addition to co-produced benzene, the endothermic stream generates three moles of hydrogen per mole of converted cyclohexane, producing an $\text{H}_2$-rich reformate stream ($y_{\text{H}_2} \approx 19.1\text{–}26.8\text{ mol}\%$) that can be upgraded via pressure swing adsorption (PSA) or membrane separation for syngas recycle or merchant chemical use.
+- **Valuable Chemical Coproduction:** In addition to co-produced benzene, the endothermic stream generates three moles of hydrogen per mole of converted cyclohexane, producing an $\text{H}_2$-rich reformate stream ($y_{\text{H}_2} \approx 23.34\text{–}34.48\text{ mol}\%$) that can be upgraded via pressure swing adsorption (PSA) or membrane separation for syngas recycle or merchant chemical use.
 
 ### 1.3 Literature Gap and Contributions of this Study
 While seminal works by Rahimpour and coworkers (Khademi et al., 2009, 2012) demonstrated the conceptual feasibility of thermally coupled reactors, several crucial physical, transport, and methodological issues require first-principles resolution:
@@ -6922,7 +6951,7 @@ flowchart TD
     end
 
     subgraph Optimization ["NSGA-II Multi-Objective Optimization"]
-        G["Decision Variables: T_exo, T_endo, F_endo, F_exo"] --> H["Evaluate Co-Current Model + Dynamic U"]
+        G["Decision Variables: T_exo,0, T_endo,0, F_endo,0, P_endo,0"] --> H["Evaluate Co-Current Model + Dynamic U"]
         H --> I["Non-Dominated Sorting & Crowding Distance"]
         I --> J["Generate Pareto Optimal Frontier & Knee Point"]
     end
@@ -7061,18 +7090,6 @@ The exponent implies $-\Delta H / R = -3190\text{ K}$, corresponding to an appar
 3. When evaluated fairly under equal syngas feed throughput ($0.640\text{ mol/s}$ per tube) against an optimized conventional reactor (CMR, yield $30.05\%$), the TCR knee-point produces $219.92\text{ t/d}$ methanol (yield $29.93\%$), $127.43\text{ t/d}$ of co-produced benzene, and $9.87\text{ t/d}$ of hydrogen within an $\text{H}_2$-rich reformate stream ($23.34\text{ mol}\% \text{ H}_2$).
 4. Transport and thermal safety are strictly satisfied: peak bulk temperature is $529.5\text{ K}$ and peak centerline temperature is $533.5\text{ K}$, both remaining below the $535.0\text{ K}$ copper sintering limit.
 5. Rigorous battery-limit accounting reveals that plant-wide thermal duties include $24.69\text{ MW}$ for upstream feed preparation and $29.50\text{ MW}$ for downstream extractive distillation of the benzene–cyclohexane azeotrope, dispelling the misconception of zero-energy operation.
-
----
-
-## 9. References
-1. Vanden Bussche, K. M., & Froment, G. F. (1996). A steady-state kinetic model for synthesis of methanol and the water gas shift reaction on a commercial $\text{Cu/ZnO/Al}_2\text{O}_3$ catalyst. *Journal of Catalysis*, 161(1), 1–10.
-2. Khademi, M. H., Setoodeh, P., Rahimpour, M. R., & Jahanmiri, A. (2009). Optimization of methanol synthesis and cyclohexane dehydrogenation in a thermally coupled reactor using differential evolution (DE) method. *International Journal of Hydrogen Energy*, 34(16), 6930–6944.
-3. Khademi, M. H., Rahimpour, M. R., & Jahanmiri, A. (2012). A comparison of a novel recuperative configuration and conventional methanol synthesis reactor. *Drying Technology*, 30(11-12), 1332–1343.
-4. Graaf, G. H., Stamhuis, E. J., & Beenackers, A. A. C. M. (1988). Kinetics of low-pressure methanol synthesis. *Chemical Engineering Science*, 43(12), 3185–3195.
-5. Itoh, N. (1987). A membrane reactor for dehydrogenation of cyclohexane. *AIChE Journal*, 33(9), 1576–1578.
-6. Deb, K., Pratap, A., Agarwal, S., & Meyarivan, T. (2002). A fast and elitist multiobjective genetic algorithm: NSGA-II. *IEEE Transactions on Evolutionary Computation*, 6(2), 182–197.
-7. Ergun, S. (1952). Fluid flow through packed columns. *Chemical Engineering Progress*, 48, 89–94.
-8. Dixon, A. G. (1997). Wall and particle-fluid heat transfer in packed beds. *Chemical Engineering and Processing*, 36(4), 283–290.
 
 ---
 

@@ -2,8 +2,8 @@
   "metadata": {
     "title": "Thermally Coupled Shell-and-Tube Reactor (TCR) Single Source of Truth",
     "version": "2.0.0",
-    "generated_utc": "2026-11-16T08:09:00Z",
-    "execution_time_total_s": 160.47,
+    "generated_utc": "2026-11-16T09:08:11Z",
+    "execution_time_total_s": 74.36,
     "N_tubes": 2962,
     "shell_inlet_pressure_bar": 2.5
   },

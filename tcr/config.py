@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional
 import yaml
 import os
 import numpy as np
+from .thermo import set_use_real_gas_eos
 
 @dataclass
 class Parameter:
@@ -66,6 +67,7 @@ class SolverConfig:
     picard_tol_T: float
     picard_tol_F: float
     picard_alpha: float
+    picard_tol_P: float = 1.0
 
 @dataclass
 class OptimizationConfig:
@@ -93,6 +95,7 @@ class AppConfig:
     solver: SolverConfig
     optimization: OptimizationConfig
     raw_yaml: Dict[str, Any]
+    use_real_gas_eos: bool = False
 
 def load_config(config_path: str = "config.yaml") -> AppConfig:
     """Loads configuration from YAML file into typed dataclasses."""
@@ -178,8 +181,12 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         picard_max_iter=int(sol_data["picard_max_iter"]),
         picard_tol_T=float(sol_data["picard_tol_T"]),
         picard_tol_F=float(sol_data["picard_tol_F"]),
-        picard_alpha=float(sol_data["picard_alpha"])
+        picard_alpha=float(sol_data["picard_alpha"]),
+        picard_tol_P=float(sol_data.get("picard_tol_P", 1.0))
     )
+
+    use_real_gas_eos = bool(data.get("use_real_gas_eos", False))
+    set_use_real_gas_eos(use_real_gas_eos)
 
     opt_data = data["optimization"]
     optimization = OptimizationConfig(
@@ -206,5 +213,6 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         transport=transport,
         solver=solver,
         optimization=optimization,
-        raw_yaml=data
+        raw_yaml=data,
+        use_real_gas_eos=use_real_gas_eos
     )

@@ -6,7 +6,9 @@ Optimization module:
 4. Non-dominated Knee Point selection satisfying strict centerline temperature and shell exit pressure constraints.
 """
 
+import os
 import time
+from concurrent.futures import ProcessPoolExecutor
 from typing import Optional, List, Dict, Any, Tuple
 import numpy as np
 from scipy.optimize import minimize as scipy_minimize
@@ -447,14 +449,30 @@ def run_nsga2_tcr(cfg: AppConfig, mode: str = "cocurrent",
     seed_results = []
     total_opt_time = 0.0
 
-    for s in seeds:
-        res_s = run_nsga2_single_seed(
-            cfg, geom, sol_fast, mode=mode, seed=int(s),
-            pop_size=pop_size, n_gen=n_gen,
-            has_inert_var=has_inert_var, xl=xl, xu=xu
-        )
-        seed_results.append(res_s)
-        total_opt_time += res_s['opt_time_s']
+    if len(seeds) > 1:
+        max_workers = min(len(seeds), os.cpu_count() or 4)
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                executor.submit(
+                    run_nsga2_single_seed,
+                    cfg, geom, sol_fast, mode, int(s),
+                    pop_size, n_gen, has_inert_var, xl, xu
+                )
+                for s in seeds
+            ]
+            for fut in futures:
+                res_s = fut.result()
+                seed_results.append(res_s)
+                total_opt_time += res_s['opt_time_s']
+    else:
+        for s in seeds:
+            res_s = run_nsga2_single_seed(
+                cfg, geom, sol_fast, mode=mode, seed=int(s),
+                pop_size=pop_size, n_gen=n_gen,
+                has_inert_var=has_inert_var, xl=xl, xu=xu
+            )
+            seed_results.append(res_s)
+            total_opt_time += res_s['opt_time_s']
 
     # Primary run (seed 42)
     prim_res = seed_results[0]
