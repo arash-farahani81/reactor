@@ -24,7 +24,7 @@ All 10 defects identified in the baseline audit (D1 through D10) have been perma
 | **D4** | Flawed wall heat transfer ($h_w$ vs $h_f$) and CMR jacket | Used Chilton-Colburn fluid-particle film coefficient $h_f$ instead of bed-wall coefficient $h_w$. CMR jacket modeled as gas rather than boiling water. | Implemented Dixon and Li & Finlayson packed-bed wall Nusselt correlations ($h_w \approx 250\text{–}400\text{ W/(m}^2\cdot\text{K)}$). CMR jacket uses boiling water ($h_{\text{cool}} = 6000\text{ W/(m}^2\cdot\text{K)}$). | Realistic $U \in [200, 350]\text{ W/(m}^2\cdot\text{K)}$ verified across all operating regimes. |
 | **D5** | Tautological enthalpy closure and constant 298 K $\Delta H_r$ | Sensible heat defined tautologically as $dH_{\text{sens}} = Q_{\text{exo}} - Q_{\text{wall}}$, masking 14% energy balance error from constant $C_p$ and 298 K $\Delta H_r$. | Exact polynomial $C_p(T)$, absolute molar enthalpies $H_i(T) = \Delta H_{f,298}^\circ + \int C_p dT$, and Kirchhoff $\Delta H_r(T)$. Independent stream enthalpy balances: $\Delta \dot{H}_{\text{stream}} = \pm \dot{Q}_{\text{wall}}$. | Enthalpy closure error is $0.0048\% \le 0.5\%$ (`test_t2_stream_enthalpy_balance`). Elemental mass balances are $< 10^{-15}$ (`test_t1_element_balances`). |
 | **D6** | Counter-current solver defaults & convergence | Picard solver lacked dual convergence on both $T$ and $F_i$, had no cross-check, and risked divergence. | Under-relaxed Picard iteration ($\alpha = 0.70$) integrating both streams forward along physical flow paths with continuous spline interpolation and dual tolerance ($\Delta T < 10^{-3}\text{ K}$, $\Delta F_i/F_i < 10^{-3}$). | Converged in 17 iterations with final residual $\Delta T = 2.50 \times 10^{-4}\text{ K}$ (`test_t6_countercurrent_picard_convergence`). |
-| **D7** | Unfair optimization comparison | TCR NSGA-II optimum was compared against an unoptimized baseline CMR. | Implemented fair baseline optimization of CMR over $(T_{\text{exo},0}, T_{\text{coolant}})$, increasing CMR yield from $28.53\%$ to $30.88\%$. | Transparent comparison documented in manuscript Table 5.1 and `REVIEW_LOG.md`. |
+| **D7** | Unfair optimization comparison | TCR NSGA-II optimum was compared against an unoptimized baseline CMR. | Implemented fair baseline optimization of CMR over $(T_{\text{exo},0}, T_{\text{coolant}})$, increasing CMR yield from $20.94\%$ to $30.05\%$. | Transparent comparison documented in manuscript Table 5.1 and `REVIEW_LOG.md`. |
 | **D8** | Inconsistent shell geometry multiplier (`6.5`) | Undocumented $6.5\times$ multiplier applied to shell flow area ($A_{\text{shell,flow}} = 6.5 A_{\text{shell}}$), decoupling velocity from geometry. | Removed empirical multiplier. Flow area is strictly annular $A_{\text{shell}} = \frac{\pi}{4}(D_{\text{shell,eff}}^2 - D_{\text{out}}^2)$. Baseline $P_{\text{endo},0} = 2.0\text{ bar}$. | Physical shell velocity $u_s \approx 0.64\text{ m/s}$; shell exits above atmospheric pressure ($P_{\text{out}} = 1.02\text{–}1.13\text{ bar} > 1.013\text{ bar}$, `test_t4_physical_pressure_and_clamps`). |
 | **D9** | Unsupported marketing claims in manuscript | Claims of "0 kW utility / 100% autothermal" (omitting feed preheating) and "green hydrogen" from fossil cyclohexane. | Complete thermal duty balance: reaction zone cooling utility is $0.0\text{ kW}$, but upstream feed conditioning requires $17.17\text{ MW}$. Coproduct hydrogen labeled as hydrocarbon-derived. | Verified by `check_manuscript_consistency.py` and `test_t10_manuscript_consistency`. |
 | **D10** | Local $U(z)$ in counter-current mode & yield ambiguity | $U(z)$ evaluated from mismatched inlet states, violating local heat flux equality. Yield definitions ambiguous. | Evaluated local $U(z)$ from interpolated local states of both streams ($Q_{\text{wall,tube}}(z) == Q_{\text{wall,shell}}(z)$). Standardized on Khademi Eq. (28) on total carbon oxides fed. | Machine-precision wall heat flux equality verified by `test_t11_local_wall_heat_flux_equality`. |
@@ -59,22 +59,22 @@ tests/test_physics.py::test_t11_local_wall_heat_flux_equality PASSED     [100%]
 
 | Metric | CMR Baseline | CMR Optimized | TCR Co-Current Baseline | TCR Counter-Current Baseline | TCR NSGA-II Knee Point |
 |---|---|---|---|---|---|
-| **Tube Feed Temp $T_{\text{exo},0}$ (K)** | $503.15$ | $504.9$ | $503.15$ | $503.15$ | $497.3$ |
-| **Coolant / Shell Feed Temp (K)** | $503.15$ | $511.3$ | $485.00$ | $485.00$ | $460.9$ |
+| **Tube Feed Temp $T_{\text{exo},0}$ (K)** | $503.15$ | $500.26$ | $503.15$ | $503.15$ | $506.02$ |
+| **Coolant / Shell Feed Temp (K)** | $503.15$ | $517.83$ | $485.00$ | $485.00$ | $494.66$ |
 | **Syngas Feed Rate (mol/s·tube)** | $0.640$ | $0.640$ | $0.640$ | $0.640$ | **$0.640$** |
-| **Methanol Production (mol/s)** | $75.78$ | $81.99$ | $75.25$ | $73.68$ | **$77.42$** |
-| **Methanol Daily Production (t/d)** | $209.79$ | **$226.98$** | $208.33$ | $203.97$ | **$214.33$** |
-| **Methanol Yield (Eq. 28) (%)** | $28.55\%$ | **$30.89\%$** | $28.36\%$ | $27.76\%$ | **$29.17\%$** |
-| **Co-Produced Benzene (t/d)** | $0.00$ | $0.00$ | **$88.45$** | **$97.75$** | **$105.56$** |
-| **Coproduct Hydrogen (t/d)** | $0.00$ | $0.00$ | **$6.85$** | **$7.57$** | **$8.17$** |
-| **Shell Exit $\text{H}_2$ Mole Fraction (mol%)** | — | — | $24.92\%$ | $26.83\%$ | **$19.14\%$** |
-| **Peak 1D Mean Bed Temp $T_{\text{max}}$ (K)** | $524.4$ | $535.0$ | $540.9$ | $552.5$ | **$527.5$** |
-| **Peak 2D Centerline Temp $T_{\text{centerline}}$ (K)** | $528.4$ | $539.0$ | $544.9$ | $556.5$ | **$531.5$** |
-| **Tube Pressure Drop (bar)** | $0.45$ | $0.45$ | $0.46$ | $0.47$ | $0.45$ |
-| **Shell Exit Pressure (bar)** | — | — | $1.82$ | $1.78$ | **$1.16$** |
-| **Reaction Zone Cooling Utility** | $5.58\text{ MW}$ | $5.50\text{ MW}$ | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** |
-| **Total Feed Preheating Duty** | $10.51\text{ MW}$ | $10.51\text{ MW}$ | $17.17\text{ MW}$ | $17.17\text{ MW}$ | **$23.75\text{ MW}$** |
-| **Downstream Extractive Distillation** | — | — | $20.47\text{ MW}$ | $22.63\text{ MW}$ | **$24.44\text{ MW}$** |
+| **Methanol Production (mol/s)** | $55.58$ | $79.75$ | $77.14$ | $77.23$ | **$79.44$** |
+| **Methanol Daily Production (t/d)** | $153.88$ | **$220.77$** | $213.55$ | $213.81$ | **$219.92$** |
+| **Methanol Yield (Eq. 28) (%)** | $20.94\%$ | **$30.05\%$** | $29.07\%$ | $29.10\%$ | **$29.93\%$** |
+| **Co-Produced Benzene (t/d)** | $0.00$ | $0.00$ | **$95.35$** | **$133.23$** | **$127.43$** |
+| **Coproduct Hydrogen (t/d)** | $0.00$ | $0.00$ | **$7.38$** | **$10.32$** | **$9.87$** |
+| **Shell Exit $\text{H}_2$ Mole Fraction (mol%)** | — | — | $30.03\%$ | $36.66\%$ | **$26.31\%$** |
+| **Peak 1D Mean Bed Temp $T_{\text{max}}$ (K)** | $507.3$ | $525.2$ | $535.0$ | $554.1$ | **$529.5$** |
+| **Peak 2D Centerline Temp $T_{\text{centerline}}$ (K)** | $512.9$ | $535.0$ | $538.3$ | $559.3$ | **$533.8$** |
+| **Tube Pressure Drop (bar)** | $0.44$ | $0.45$ | $0.46$ | $0.47$ | $0.45$ |
+| **Shell Exit Pressure (bar)** | — | — | $1.84$ | $1.75$ | **$1.21$** |
+| **Reaction Zone Cooling Utility** | $4.23\text{ MW}$ | $5.12\text{ MW}$ | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** |
+| **Total Feed Preheating Duty** | $12.37\text{ MW}$ | $12.19\text{ MW}$ | $19.17\text{ MW}$ | $19.17\text{ MW}$ | **$24.69\text{ MW}$** |
+| **Downstream Extractive Distillation** | — | — | $19.86\text{ MW}$ | $27.76\text{ MW}$ | **$26.55\text{ MW}$** |
 
 ---
 
@@ -97,8 +97,8 @@ tests/test_physics.py::test_t11_local_wall_heat_flux_equality PASSED     [100%]
 
 1. **D11 (Equal Syngas Throughput & Absolute $T_{\text{max}}$ Objective):** Locked syngas feed rate strictly at $F_{\text{exo},0} = 0.640\text{ mol/s}$ per tube across all configurations in Table 5.1 and replaced relative hotspot objective with absolute $T_{\text{max,tube}}$ to prevent hot-inlet optimizer exploitation.
 2. **D12 (Strict LaTeX Math Syntax Gate):** Line-by-line automated validation gate in `build_manuscript.py` and `check_manuscript_consistency.py` enforcing balanced `$` math delimiters and escaped `\%` inside math blocks.
-3. **D13 (Elimination of Overstated Purity Claims & Separation Energy):** Replaced unscientific "high-purity hydrogen" and "chemical-grade benzene" claims with "$\text{H}_2$-rich reformate stream" ($19.1\text{–}26.8\text{ mol}\% \text{ H}_2$) and "co-produced benzene". Added downstream extractive distillation reboiler duty ($Q_{\text{sep}} \approx 24.44\text{ MW}$) and hydrogen PSA work ($W_{\text{PSA}} \approx 0.19\text{ MW}_e$) to Table 6.1.
-4. **D14 (Quantitative CRE & Transport Critique Derivations):** Integrated first-principles derivations for Peng–Robinson fugacity coefficient ratio ($K_\phi = 0.7868$), wall Biot number ($Bi_h = 3.45$) and peak centerline temperature ($T_{\text{centerline}} \le 531.5\text{ K} \le 535.0\text{ K}$), Wassiljewa variable fluid thermal conductivity $k_g(y_{\text{H}_2})$, Le Chatelier shell feed dilution penalties ($9.4\times$ conversion reduction at $500\text{ K}$ without diluent), and Van Heerden counter-current thermal capacitance ratio ($\mathcal{C} = 0.361$).
+3. **D13 (Elimination of Overstated Purity Claims & Separation Energy):** Replaced unscientific "high-purity hydrogen" and "chemical-grade benzene" claims with "$\text{H}_2$-rich reformate stream" ($26.3\text{–}36.7\text{ mol}\% \text{ H}_2$) and "co-produced benzene". Added downstream extractive distillation reboiler duty ($Q_{\text{sep}} \approx 26.55\text{ MW}$) and hydrogen PSA work ($W_{\text{PSA}} \approx 0.23\text{ MW}_e$) to Table 6.1.
+4. **D14 (Quantitative CRE & Transport Critique Derivations):** Integrated first-principles derivations for Peng–Robinson fugacity coefficient ratio ($K_\phi = 0.7868$), wall Biot number ($Bi_h = 3.45$) and peak centerline temperature ($T_{\text{centerline}} \le 533.8\text{ K} \le 535.0\text{ K}$), Wassiljewa variable fluid thermal conductivity $k_g(y_{\text{H}_2})$, Le Chatelier shell feed dilution penalties ($9.4\times$ conversion reduction at $500\text{ K}$ without diluent), and Van Heerden counter-current thermal capacitance ratio ($\mathcal{C} = 0.361$).
 
 ---
 
