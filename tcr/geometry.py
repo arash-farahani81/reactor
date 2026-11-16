@@ -1,6 +1,7 @@
 """
 Reactor geometry module: unified tube and shell dimensions with zero undocumented multipliers.
 Based on industrial shell-and-tube specifications in Khademi et al. (2009), Table 6.
+Supports tube and shell geometry for multi-component reactions (including 4-component shell mixtures).
 """
 
 import numpy as np
@@ -14,6 +15,10 @@ class ReactorGeometry:
         self.D_shell_eff = float(cfg.D_shell_eff)
         self.N_tubes = int(cfg.N_tubes)
         self.Kw = float(cfg.Kw)
+
+        # Radii (m)
+        self.R_in = float(self.D_in / 2.0)
+        self.R_out = float(self.D_out / 2.0)
 
         # Single cross-sectional flow areas per tube (strictly self-consistent)
         self.A_tube = (np.pi / 4.0) * (self.D_in ** 2)
@@ -59,11 +64,29 @@ class ReactorGeometry:
         self.V_tube_total = float(self.A_tube * self.L * self.N_tubes)
         self.V_shell_total = float(self.A_shell * self.L * self.N_tubes)
 
+    @property
+    def R_tube(self) -> float:
+        """Inner tube radius in meters (R_in = D_in / 2)."""
+        return self.R_in
+
+    def calc_superficial_velocity(self, F_total: float, T: float, P: float, side: str = "tube") -> float:
+        """
+        Computes superficial gas velocity u_s (m/s) per tube from total molar flow F_total (mol/s)
+        at temperature T (K) and pressure P (Pa):
+          u_s = (F_total * R_GAS * T / P) / A_flow
+        """
+        from .thermo import R_GAS
+        P_safe = max(float(P), 1.0)
+        T_safe = max(float(T), 100.0)
+        A = self.A_tube if side.lower() in ("tube", "exo") else self.A_shell
+        return float((F_total * R_GAS * T_safe / P_safe) / A)
+
     def get_summary(self) -> dict:
         return {
             "L_m": self.L,
             "D_in_mm": self.D_in * 1000.0,
             "D_out_mm": self.D_out * 1000.0,
+            "R_in_mm": self.R_in * 1000.0,
             "D_shell_eff_mm": self.D_shell_eff * 1000.0,
             "D_shell_vessel_m": self.D_shell_vessel,
             "p_pitch_mm": self.p_pitch * 1000.0,
