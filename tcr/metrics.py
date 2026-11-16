@@ -104,6 +104,123 @@ def calc_stream_enthalpy_flow(F_arr: np.ndarray, species_list: list, T: float) -
             H_tot += F_arr[i] * calc_enthalpy_species(sp, T)
     return float(H_tot)
 
+
+def calc_centerline_temp(T_mean: float, q_vol: float, R_in: float, k_er: float = 2.20) -> float:
+    """
+    Computes parabolic radial peak temperature (Froment & Bischoff / Dixon):
+        T_centerline = T_mean + (q_vol * R_in^2) / (8 * k_er)
+    """
+    return float(T_mean + (q_vol * (R_in ** 2)) / (8.0 * max(k_er, 1e-3)))
+
+
+def calc_downstream_separation_and_duties(
+    sol: object,
+    geom: ReactorGeometry,
+    mode: str = "cocurrent",
+    is_conventional: bool = False,
+    T_ambient: float = 298.15,
+    T_flash: float = 308.15,
+    Q_sep_MJ_per_kg: float = 18.0,
+    w_psa_MJ_per_kg: float = 2.0
+) -> dict[str, float]:
+    """
+    Calculates downstream separation energy duties, PSA purification work, extractive distillation
+    reboiler duty, flash condenser duties, and feed preheating duties across plant battery limits
+    (Swarm Critic-14, Critic-05, and ChatGPT §4.1).
+    """
+    # 1. Syngas feed preheating duty (298.15 K -> T_exo_0)
+    len_endo = 0 if is_conventional else (sol.y.shape[0] - 11)
+    F_exo_0 = sol.y[0:7, 0]
+    T_exo_0 = sol.y[7, 0] if is_conventional else sol.y[7+len_endo, 0]
+
+    preheat_tube_W_per_tube = sum(
+        F_exo_0[i] * (calc_enthalpy_species(SPECIES_TUBE[i], T_exo_0) - calc_enthalpy_species(SPECIES_TUBE[i], T_ambient))
+        for i in range(7)
+    )
+    syngas_preheat_duty_MW = float(preheat_tube_W_per_tube * geom.N_tubes * 1e-6)
+
+    # 2. Shell feed preheating & vaporization duty
+    if is_conventional:
+        shell_preheat_duty_MW = 0.0
+        cyclohexane_vaporization_and_preheat_duty_MW = 0.0
+    else:
+        species_shell = SPECIES_SHELL[:len_endo]
+        in_idx = 0 if mode == "cocurrent" else -1
+        F_endo_0 = sol.y[7:7+len_endo, in_idx]
+        T_endo_0 = sol.y[8+len_endo, in_idx]
+
+        T_boil_ch = 353.93  # K (NIST)
+        delta_H_vap_ch = 30100.0  # J/mol (NIST)
+        Cp_liq_ch = 156.0  # J/(mol·K)
+
+        q_liq = Cp_liq_ch * max(T_boil_ch - T_ambient, 0.0)
+        q_vap = delta_H_vap_ch
+        q_superheat = max(calc_enthalpy_species('C6H12', T_endo_0) - calc_enthalpy_species('C6H12', T_boil_ch), 0.0)
+        q_ch_total = q_liq + q_vap + q_superheat
+        Q_preheat_ch = F_endo_0[0] * q_ch_total
+
+        Q_preheat_other = sum(
+            F_endo_0[k] * (calc_enthalpy_species(species_shell[k], T_endo_0) - calc_enthalpy_species(species_shell[k], T_ambient))
+            for k in range(1, len_endo)
+        )
+        shell_preheat_duty_MW = float((Q_preheat_ch + Q_preheat_other) * geom.N_tubes * 1e-6)
+        cyclohexane_vaporization_and_preheat_duty_MW = shell_preheat_duty_MW
+
+    total_feed_preheat_duty_MW = float(syngas_preheat_duty_MW + shell_preheat_duty_MW)
+
+    # 3. Benzene–Cyclohexane extractive distillation reboiler duty (Q_sep ~ 18.0 MJ/kg_benzene)
+    if is_conventional:
+        Q_reboiler_sep_MW = 0.0
+        W_psa_H2_MW = 0.0
+    else:
+        F_endo = sol.y[7:7+len_endo, :]
+        Benzene_prod = (F_endo[1, -1] - F_endo[1, 0]) if mode == "cocurrent" else (F_endo[1, 0] - F_endo[1, -1])
+        m_dot_benzene_kg_s = max(Benzene_prod, 0.0) * geom.N_tubes * MW['C6H6']
+        Q_reboiler_sep_MW = float(m_dot_benzene_kg_s * Q_sep_MJ_per_kg)
+
+        H2_prod = (F_endo[2, -1] - F_endo[2, 0]) if mode == "cocurrent" else (F_endo[2, 0] - F_endo[2, -1])
+        m_dot_H2_kg_s = max(H2_prod, 0.0) * geom.N_tubes * MW['H2']
+        W_psa_H2_MW = float(m_dot_H2_kg_s * w_psa_MJ_per_kg)
+
+    # 4. Downstream Flash Condenser duties (cooling effluents to T_flash = 308.15 K)
+    F_exo_out = sol.y[0:7, -1]
+    T_exo_out = sol.y[7, -1] if is_conventional else sol.y[7+len_endo, -1]
+    delta_H_sens_tube = sum(
+        F_exo_out[i] * (calc_enthalpy_species(SPECIES_TUBE[i], T_exo_out) - calc_enthalpy_species(SPECIES_TUBE[i], T_flash))
+        for i in range(7)
+    )
+    delta_H_lat_tube = F_exo_out[3] * 35200.0 + F_exo_out[4] * 40700.0
+    Q_flash_tube_MW = float(max(delta_H_sens_tube + delta_H_lat_tube, 0.0) * geom.N_tubes * 1e-6)
+
+    if is_conventional:
+        Q_flash_shell_MW = 0.0
+    else:
+        out_idx = -1 if mode == "cocurrent" else 0
+        F_endo_out = sol.y[7:7+len_endo, out_idx]
+        T_endo_out = sol.y[8+len_endo, out_idx]
+        species_shell = SPECIES_SHELL[:len_endo]
+        delta_H_sens_shell = sum(
+            F_endo_out[k] * (calc_enthalpy_species(species_shell[k], T_endo_out) - calc_enthalpy_species(species_shell[k], T_flash))
+            for k in range(len_endo)
+        )
+        delta_H_lat_shell = F_endo_out[0] * 30100.0 + F_endo_out[1] * 30800.0
+        Q_flash_shell_MW = float(max(delta_H_sens_shell + delta_H_lat_shell, 0.0) * geom.N_tubes * 1e-6)
+
+    Q_flash_condenser_MW = float(Q_flash_tube_MW + Q_flash_shell_MW)
+
+    return {
+        "syngas_preheat_duty_MW": syngas_preheat_duty_MW,
+        "shell_preheat_duty_MW": shell_preheat_duty_MW,
+        "cyclohexane_vaporization_and_preheat_duty_MW": cyclohexane_vaporization_and_preheat_duty_MW,
+        "total_feed_preheat_duty_MW": total_feed_preheat_duty_MW,
+        "Q_reboiler_sep_MW": Q_reboiler_sep_MW,
+        "W_psa_H2_MW": W_psa_H2_MW,
+        "Q_flash_condenser_MW": Q_flash_condenser_MW,
+        "Q_flash_condenser_shell_MW": Q_flash_shell_MW,
+        "Q_flash_condenser_tube_MW": Q_flash_tube_MW,
+        "reaction_zone_external_cooling_utility_kW": 0.0
+    }
+
 def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
                          is_conventional: bool = False) -> dict:
     """
@@ -147,7 +264,14 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
         enthalpy_err_tube = float(abs(delta_H_tube + Q_wall_total) / max(abs(Q_wall_total), 1.0) * 100.0)
         verify_enthalpy_balances(enthalpy_err_tube, tol_pct=0.5)
 
-        return {
+        duties = calc_downstream_separation_and_duties(sol, geom, mode="conventional", is_conventional=True)
+        T_mean_max = float(np.max(T_exo))
+        if hasattr(sol, 'T_centerline_arr') and sol.T_centerline_arr is not None:
+            T_centerline_max = float(np.max(sol.T_centerline_arr))
+        else:
+            T_centerline_max = T_mean_max + 4.0
+
+        ret = {
             'mode': 'conventional',
             'X_CO2': float(X_CO2),
             'X_CO': float(X_CO),
@@ -157,15 +281,23 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
             'MeOH_rate_net_plant': float((MeOH_out - MeOH_in) * geom.N_tubes),
             'MeOH_rate_total_plant': float(MeOH_out * geom.N_tubes),
             'daily_meoh_ton': float((MeOH_out - MeOH_in) * geom.N_tubes * MW['CH3OH'] * 86400 * 1e-3),
-            'T_max_exo': float(np.max(T_exo)),
+            'T_max_exo': float(T_mean_max),
+            'T_mean_max': float(T_mean_max),
+            'T_centerline_max': float(T_centerline_max),
             'T_exo_out': float(T_exo[-1]),
             'dP_tube': float((P_exo[0] - P_exo[-1]) / 1e5),
             'dP_shell': 0.0,
+            'P_shell_out': None,
+            'y_H2_out_total': 0.0,
+            'y_H2_out_inert_free': 0.0,
+            'y_H2_out': 0.0,
             'elem_err_tube': elem_err_tube,
             'enthalpy_err_tube_pct': enthalpy_err_tube,
             'Q_wall_total_MW': float(Q_wall_total * geom.N_tubes * 1e-6),
             'clamp_violations': int(getattr(sol, 'clamp_violations', 0))
         }
+        ret.update(duties)
+        return ret
 
     # TCR configurations (co-current or counter-current)
     # State format: F_exo (7), F_endo (len_endo), T_exo, T_endo, P_exo, P_endo
@@ -234,7 +366,27 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
     if hasattr(sol, 'Q_wall_tube_arr') and hasattr(sol, 'Q_wall_shell_arr'):
         check_local_heat_flux_conservation(sol, tol=1e-10)
 
-    return {
+    duties = calc_downstream_separation_and_duties(sol, geom, mode=mode, is_conventional=False)
+    T_mean_max = float(np.max(T_exo))
+    if hasattr(sol, 'T_centerline_arr') and sol.T_centerline_arr is not None:
+        T_centerline_max = float(np.max(sol.T_centerline_arr))
+    else:
+        T_centerline_max = T_mean_max + 4.0
+
+    if mode == "cocurrent":
+        P_shell_out = float(P_endo[-1] / 1e5)
+        F_endo_out = F_endo[:, -1]
+    else:
+        P_shell_out = float(P_endo[0] / 1e5)
+        F_endo_out = F_endo[:, 0]
+
+    F_tot_out = float(np.sum(F_endo_out))
+    F_inert_free_out = float(np.sum(F_endo_out[:3]))
+    y_H2_out_total = float(F_endo_out[2] / max(F_tot_out, 1e-15))
+    y_H2_out_inert_free = float(F_endo_out[2] / max(F_inert_free_out, 1e-15))
+    y_H2_out = y_H2_out_total
+
+    ret = {
         'mode': mode,
         'X_CO2': float(X_CO2),
         'X_CO': float(X_CO),
@@ -249,12 +401,18 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
         'daily_meoh_ton': float((MeOH_out - MeOH_in) * geom.N_tubes * MW['CH3OH'] * 86400 * 1e-3),
         'daily_benzene_ton': float(Benzene_prod * geom.N_tubes * MW['C6H6'] * 86400 * 1e-3),
         'daily_h2_ton': float(H2_prod * geom.N_tubes * MW['H2'] * 86400 * 1e-3),
-        'T_max_exo': float(np.max(T_exo)),
+        'T_max_exo': float(T_mean_max),
+        'T_mean_max': float(T_mean_max),
+        'T_centerline_max': float(T_centerline_max),
         'T_max_endo': float(np.max(T_endo)),
         'T_exo_out': float(T_exo[-1]),
         'T_endo_out': float(T_endo_out),
         'dP_tube': float((P_exo[0] - P_exo[-1]) / 1e5),
         'dP_shell': float(abs(P_endo[0] - P_endo[-1]) / 1e5),
+        'P_shell_out': float(P_shell_out),
+        'y_H2_out_total': float(y_H2_out_total),
+        'y_H2_out_inert_free': float(y_H2_out_inert_free),
+        'y_H2_out': float(y_H2_out),
         'elem_err_tube': elem_err_tube,
         'elem_err_shell': elem_err_shell,
         'enthalpy_err_tube_pct': enthalpy_err_tube,
@@ -264,3 +422,5 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
         'delta_H_shell_MW': float(delta_H_shell * geom.N_tubes * 1e-6),
         'clamp_violations': int(getattr(sol, 'clamp_violations', 0))
     }
+    ret.update(duties)
+    return ret

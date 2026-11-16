@@ -65,6 +65,9 @@ class CounterSolution:
         self.Q_wall_tube_arr = None
         self.Q_wall_shell_arr = None
         self.U_arr = None
+        self.q_vol_arr = None
+        self.T_centerline_arr = None
+        self.P_shell_out = None
         self.clamp_violations = 0
         self.bvp_cross_check = None
 
@@ -352,6 +355,15 @@ def solve_conventional(geom: ReactorGeometry, cat: CatalystBedConfig, trans: Tra
     sol.Q_wall_tube_arr = sol.Q_wall_tube
     sol.Q_wall_shell_arr = sol.Q_wall_shell
 
+    # Volumetric heat transfer rate and centerline temperature profile (Swarm Critic-05)
+    R_in = geom.D_in / 2.0
+    k_er = 2.20  # W/(m·K), packed bed effective radial thermal conductivity
+    q_vol_arr = np.abs(Q_wall_arr) / geom.A_tube
+    T_centerline_arr = sol.y[7, :] + (q_vol_arr * (R_in ** 2)) / (8.0 * k_er)
+    sol.q_vol_arr = FluxArray(q_vol_arr, z_grid=sol.t)
+    sol.T_centerline_arr = FluxArray(T_centerline_arr, z_grid=sol.t)
+    sol.P_shell_out = None
+
     # Check clamp count on accepted trajectory
     sol.clamp_violations = int(np.sum(sol.y[0:7, :] < -1e-6) + np.sum(sol.y[8, :] < 0.2 * P0))
     return sol
@@ -467,6 +479,15 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
     sol.Q_wall_shell = FluxArray(Q_wall_arr, z_grid=sol.t)
     sol.Q_wall_tube_arr = sol.Q_wall_tube
     sol.Q_wall_shell_arr = sol.Q_wall_shell
+
+    # Volumetric heat transfer rate and centerline temperature profile (Swarm Critic-05)
+    R_in = geom.D_in / 2.0
+    k_er = 2.20  # W/(m·K), packed bed effective radial thermal conductivity
+    q_vol_arr = np.abs(Q_wall_arr) / geom.A_tube
+    T_centerline_arr = sol.y[7+len_endo, :] + (q_vol_arr * (R_in ** 2)) / (8.0 * k_er)
+    sol.q_vol_arr = FluxArray(q_vol_arr, z_grid=sol.t)
+    sol.T_centerline_arr = FluxArray(T_centerline_arr, z_grid=sol.t)
+    sol.P_shell_out = float(sol.y[10+len_endo, -1] / 1e5)
 
     # Check clamp count on accepted trajectory
     sol.clamp_violations = int(
@@ -629,14 +650,20 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
         P_shell_new = sol_shell.y[len_endo+1, :][::-1]
         F_shell_new = sol_shell.y[0:len_endo, :][:, ::-1]
 
-        # Dual convergence check
+        # Triple convergence check: Temperature, Flow, and Pressure (ChatGPT §3.4)
         res_T = float(np.max(np.abs(T_shell_new - T_shell_prof)))
         res_F = float(np.max(np.abs(F_shell_new - F_shell_prof) / np.maximum(F_shell_prof, 1e-6)))
+        res_P = float(np.max(np.abs(P_shell_new - P_shell_prof)))
 
         final_res_T = res_T
         final_res_F = res_F
+        final_res_P = res_P
 
-        if res_T < sol_cfg.picard_tol_T and res_F < sol_cfg.picard_tol_F:
+        tol_T = getattr(sol_cfg, 'picard_tol_T', 1e-3)
+        tol_F = getattr(sol_cfg, 'picard_tol_F', 1e-5)
+        tol_P = getattr(sol_cfg, 'picard_tol_P', 1.0)  # R_P < 1.0 Pa
+
+        if res_T < tol_T and res_F < tol_F and res_P < tol_P:
             converged = True
             break
 
@@ -645,8 +672,38 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
         P_shell_prof = alpha * P_shell_new + (1.0 - alpha) * P_shell_prof
         F_shell_prof = alpha * F_shell_new + (1.0 - alpha) * F_shell_prof
 
-    if not converged:
-        print(f"  ⚠ Picard iteration reached max iterations ({sol_cfg.picard_max_iter}). Residual T: {final_res_T:.2e}")
+    if converged:
+        # Final unrelaxed synchronized pass (ChatGPT §3.4)
+        # Execute one final forward tube pass and backward shell pass with alpha = 1.0
+        T_shell_prof = T_shell_new.copy()
+        P_shell_prof = P_shell_new.copy()
+        F_shell_prof = F_shell_new.copy()
+
+        sol_tube = solve_ivp(
+            ode_tube, (0.0, geom.L), S0_tube, t_eval=z_grid,
+            method='Radau', rtol=sol_cfg.rtol, atol=sol_cfg.atol
+        )
+        T_tube_prof = sol_tube.y[7, :]
+        P_tube_prof = sol_tube.y[8, :]
+        F_tube_prof = sol_tube.y[0:7, :]
+
+        sol_shell = solve_ivp(
+            ode_shell, (0.0, geom.L), S0_shell, t_eval=xi_grid,
+            method='Radau', rtol=sol_cfg.rtol, atol=sol_cfg.atol
+        )
+        T_shell_final = sol_shell.y[len_endo, :][::-1]
+        P_shell_final = sol_shell.y[len_endo+1, :][::-1]
+        F_shell_final = sol_shell.y[0:len_endo, :][:, ::-1]
+
+        final_res_T = float(np.max(np.abs(T_shell_final - T_shell_prof)))
+        final_res_F = float(np.max(np.abs(F_shell_final - F_shell_prof) / np.maximum(F_shell_prof, 1e-6)))
+        final_res_P = float(np.max(np.abs(P_shell_final - P_shell_prof)))
+
+        T_shell_new = T_shell_final
+        P_shell_new = P_shell_final
+        F_shell_new = F_shell_final
+    else:
+        print(f"  ⚠ Picard iteration reached max iterations ({sol_cfg.picard_max_iter}). Residual T: {final_res_T:.2e}, P: {final_res_P:.2e}")
 
     # Build unblended final solution object
     sol_final = CounterSolution()
@@ -683,6 +740,15 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
     sol_final.Q_wall_tube_arr = sol_final.Q_wall_tube
     sol_final.Q_wall_shell_arr = sol_final.Q_wall_shell
 
+    # Volumetric heat transfer rate and centerline temperature profile (Swarm Critic-05)
+    R_in = geom.D_in / 2.0
+    k_er = 2.20  # W/(m·K), packed bed effective radial thermal conductivity
+    q_vol_arr = np.abs(Q_wall_arr) / geom.A_tube
+    T_centerline_arr = sol_final.y[7+len_endo, :] + (q_vol_arr * (R_in ** 2)) / (8.0 * k_er)
+    sol_final.q_vol_arr = FluxArray(q_vol_arr, z_grid=z_grid)
+    sol_final.T_centerline_arr = FluxArray(T_centerline_arr, z_grid=z_grid)
+    sol_final.P_shell_out = float(P_shell_new[0] / 1e5)
+
     sol_final.clamp_violations = int(
         np.sum(sol_final.y[0:7, :] < -1e-6)
         + np.sum(sol_final.y[7:7+len_endo, :] < -1e-6)
@@ -695,6 +761,10 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
         'iterations': iterations_run,
         'final_res_T': final_res_T,
         'final_res_F': final_res_F,
+        'final_res_P': final_res_P,
+        'R_T': final_res_T,
+        'R_F': final_res_F,
+        'R_P': final_res_P,
         'clamp_violations': sol_final.clamp_violations,
         'bvp_cross_check': None,
         'max_relative_deviation': None
