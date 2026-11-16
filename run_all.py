@@ -19,7 +19,7 @@ import os
 import time
 import numpy as np
 
-from tcr.config import load_config
+from tcr.config import load_config, CatalystBedConfig
 from tcr.geometry import ReactorGeometry
 from tcr.solvers import solve_conventional, solve_cocurrent, solve_countercurrent
 from tcr.metrics import evaluate_run_metrics
