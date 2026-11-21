@@ -204,7 +204,7 @@ def main():
             cat_tube=cat_tmp, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
         )
         sens_results['eta_sweep']['X_CO2'].append(res_tmp['X_CO2'])
-        sens_results['eta_sweep']['yield_meoh'].append(res_tmp['yield_khademi_eq28'])
+        sens_results['eta_sweep']['yield_meoh'].append(res_tmp['yield_net_COx'])
         eta_sweep_records.append({
             'eta': float(eta_val),
             'X_CO2': float(res_tmp['X_CO2']),
@@ -230,14 +230,14 @@ def main():
         'pure_cyclohexane_yH2_0': {
             'y_H2_in': 0.0,
             'X_CH': float(res_pure['X_CH']),
-            'yield_meoh': float(res_pure['yield_khademi_eq28']),
+            'yield_meoh': float(res_pure['yield_net_COx']),
             'T_max_exo': float(res_pure['T_max_exo']),
             'singularity_occurred': False
         },
         'cofeed_5pct_yH2_005': {
             'y_H2_in': 0.05,
             'X_CH': float(res_co_base['X_CH']),
-            'yield_meoh': float(res_co_base['yield_khademi_eq28']),
+            'yield_meoh': float(res_co_base['yield_net_COx']),
             'T_max_exo': float(res_co_base['T_max_exo']),
             'singularity_occurred': False
         }

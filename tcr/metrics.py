@@ -283,11 +283,12 @@ def calc_downstream_separation_and_duties(
         ) * geom.N_tubes
         Q_reboiler_sep_MW = float(m_dot_C6_total_kg_s * Q_sep_C6_MJ_per_kg)
 
+        H2_prod = (F_endo[2, -1] - F_endo[2, 0]) if mode == "cocurrent" else (F_endo[2, 0] - F_endo[2, -1])
         P_shell_out_bar = max(float(sol.y[10+len_endo, out_idx]) / 1e5, 1.0)
-        F_H2_out_plant = max(float(F_endo[2, out_idx]), 0.0) * geom.N_tubes
         comp_ratio = max(P_psa_target_bar / P_shell_out_bar, 1.0)
         W_psa_H2_MW = float(
-            (F_H2_out_plant * R_GAS * T_psa_K / eta_iso_psa) * np.log(comp_ratio) / 1e6
+            (max(float(H2_prod), 0.0) * geom.N_tubes * R_GAS * T_psa_K / eta_iso_psa)
+            * np.log(comp_ratio) * 1e-6
         )
 
     # 4. Downstream Flash Condenser duties (cooling effluents to T_flash = 308.15 K)
@@ -360,8 +361,8 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
         X_CO2 = (CO2_in - CO2_out) / CO2_in * 100.0
         X_CO = (CO_in - CO_out) / CO_in * 100.0
         X_COx = ((CO2_in + CO_in) - (CO2_out + CO_out)) / (CO2_in + CO_in) * 100.0
-        yield_khademi = (MeOH_out - MeOH_in) / (CO2_in + CO_in) * 100.0
-        yield_net_COx = yield_khademi
+        yield_khademi = MeOH_out / (CO2_in + CO_in) * 100.0
+        yield_net_COx = (MeOH_out - MeOH_in) / (CO2_in + CO_in) * 100.0
 
         elem_err_tube = check_element_balances(F_exo[:, 0], F_exo[:, -1], ELEM_TUBE)
         verify_element_balances(elem_err_tube, tol=1e-10)
@@ -453,8 +454,8 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
     X_CO2 = (CO2_in - CO2_out) / CO2_in * 100.0
     X_CO = (CO_in - CO_out) / CO_in * 100.0
     X_COx = ((CO2_in + CO_in) - (CO2_out + CO_out)) / (CO2_in + CO_in) * 100.0
-    yield_khademi = (MeOH_out - MeOH_in) / (CO2_in + CO_in) * 100.0
-    yield_net_COx = yield_khademi
+    yield_khademi = MeOH_out / (CO2_in + CO_in) * 100.0
+    yield_net_COx = (MeOH_out - MeOH_in) / (CO2_in + CO_in) * 100.0
 
     if mode == "cocurrent":
         CH_in = float(F_endo[0, 0])

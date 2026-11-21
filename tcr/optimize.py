@@ -59,7 +59,7 @@ def optimize_cmr(cfg: AppConfig) -> dict:
             # Penalty if T_centerline_max > 535 K (computed with unified dynamic k_er)
             T_peak = res.get('T_centerline_max', res['T_max_exo'])
             penalty = max(0.0, T_peak - t_max_limit) * 10.0
-            return -res['yield_khademi_eq28'] + penalty
+            return -res['yield_net_COx'] + penalty
         except Exception:
             return 1e4
 
@@ -164,7 +164,7 @@ class TCROptimizationProblem(ElementwiseProblem):
             # f1: Maximize Methanol Yield (%) -> minimize negative yield
             # f2: Maximize Benzene Production Rate (mol/s) -> minimize negative rate
             # f3: Minimize Absolute Peak Tube Temperature T_max_tube (K)
-            f1 = -float(res['yield_khademi_eq28'])
+            f1 = -float(res['yield_net_COx'])
             f2 = -float(res['Benzene_rate_plant'])
             f3 = float(res['T_max_exo'])
 
@@ -573,8 +573,8 @@ def optimize_both_modes(cfg: AppConfig, seeds: Optional[List[int]] = None) -> di
         'countercurrent': res_ct,
         'comparison': {
             'meoh_yield_pct': {
-                'cocurrent': res_co['knee_results']['yield_khademi_eq28'],
-                'countercurrent': res_ct['knee_results']['yield_khademi_eq28'],
+                'cocurrent': res_co['knee_results']['yield_net_COx'],
+                'countercurrent': res_ct['knee_results']['yield_net_COx'],
             },
             'benzene_rate_mol_s': {
                 'cocurrent': res_co['knee_results']['Benzene_rate_plant'],

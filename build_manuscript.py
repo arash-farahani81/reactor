@@ -103,7 +103,7 @@ def _build_h2_cofeed_table(sens: Dict[str, Any]) -> str:
     lines = [
         "**Table 6.** Effect of $5\\text{ mol}\\%$ $\\text{H}_2$ shell co-feed on co-current TCR conversion and thermal profile.",
         "",
-        "| Shell Feed Specification | $\\text{C}_6\\text{H}_{12}$ Conversion (%) | MeOH Yield (%) | Peak Bulk Temp $T_{\\text{max,exo}}$ (K) |",
+        "| Shell Feed Specification | $\\text{C}_6\\text{H}_{12}$ Conversion (%) | Net MeOH Yield (%) | Peak Bulk Temp $T_{\\text{max,exo}}$ (K) |",
         "| :--- | :---: | :---: | :---: |",
         f"| **Pure Cyclohexane ($y_{{\\text{{H}}_2,0}} = 0.00$)** | ${float(_require(pure, 'X_CH', 'h2_cofeed.pure.X_CH')):.2f}\\%$ | ${float(_require(pure, 'yield_meoh', 'h2_cofeed.pure.yield_meoh')):.2f}\\%$ | ${float(_require(pure, 'T_max_exo', 'h2_cofeed.pure.T_max_exo')):.1f}\\text{{ K}}$ |",
         f"| **Production Co-Feed ($95\\%\\text{{ C}}_6\\text{{H}}_{{12}} / 5\\%\\text{{ H}}_2$)** | ${float(_require(cofeed, 'X_CH', 'h2_cofeed.cofeed.X_CH')):.2f}\\%$ | ${float(_require(cofeed, 'yield_meoh', 'h2_cofeed.cofeed.yield_meoh')):.2f}\\%$ | ${float(_require(cofeed, 'T_max_exo', 'h2_cofeed.cofeed.T_max_exo')):.1f}\\text{{ K}}$ |",
