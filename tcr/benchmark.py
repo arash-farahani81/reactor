@@ -51,14 +51,18 @@ def _extract_eq28_and_net_yields(sol: object, metrics: Dict[str, Any]) -> tuple[
     return yield_eq28_gross, yield_net
 
 
-def run_otp_and_eos_audit(base_cfg: AppConfig) -> Dict[str, Any]:
+def run_otp_and_eos_audit(
+    base_cfg: AppConfig,
+    T0_eos: float = 505.0,
+    T_cool_eos: float = 500.0,
+) -> Dict[str, Any]:
     """
     Computes:
     1. Theoretical Methanol Yield Ceiling (Optimal Temperature Profile - OTP & Best Isothermal)
        using VBF kinetics on the tube side (L = 7.022 m, P0 = 76.98e5 Pa, F0 = 0.640 mol/s,
        y0 = base_cfg.feed_tube.y0, ceiling T_max = 535.0 K) for eta_exo in [0.35, 1.0].
-    2. Real-Gas Peng-Robinson EOS vs. Ideal-Gas comparison on CMR at T0 = 500.26 K,
-       T_cool = 517.83 K, eta_exo = 0.35.
+    2. Real-Gas Peng-Robinson EOS vs. Ideal-Gas comparison on CMR evaluated at the
+       specified operating point (T0_eos, T_cool_eos) with eta_exo = 0.35.
     """
     geom = ReactorGeometry(base_cfg.geometry)
     cat_tube = base_cfg.cat_tube
@@ -193,8 +197,8 @@ def run_otp_and_eos_audit(base_cfg: AppConfig) -> Dict[str, Any]:
         set_use_real_gas_eos(False)
         sol_ideal = solve_conventional(
             geom, cat_exo_035, trans, sol_cfg_eos,
-            y0, 500.26, P0, F0,
-            T_coolant=517.83, kinetics_mode="production_vbf",
+            y0, float(T0_eos), P0, F0,
+            T_coolant=float(T_cool_eos), kinetics_mode="production_vbf",
             use_dynamic_thiele=False,
         )
         m_ideal = evaluate_run_metrics(sol_ideal, geom, is_conventional=True)
@@ -202,8 +206,8 @@ def run_otp_and_eos_audit(base_cfg: AppConfig) -> Dict[str, Any]:
         set_use_real_gas_eos(True)
         sol_real = solve_conventional(
             geom, cat_exo_035, trans, sol_cfg_eos,
-            y0, 500.26, P0, F0,
-            T_coolant=517.83, kinetics_mode="production_vbf",
+            y0, float(T0_eos), P0, F0,
+            T_coolant=float(T_cool_eos), kinetics_mode="production_vbf",
             use_dynamic_thiele=False,
         )
         m_real = evaluate_run_metrics(sol_real, geom, is_conventional=True)
@@ -214,8 +218,8 @@ def run_otp_and_eos_audit(base_cfg: AppConfig) -> Dict[str, Any]:
     yield_net_real = float(m_real["yield_net_COx"])
 
     audit_res["eos_comparison"] = {
-        "T0_K": 500.26,
-        "T_cool_K": 517.83,
+        "T0_K": float(T0_eos),
+        "T_cool_K": float(T_cool_eos),
         "eta_exo": 0.35,
         "yield_net_ideal": yield_net_ideal,
         "yield_net_real_eos": yield_net_real,
@@ -227,7 +231,12 @@ def run_otp_and_eos_audit(base_cfg: AppConfig) -> Dict[str, Any]:
     return audit_res
 
 
-def run_khademi_benchmark(base_cfg: AppConfig) -> Dict[str, Any]:
+def run_khademi_benchmark(
+    base_cfg: AppConfig,
+    T0_eos: float = 505.0,
+    T_cool_eos: float = 500.0,
+    run_otp: bool = True,
+) -> Dict[str, Any]:
     """
     Runs the Khademi et al. (2009) benchmark comparison using Table 7 exact shell geometry
     (D_shell_eff = 0.060 m, A_shell = 1.44199e-3 m^2, shell bed voidage eps = 0.39):
@@ -372,7 +381,11 @@ def run_khademi_benchmark(base_cfg: AppConfig) -> Dict[str, Any]:
     }
 
     # 7. Theoretical Methanol Yield Ceiling (OTP) & Real-Gas PR-EOS vs Ideal-Gas Audit
-    otp_and_eos_audit = run_otp_and_eos_audit(base_cfg)
+    otp_and_eos_audit = (
+        run_otp_and_eos_audit(base_cfg, T0_eos=T0_eos, T_cool_eos=T_cool_eos)
+        if run_otp
+        else None
+    )
 
     # Reference literature values from Khademi et al. (2009) Table 9 / text:
     # CMR Yield Eq. 28 = 0.3883 (38.83%)

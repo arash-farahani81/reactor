@@ -163,23 +163,41 @@ def build_replacement_dict(results: Dict[str, Any]) -> Dict[str, str]:
     ct_ych, ct_yb, ct_yh2 = _calc_shell_outlet_mol_pct(counter, "countercurrent_baseline")
     kn_ych, kn_yb, kn_yh2 = _calc_shell_outlet_mol_pct(knee, "tcr_nsga2_optimum")
 
-    # Battery-limit thermal, steam-credit, and separation duties (strictly from JSON)
+    # Battery-limit thermal (MW_th), cooling-water (MW_cw), and electrical (MW_e) duties strictly separated by First-Law quality
+    ble = results.get("battery_limit_energy")
     c_base_steam_MW = float(_require(c_base, "cmr_steam_credit_MW", "conventional_baseline.cmr_steam_credit_MW"))
-    c_opt_steam_MW = float(_require(c_opt, "cmr_steam_credit_MW", "conventional_optimized.cmr_steam_credit_MW"))
-    c_opt_syngas_preheat_MW = float(_require(c_opt, "syngas_preheat_duty_MW", "conventional_optimized.syngas_preheat_duty_MW"))
-    c_opt_flash_MW = float(_require(c_opt, "Q_flash_condenser_MW", "conventional_optimized.Q_flash_condenser_MW"))
+    if isinstance(ble, dict) and "cmr_optimized" in ble and "tcr_nsga2_optimum" in ble:
+        ble_cmr = ble["cmr_optimized"]
+        ble_tcr = ble["tcr_nsga2_optimum"]
+        c_opt_syngas_preheat_MW = float(_require(ble_cmr, "syngas_preheat_duty_MW", "battery_limit_energy.cmr_optimized.syngas_preheat_duty_MW"))
+        c_opt_steam_MW = float(_require(ble_cmr, "cmr_steam_credit_MW", "battery_limit_energy.cmr_optimized.cmr_steam_credit_MW"))
+        c_opt_flash_MW = float(_require(ble_cmr, "Q_flash_condenser_MW", "battery_limit_energy.cmr_optimized.Q_flash_condenser_MW"))
+        cmr_opt_net_thermal_demand_MW = float(_require(ble_cmr, "net_external_thermal_duty_MW", "battery_limit_energy.cmr_optimized.net_external_thermal_duty_MW"))
 
-    knee_syngas_preheat_MW = float(_require(knee, "syngas_preheat_duty_MW", "tcr_nsga2_optimum.syngas_preheat_duty_MW"))
-    knee_ch_preheat_MW = float(_require(knee, "cyclohexane_vaporization_and_preheat_duty_MW", "tcr_nsga2_optimum.cyclohexane_vaporization_and_preheat_duty_MW"))
-    knee_feed_preheat_MW = float(_require(knee, "total_feed_preheat_duty_MW", "tcr_nsga2_optimum.total_feed_preheat_duty_MW"))
-    knee_reboiler_MW = float(_require(knee, "Q_reboiler_sep_MW", "tcr_nsga2_optimum.Q_reboiler_sep_MW"))
-    knee_psa_MW = float(_require(knee, "W_psa_H2_MW", "tcr_nsga2_optimum.W_psa_H2_MW"))
+        knee_syngas_preheat_MW = float(_require(ble_tcr, "syngas_preheat_duty_MW", "battery_limit_energy.tcr_nsga2_optimum.syngas_preheat_duty_MW"))
+        knee_ch_preheat_MW = float(_require(ble_tcr, "ch_vaporization_preheat_duty_MW", "battery_limit_energy.tcr_nsga2_optimum.ch_vaporization_preheat_duty_MW"))
+        knee_feed_preheat_MW = knee_syngas_preheat_MW + knee_ch_preheat_MW
+        knee_reboiler_MW = float(_require(ble_tcr, "extractive_distillation_duty_MW", "battery_limit_energy.tcr_nsga2_optimum.extractive_distillation_duty_MW"))
+        knee_psa_MW = float(_require(ble_tcr, "psa_compression_power_MW", "battery_limit_energy.tcr_nsga2_optimum.psa_compression_power_MW"))
+        knee_total_thermal_input_MW = float(_require(ble_tcr, "net_external_thermal_duty_MW", "battery_limit_energy.tcr_nsga2_optimum.net_external_thermal_duty_MW"))
+        tcr_vs_cmr_net_thermal_penalty_MW = float(_require(ble, "delta_tcr_minus_cmr_net_thermal_MW", "battery_limit_energy.delta_tcr_minus_cmr_net_thermal_MW"))
+    else:
+        c_opt_steam_MW = float(_require(c_opt, "cmr_steam_credit_MW", "conventional_optimized.cmr_steam_credit_MW"))
+        c_opt_syngas_preheat_MW = float(_require(c_opt, "syngas_preheat_duty_MW", "conventional_optimized.syngas_preheat_duty_MW"))
+        c_opt_flash_MW = float(_require(c_opt, "Q_flash_condenser_MW", "conventional_optimized.Q_flash_condenser_MW"))
+
+        knee_syngas_preheat_MW = float(_require(knee, "syngas_preheat_duty_MW", "tcr_nsga2_optimum.syngas_preheat_duty_MW"))
+        knee_ch_preheat_MW = float(_require(knee, "cyclohexane_vaporization_and_preheat_duty_MW", "tcr_nsga2_optimum.cyclohexane_vaporization_and_preheat_duty_MW"))
+        knee_feed_preheat_MW = knee_syngas_preheat_MW + knee_ch_preheat_MW
+        knee_reboiler_MW = float(_require(knee, "Q_reboiler_sep_MW", "tcr_nsga2_optimum.Q_reboiler_sep_MW"))
+        knee_psa_MW = float(_require(knee, "W_psa_H2_MW", "tcr_nsga2_optimum.W_psa_H2_MW"))
+
+        knee_total_thermal_input_MW = knee_syngas_preheat_MW + knee_ch_preheat_MW + knee_reboiler_MW
+        cmr_opt_net_thermal_demand_MW = c_opt_syngas_preheat_MW - c_opt_steam_MW
+        tcr_vs_cmr_net_thermal_penalty_MW = knee_total_thermal_input_MW - cmr_opt_net_thermal_demand_MW
+
     knee_flash_shell_MW = float(_require(knee, "Q_flash_condenser_shell_MW", "tcr_nsga2_optimum.Q_flash_condenser_shell_MW"))
     knee_flash_tube_MW = float(_require(knee, "Q_flash_condenser_tube_MW", "tcr_nsga2_optimum.Q_flash_condenser_tube_MW"))
-
-    knee_total_thermal_input_MW = knee_feed_preheat_MW + knee_reboiler_MW
-    cmr_opt_net_thermal_demand_MW = c_opt_syngas_preheat_MW - c_opt_steam_MW
-    tcr_vs_cmr_net_thermal_penalty_MW = knee_total_thermal_input_MW - cmr_opt_net_thermal_demand_MW
 
     # Khademi (2009) benchmark & typo proof
     bench_pub = _require(bench, "khademi_published", "benchmark_khademi_2009.khademi_published")

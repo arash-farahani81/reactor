@@ -24,7 +24,7 @@ from tcr.geometry import ReactorGeometry
 from tcr.solvers import solve_conventional, solve_cocurrent, solve_countercurrent
 from tcr.metrics import evaluate_run_metrics
 from tcr.optimize import optimize_cmr, run_nsga2_tcr
-from tcr.benchmark import run_khademi_benchmark
+from tcr.benchmark import run_khademi_benchmark, run_otp_and_eos_audit
 from tcr.plots import (
     plot_multiphysics_profiles, plot_pareto_frontier, plot_reactor_results,
     plot_comparison_coupled_vs_conventional, plot_sensitivity_analysis
@@ -126,10 +126,18 @@ def main():
     # ──────────────────────────────────────────────────────────────────────────
     # Step 6: Benchmark & Sensitivity Analysis
     # ──────────────────────────────────────────────────────────────────────────
-    print("\n[6/7] Running Khademi et al. (2009) Benchmark & Parametric Sensitivity...")
-    bench_data = run_khademi_benchmark(cfg)
+    print("\n[6/7] Running Khademi et al. (2009) Benchmark, OTP Ceiling & PR-EOS Audit...")
+    bench_data = run_khademi_benchmark(cfg, run_otp=False)
+    otp_audit = run_otp_and_eos_audit(
+        cfg,
+        T0_eos=float(res_cmr_opt["T_exo_0"]),
+        T_cool_eos=float(res_cmr_opt["T_coolant"]),
+    )
+    bench_data["otp_and_eos_audit"] = otp_audit
     print(f"  ✓ Khademi Benchmark: Published Yield={bench_data['khademi_published']['tcr_yield_pct']:.2f}%, "
-          f"Simulated Thermo Yield={bench_data['simulation_tcr_thermo']['yield_pct']:.2f}%")
+          f"Simulated Thermo Yield={bench_data['simulation_tcr_thermo']['yield_pct']:.2f}% | "
+          f"PR-EOS CMR Shift={otp_audit['eos_comparison']['diff_pct_points']:+.2f} pp at "
+          f"(T0={otp_audit['eos_comparison']['T0_K']:.2f} K, T_cool={otp_audit['eos_comparison']['T_cool_K']:.2f} K)")
 
     # Parametric sweeps
     sens_results = {
@@ -253,26 +261,35 @@ def main():
     # Process thermal duties
     process_duties = calc_process_thermal_duties(cfg, geom, knee_results)
 
-    # Canonical battery-limit energy accounting (12 keys matching build_manuscript.py)
-    cmr_opt_net_thermal_MW = float(res_cmr_opt['syngas_preheat_duty_MW'] - res_cmr_opt['cmr_steam_credit_MW'])
-    tcr_knee_net_thermal_MW = float(knee_results['total_feed_preheat_duty_MW'] + knee_results['Q_reboiler_sep_MW'])
+    # Canonical battery-limit energy accounting (First-Law energy qualities strictly separated:
+    # Heating duties in MW_th; cooling-water Q_flash_condenser_MW in MW_cw; PSA shaft work in MW_e.
+    # Cooling-water duty and electrical work are NEVER summed into net_external_thermal_duty_MW.)
+    cmr_opt_syngas_MW = float(res_cmr_opt['syngas_preheat_duty_MW'])
+    cmr_opt_steam_MW = float(res_cmr_opt['cmr_steam_credit_MW'])
+    cmr_opt_net_heating_MW = float(cmr_opt_syngas_MW - cmr_opt_steam_MW)
+
+    tcr_knee_syngas_MW = float(knee_results['syngas_preheat_duty_MW'])
+    tcr_knee_ch_preheat_MW = float(knee_results['cyclohexane_vaporization_and_preheat_duty_MW'])
+    tcr_knee_reboiler_MW = float(knee_results['Q_reboiler_sep_MW'])
+    tcr_knee_net_heating_MW = float(tcr_knee_syngas_MW + tcr_knee_ch_preheat_MW + tcr_knee_reboiler_MW)
+
     battery_limit_energy = {
         "cmr_optimized": {
-            "syngas_preheat_duty_MW": float(res_cmr_opt['syngas_preheat_duty_MW']),
-            "cmr_steam_credit_MW": float(res_cmr_opt['cmr_steam_credit_MW']),
+            "syngas_preheat_duty_MW": cmr_opt_syngas_MW,
+            "cmr_steam_credit_MW": cmr_opt_steam_MW,
             "Q_flash_condenser_MW": float(res_cmr_opt['Q_flash_condenser_MW']),
-            "net_external_thermal_duty_MW": cmr_opt_net_thermal_MW,
+            "net_external_thermal_duty_MW": cmr_opt_net_heating_MW,
         },
         "tcr_nsga2_optimum": {
-            "syngas_preheat_duty_MW": float(knee_results['syngas_preheat_duty_MW']),
-            "ch_vaporization_preheat_duty_MW": float(knee_results['cyclohexane_vaporization_and_preheat_duty_MW']),
+            "syngas_preheat_duty_MW": tcr_knee_syngas_MW,
+            "ch_vaporization_preheat_duty_MW": tcr_knee_ch_preheat_MW,
             "Q_wall_coupled_MW": float(knee_results['Q_wall_total_MW']),
-            "extractive_distillation_duty_MW": float(knee_results['Q_reboiler_sep_MW']),
+            "extractive_distillation_duty_MW": tcr_knee_reboiler_MW,
             "psa_compression_power_MW": float(knee_results['W_psa_H2_MW']),
             "Q_flash_condenser_MW": float(knee_results['Q_flash_condenser_MW']),
-            "net_external_thermal_duty_MW": tcr_knee_net_thermal_MW,
+            "net_external_thermal_duty_MW": tcr_knee_net_heating_MW,
         },
-        "delta_tcr_minus_cmr_net_thermal_MW": float(tcr_knee_net_thermal_MW - cmr_opt_net_thermal_MW),
+        "delta_tcr_minus_cmr_net_thermal_MW": float(tcr_knee_net_heating_MW - cmr_opt_net_heating_MW),
     }
 
     # Attach verified equal-throughput syngas feed rate and shell exit pressures
@@ -283,10 +300,6 @@ def main():
     knee_results['F_exo_total_0'] = float(cfg.feed_tube.F_total0)
     res_co_base['P_shell_out'] = round(float((cfg.feed_shell.P0 / 1e5) - res_co_base['dP_shell']), 4)
     res_ct_base['P_shell_out'] = round(float((cfg.feed_shell.P0 / 1e5) - res_ct_base['dP_shell']), 4)
-
-    # Ensure otp_and_eos_audit is attached both inside benchmark_khademi_2009 and top-level
-    otp_audit = bench_data["otp_and_eos_audit"]
-    bench_data["otp_and_eos_audit"] = otp_audit
 
     # Master SSOT data structure
     master_ssot = {
