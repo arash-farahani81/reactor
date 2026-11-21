@@ -418,7 +418,9 @@ def kinetics_itoh_benchmark(T_endo: float, P_endo: float, y_endo: np.ndarray,
         rho_cat_endo = 1077.0 kg/m^3 (converts rate to mol/(kg_cat·s))
 
     mode:
-      - 'khademi_literal': uses printed Table 4 formula: Kp = 4.89e35 * exp(-3190 / T) Pa^3
+      - 'khademi_literal': evaluates Khademi Table 4 Kp with endothermic minus sign restored
+        (Table 4 literally prints B = +3190 K; restoring sign gives Kp = 4.89e35 * exp(-3190 / T) Pa^3,
+        still ~1e32 Pa^3 and removing the thermodynamic equilibrium ceiling)
       - 'khademi_thermo' (or 'kirchhoff'): uses exact Kirchhoff thermodynamic Kp converted to Pa^3
     """
     effective_mode = _ITOH_BENCHMARK_MODE_OVERRIDE if _ITOH_BENCHMARK_MODE_OVERRIDE is not None else mode
@@ -449,7 +451,9 @@ def kinetics_itoh_benchmark(T_endo: float, P_endo: float, y_endo: np.ndarray,
     K_B = 2.03e-10 * np.exp(6270.0 / T)
 
     if effective_mode in ("khademi_literal", "literal"):
-        # Literal formula as printed in Khademi (2009) Table 4 (contains typo: -3190/T)
+        # Khademi (2009) Table 4 literally prints +3190 K (missing minus sign);
+        # restoring the endothermic minus sign gives -3190/T (7.7x smaller than -24704/T),
+        # yielding Kp ~ 1e32 Pa^3 and removing the equilibrium barrier
         Kp_Pa3 = 4.89e35 * np.exp(-3190.0 / T)
     else:
         # Thermodynamically consistent Kirchhoff Kp in Pa^3: Kp_bar3 * (1e5)^3

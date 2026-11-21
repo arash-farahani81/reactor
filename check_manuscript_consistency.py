@@ -96,6 +96,11 @@ def check_consistency(
         if re.search(pat, text, flags=re.IGNORECASE):
             errors.append(f"Stale pre-Path-A artifact found in manuscript: {label}.")
 
+    # 2b. Check for duplicate sign typography (++ or +-)
+    dup_signs = re.findall(r"(?:\+\+|\+-)\d", text)
+    if dup_signs:
+        errors.append(f"Duplicate sign typography detected in manuscript: {dup_signs}")
+
     # 3. Check for mandatory Path A engineering derivations & concepts
     required_concepts = [
         ("Wassiljewa variable fluid thermal conductivity", "wassiljewa"),
@@ -109,6 +114,8 @@ def check_consistency(
         ("Downstream PSA hydrogen purification work", "psa"),
         ("Upward-flow bed-lifting ratio & hold-down grid", "bed-lifting"),
         ("Hold-down grid hydraulic mitigation", "hold-down grid"),
+        ("Industrial operability & scope limitations", "industrial operability"),
+        ("Extractive distillation literature basis (Qin et al., 2013)", "qin et al."),
     ]
     for name, snippet in required_concepts:
         if snippet not in text_lower:
@@ -222,6 +229,38 @@ def check_consistency(
             y_str = f"{float(rec['yield_meoh']):.2f}%"
             if not _pattern_present(text, y_str):
                 errors.append(f"Missing eta_sweep yield ({rec['eta']}): '{y_str}' not found in manuscript.")
+
+    # Verify ho_sensitivity table values if structured list present
+    ho_sweep = sens.get("ho_sensitivity")
+    if isinstance(ho_sweep, list):
+        for rec in ho_sweep:
+            for field, fmt in [
+                ("yield_net_COx", "{:.2f}%"),
+                ("X_CH", "{:.2f}%"),
+                ("T_max_exo", "{:.1f} K"),
+                ("Q_wall_total_MW", "{:.2f}"),
+            ]:
+                if field in rec:
+                    val_str = fmt.format(float(rec[field]))
+                    if not _pattern_present(text, val_str):
+                        errors.append(
+                            f"Missing ho_sensitivity {field} (ho_factor={rec.get('ho_factor')}): '{val_str}' not found in manuscript."
+                        )
+
+    # Verify dynamic shell Pt catalyst inventory and counter-current Picard iterations if present
+    if "shell_catalyst_mass_ton" in knee:
+        cat_str = f"{float(knee['shell_catalyst_mass_ton']):.2f}"
+        if cat_str not in text:
+            errors.append(f"Missing knee shell_catalyst_mass_ton: '{cat_str}' not found in manuscript.")
+    if "shell_pt_inventory_kg_min" in knee and "shell_pt_inventory_kg_max" in knee:
+        pt_min_str = f"{float(knee['shell_pt_inventory_kg_min']):.1f}"
+        pt_max_str = f"{float(knee['shell_pt_inventory_kg_max']):.1f}"
+        if pt_min_str not in text or pt_max_str not in text:
+            errors.append(f"Missing knee shell Pt inventory range: '{pt_min_str}'–'{pt_max_str}' not found in manuscript.")
+    if "picard_iterations" in counter:
+        it_str = str(int(counter["picard_iterations"]))
+        if it_str not in text:
+            errors.append(f"Missing countercurrent_baseline picard_iterations: '{it_str}' not found in manuscript.")
 
     # 6. Check simulation_summary.md synchronization
     if os.path.exists(summary_path):

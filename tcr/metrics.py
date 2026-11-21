@@ -6,7 +6,7 @@ independent stream enthalpy balance closures, and yield definitions.
 import numpy as np
 from scipy.integrate import simpson
 from .thermo import (
-    calc_enthalpy_species, calc_dH_rxn_meoh, calc_dH_rxn_rwgs, calc_dH_rxn_ch,
+    R_GAS, calc_enthalpy_species, calc_dH_rxn_meoh, calc_dH_rxn_rwgs, calc_dH_rxn_ch,
     MW
 )
 from .geometry import ReactorGeometry
@@ -209,13 +209,25 @@ def calc_downstream_separation_and_duties(
     is_conventional: bool = False,
     T_ambient: float = 298.15,
     T_flash: float = 308.15,
-    Q_sep_MJ_per_kg: float = 18.0,
-    w_psa_MJ_per_kg: float = 2.0
+    Q_sep_C6_MJ_per_kg: float = 2.0,
+    P_psa_target_bar: float = 20.0,
+    T_psa_K: float = 313.15,
+    eta_iso_psa: float = 0.75,
 ) -> dict[str, float]:
     """
-    Calculates downstream separation energy duties, PSA purification work, extractive distillation
-    reboiler duty, flash condenser duties, and feed preheating duties across plant battery limits
-    (Swarm Critic-14, Critic-05, and ChatGPT §4.1).
+    Calculates downstream separation energy duties, first-principles multi-stage isothermal
+    PSA H2 compression work (pure-H2 lower bound), extractive distillation reboiler duty
+    based on total C6 liquid mixture feed (benzene + unconverted cyclohexane), flash condenser
+    duties, and feed preheating duties across plant battery limits.
+
+    Engineering bases:
+    - Extractive distillation (sulfolane/NMP + solvent recovery): Q_sep_C6 = 2.0 MJ/kg of total
+      C6 liquid feed (midpoint of 1.5-2.5 MJ/kg from Qin et al., 2013; Sun et al., 2014).
+    - PSA H2 compression: multi-stage isothermal compression of exiting shell H2 from actual
+      shell discharge pressure P_shell_out_bar to 20.0 bar at 313.15 K with eta_iso = 0.75:
+          W_psa_H2_MW = (F_H2_out_plant * R_GAS * 313.15 / 0.75) * ln(20.0 / P_shell_out_bar) / 1e6
+      This represents a thermodynamic lower bound for pure-H2 compression alone (excluding
+      carrier-gas or non-condensable co-compression).
     """
     # 1. Syngas feed preheating duty (298.15 K -> T_exo_0)
     len_endo = 0 if is_conventional else (sol.y.shape[0] - 11)
@@ -257,19 +269,26 @@ def calc_downstream_separation_and_duties(
 
     total_feed_preheat_duty_MW = float(syngas_preheat_duty_MW + shell_preheat_duty_MW)
 
-    # 3. Benzene–Cyclohexane extractive distillation reboiler duty (Q_sep ~ 18.0 MJ/kg_benzene)
+    # 3. Benzene–Cyclohexane extractive distillation reboiler duty (total C6 mixture @ 2.0 MJ/kg)
+    #    & first-principles multi-stage isothermal H2 compression work (pure-H2 lower bound)
     if is_conventional:
         Q_reboiler_sep_MW = 0.0
         W_psa_H2_MW = 0.0
     else:
+        out_idx = -1 if mode == "cocurrent" else 0
         F_endo = sol.y[7:7+len_endo, :]
-        Benzene_prod = (F_endo[1, -1] - F_endo[1, 0]) if mode == "cocurrent" else (F_endo[1, 0] - F_endo[1, -1])
-        m_dot_benzene_kg_s = max(Benzene_prod, 0.0) * geom.N_tubes * MW['C6H6']
-        Q_reboiler_sep_MW = float(m_dot_benzene_kg_s * Q_sep_MJ_per_kg)
+        m_dot_C6_total_kg_s = (
+            max(float(F_endo[0, out_idx]), 0.0) * MW['C6H12']
+            + max(float(F_endo[1, out_idx]), 0.0) * MW['C6H6']
+        ) * geom.N_tubes
+        Q_reboiler_sep_MW = float(m_dot_C6_total_kg_s * Q_sep_C6_MJ_per_kg)
 
-        H2_prod = (F_endo[2, -1] - F_endo[2, 0]) if mode == "cocurrent" else (F_endo[2, 0] - F_endo[2, -1])
-        m_dot_H2_kg_s = max(H2_prod, 0.0) * geom.N_tubes * MW['H2']
-        W_psa_H2_MW = float(m_dot_H2_kg_s * w_psa_MJ_per_kg)
+        P_shell_out_bar = max(float(sol.y[10+len_endo, out_idx]) / 1e5, 1.0)
+        F_H2_out_plant = max(float(F_endo[2, out_idx]), 0.0) * geom.N_tubes
+        comp_ratio = max(P_psa_target_bar / P_shell_out_bar, 1.0)
+        W_psa_H2_MW = float(
+            (F_H2_out_plant * R_GAS * T_psa_K / eta_iso_psa) * np.log(comp_ratio) / 1e6
+        )
 
     # 4. Downstream Flash Condenser duties (cooling effluents to T_flash = 308.15 K)
     F_exo_out = sol.y[0:7, -1]
@@ -304,6 +323,7 @@ def calc_downstream_separation_and_duties(
         "total_feed_preheat_duty_MW": total_feed_preheat_duty_MW,
         "Q_reboiler_sep_MW": Q_reboiler_sep_MW,
         "W_psa_H2_MW": W_psa_H2_MW,
+        "psa_compression_power_MW": W_psa_H2_MW,
         "Q_flash_condenser_MW": Q_flash_condenser_MW,
         "Q_flash_condenser_shell_MW": Q_flash_shell_MW,
         "Q_flash_condenser_tube_MW": Q_flash_tube_MW,
@@ -402,6 +422,9 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
             'hoop_stress_MPa': float(stress_info['sigma_theta_inner_MPa']),
             'asme_safety_factor': float(stress_info['safety_factor']),
             'asme_compliant': bool(stress_info['is_asme_compliant']),
+            'shell_catalyst_mass_ton': 0.0,
+            'shell_pt_inventory_kg_min': 0.0,
+            'shell_pt_inventory_kg_max': 0.0,
             'clamp_violations': int(getattr(sol, 'clamp_violations', 0))
         }
         ret.update(duties)
@@ -501,6 +524,11 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
 
     stress_info = calc_mechanical_hoop_stress(geom, float(np.max(P_exo)), float(np.min(P_endo)))
 
+    # Dynamic shell Pt/Al2O3 catalyst charge & precious-metal inventory (0.3-1.0 wt% Pt)
+    shell_catalyst_mass_ton = float(geom.N_tubes * geom.A_shell * geom.L * rho_b_shell / 1000.0)
+    shell_pt_inventory_kg_min = float(shell_catalyst_mass_ton * 1000.0 * 0.003)
+    shell_pt_inventory_kg_max = float(shell_catalyst_mass_ton * 1000.0 * 0.010)
+
     ret = {
         'mode': mode,
         'X_CO2': float(X_CO2),
@@ -544,6 +572,9 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
         'hoop_stress_MPa': float(stress_info['sigma_theta_inner_MPa']),
         'asme_safety_factor': float(stress_info['safety_factor']),
         'asme_compliant': bool(stress_info['is_asme_compliant']),
+        'shell_catalyst_mass_ton': float(shell_catalyst_mass_ton),
+        'shell_pt_inventory_kg_min': float(shell_pt_inventory_kg_min),
+        'shell_pt_inventory_kg_max': float(shell_pt_inventory_kg_max),
         'clamp_violations': int(getattr(sol, 'clamp_violations', 0))
     }
     ret.update(duties)

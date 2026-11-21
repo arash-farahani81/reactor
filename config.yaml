@@ -38,7 +38,7 @@ geometry:
   N_tubes:
     value: 2962
     unit: "-"
-    source: "Industrial Lurgi methanol reactor tube bundle (Khademi et al. 2009; Rahimpour et al. 2008)"
+    source: "Commercial Lurgi multi-tubular methanol converter scale (2962 tubes, industrial bundle-scaling basis)"
   Kw:
     value: 48.0
     unit: "W/(m·K)"
@@ -64,7 +64,7 @@ catalyst:
     eta:
       value: 0.35
       unit: "-"
-      source: "Vanden Bussche & Froment (1996); Froment, Bischoff & De Wilde (2011) baseline effectiveness factor for 5.47 mm commercial Cu/ZnO/Al2O3 pellets (benchmark uses authentic Graaf 1988 at eta = 1.0)"
+      source: "Industrial lumped pellet effectiveness baseline for 5.47 mm commercial Cu/ZnO/Al2O3 pellets (cf. Froment, Bischoff & De Wilde, 2011; bounded by eta_sweep in [0.20, 1.00] and dual-eta OTP ceilings; benchmark uses authentic Graaf 1988 at eta = 1.0)"
   shell:
     # Cyclohexane dehydrogenation (Pt/Al2O3):
     # Equilibrium Kp from NIST Chemistry WebBook S_298 (DELTA_S_R_298 = 362.96 J/(mol*K),

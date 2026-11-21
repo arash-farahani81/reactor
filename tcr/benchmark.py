@@ -1,8 +1,9 @@
 """
 Benchmark module against Khademi et al. (2009).
 Implements exact operating conditions (Tables 6-9) under two sub-modes:
-1. 'khademi_literal': Graaf (1988) kinetics + literal printed Table 4 dehydrogenation
-   with published typo Kp = 4.89e35 * exp(-3190/T) Pa^3.
+1. 'khademi_literal': Graaf (1988) kinetics + Khademi Table 4 dehydrogenation Kp with
+   endothermic minus sign restored (Table 4 literally prints +3190/T; testing -3190/T isolates
+   the 7.7x van 't Hoff slope typo giving Kp ~ 1e32 Pa^3).
 2. 'khademi_thermo': Graaf (1988) kinetics + exact Kirchhoff thermodynamically consistent Kp.
 
 Also evaluates:
@@ -429,10 +430,10 @@ def run_khademi_benchmark(
         "eta_endo_sensitivity": eta_endo_sweep,
         "thiele_analysis": thiele_analysis,
         "table4_typo_proof": {
-            "printed_Kp_formula": "4.89e35 * exp(-3190 / T) Pa^3",
+            "printed_Kp_formula": "4.89e35 * exp(+3190 / T) Pa^3 (tested with restored minus sign: exp(-3190 / T))",
             "apparent_delta_H_over_R": -3190.0,
             "true_delta_H_over_R": -205400.0 / 8.31446,
-            "discrepancy_explanation": "Khademi Table 4 reports -3190 K instead of -24704 K, underpredicting temperature sensitivity by a factor of 7.7x."
+            "discrepancy_explanation": "Khademi Table 4 literally prints B = +3190 K (missing minus sign); even with the endothermic minus sign restored (-3190 K vs NIST Kirchhoff -24704 K), the slope is 7.7x too shallow and Kp ~ 1e32 Pa^3 removes the equilibrium ceiling."
         },
         "otp_and_eos_audit": otp_and_eos_audit,
     }

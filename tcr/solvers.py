@@ -38,7 +38,7 @@ def calc_tube_kinetics_radial_quadrature(T_exo: float, P_exo: float, y_exo: np.n
     """
     if kinetics_mode != "production_vbf":
         r1, r2, r3 = kinetics_graaf_benchmark(T_exo, P_exo, y_exo, cat_exo.eta)
-        return float(r1 + r3), float(r2), calc_dH_rxn_meoh(T_exo), calc_dH_rxn_rwgs(T_exo)
+        return float(r1 + r3), float(r2 - r1), calc_dH_rxn_meoh(T_exo), calc_dH_rxn_rwgs(T_exo)
 
     eff_eta = "dynamic" if use_dynamic_thiele else cat_exo.eta
 
@@ -121,7 +121,8 @@ class CounterSolution:
 
 def calc_local_heat_fluxes(sol: object, geom: ReactorGeometry,
                            cat_exo: CatalystBedConfig, cat_endo: CatalystBedConfig,
-                           trans: TransportConfig) -> tuple[FluxArray, FluxArray, FluxArray]:
+                           trans: TransportConfig,
+                           ho_factor: float = 1.0) -> tuple[FluxArray, FluxArray, FluxArray]:
     """
     Evaluates local U(z), Q_wall_tube(z), and Q_wall_shell(z) across all axial coordinates z
     using the converged local interpolated states (F_exo(z), T_exo(z), P_exo(z), F_endo(z), T_endo(z), P_endo(z)).
@@ -144,7 +145,7 @@ def calc_local_heat_fluxes(sol: object, geom: ReactorGeometry,
         F_n = sol.y[7:7+len_endo, i]
         U_loc = calc_U_tcr(T_e, P_e, F_e, SPECIES_TUBE,
                            T_n, P_n, F_n, species_shell,
-                           geom, cat_exo, cat_endo, trans)
+                           geom, cat_exo, cat_endo, trans, ho_factor=ho_factor)
         U_arr[i] = U_loc
         Q_wall_arr[i] = U_loc * geom.a_H * (T_e - T_n)
 
@@ -164,7 +165,8 @@ def cross_check_countercurrent_bvp(sol_picard: object, geom: ReactorGeometry,
                                    bvp_tol: float = 1e-3,
                                    max_nodes: int = 1000,
                                    assert_pass: bool = True,
-                                   use_dynamic_thiele: bool = True) -> dict:
+                                   use_dynamic_thiele: bool = True,
+                                   ho_factor: float = 1.0) -> dict:
     """
     Cross-verifies the Under-Relaxed Picard BVP solution against scipy.integrate.solve_bvp (collocation)
     across all 14 state variables (< 0.2% maximum relative deviation).
@@ -203,7 +205,7 @@ def cross_check_countercurrent_bvp(sol_picard: object, geom: ReactorGeometry,
             else:
                 r1, r2, r3 = kinetics_graaf_benchmark(T_t, P_t, y_t, cat_exo.eta)
                 r_meoh = r1 + r3
-                r_rwgs = r2
+                r_rwgs = r2 - r1
                 r_ch = kinetics_itoh_benchmark(T_s, P_s, y_s, mode="khademi_thermo", eta_endo=cat_endo.eta)
                 dH_meoh = calc_dH_rxn_meoh(T_t)
                 dH_rwgs = calc_dH_rxn_rwgs(T_t)
@@ -226,7 +228,7 @@ def cross_check_countercurrent_bvp(sol_picard: object, geom: ReactorGeometry,
             if len_endo > 3:
                 dS[10:7+len_endo, j] = 0.0
 
-            U_loc = calc_U_tcr(T_t, P_t, F_t, SPECIES_TUBE, T_s, P_s, F_s, species_shell, geom, cat_exo, cat_endo, trans)
+            U_loc = calc_U_tcr(T_t, P_t, F_t, SPECIES_TUBE, T_s, P_s, F_s, species_shell, geom, cat_exo, cat_endo, trans, ho_factor=ho_factor)
             Q_wall = U_loc * geom.a_H * (T_t - T_s)
             FCp_t = sum(F_t[i] * calc_cp_species(SPECIES_TUBE[i], T_t) for i in range(7))
             FCp_s = sum(F_s[i] * calc_cp_species(species_shell[i], T_s) for i in range(len_endo))
@@ -355,7 +357,7 @@ def solve_conventional(geom: ReactorGeometry, cat: CatalystBedConfig, trans: Tra
         else:
             r1, r2, r3 = kinetics_graaf_benchmark(T_exo, P_exo, y_exo, cat.eta)
             r_meoh = r1 + r3
-            r_rwgs = r2
+            r_rwgs = r2 - r1
             dH_meoh = calc_dH_rxn_meoh(T_exo)
             dH_rwgs = calc_dH_rxn_rwgs(T_exo)
 
@@ -432,7 +434,8 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
                     y_exo_0: np.ndarray, T_exo_0: float, P_exo_0: float, F_exo_total_0: float,
                     y_endo_0: np.ndarray, T_endo_0: float, P_endo_0: float, F_endo_total_0: float,
                     kinetics_mode: str = "production_vbf",
-                    use_dynamic_thiele: bool = True) -> object:
+                    use_dynamic_thiele: bool = True,
+                    ho_factor: float = 1.0) -> object:
     """
     Solves Co-Current TCR (IVP from z=0 to z=L) using Radau IIA.
     State vector: [F_exo (7), F_endo (len_endo), T_exo, T_endo, P_exo, P_endo]
@@ -471,7 +474,7 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
         else:
             r1, r2, r3 = kinetics_graaf_benchmark(T_exo, P_exo, y_exo, cat_exo.eta)
             r_meoh = r1 + r3
-            r_rwgs = r2
+            r_rwgs = r2 - r1
             r_ch = kinetics_itoh_benchmark(T_endo, P_endo, y_endo, mode="khademi_thermo", eta_endo=cat_endo.eta)
             dH_meoh = calc_dH_rxn_meoh(T_exo)
             dH_rwgs = calc_dH_rxn_rwgs(T_exo)
@@ -502,7 +505,7 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
         # Dynamic overall U evaluated from local states of both streams
         U_local = calc_U_tcr(T_exo, P_exo, F_exo, SPECIES_TUBE,
                              T_endo, P_endo, F_endo, species_shell,
-                             geom, cat_exo, cat_endo, trans)
+                             geom, cat_exo, cat_endo, trans, ho_factor=ho_factor)
         Q_wall = U_local * geom.a_H * (T_exo - T_endo)
 
         FCp_exo = sum(F_exo[i] * calc_cp_species(SPECIES_TUBE[i], T_exo) for i in range(7))
@@ -549,7 +552,7 @@ def solve_cocurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo:
         F_n = sol.y[7:7+len_endo, i]
         U_loc = calc_U_tcr(T_e, P_e, F_e, SPECIES_TUBE,
                            T_n, P_n, F_n, species_shell,
-                           geom, cat_exo, cat_endo, trans)
+                           geom, cat_exo, cat_endo, trans, ho_factor=ho_factor)
         U_arr[i] = U_loc
         Q_wall_arr[i] = U_loc * geom.a_H * (T_e - T_n)
     sol.U_arr = FluxArray(U_arr, z_grid=sol.t)
@@ -583,7 +586,8 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
                          y_exo_0: np.ndarray, T_exo_0: float, P_exo_0: float, F_exo_total_0: float,
                          y_endo_0: np.ndarray, T_endo_0: float, P_endo_0: float, F_endo_total_0: float,
                          kinetics_mode: str = "production_vbf", cross_check_bvp: bool = False,
-                         use_dynamic_thiele: bool = True) -> tuple[object, dict]:
+                         use_dynamic_thiele: bool = True,
+                         ho_factor: float = 1.0) -> tuple[object, dict]:
     """
     Solves Counter-Current TCR (Two-Point BVP) via Under-Relaxed Picard Fixed-Point Iteration.
     - Tube integrates forward from z = 0 to L given interpolated shell fields.
@@ -638,7 +642,7 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
             else:
                 r1, r2, r3 = kinetics_graaf_benchmark(T_exo, P_exo, y_exo, cat_exo.eta)
                 r_meoh = r1 + r3
-                r_rwgs = r2
+                r_rwgs = r2 - r1
                 dH_meoh = calc_dH_rxn_meoh(T_exo)
                 dH_rwgs = calc_dH_rxn_rwgs(T_exo)
 
@@ -652,7 +656,7 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
             # Local U(z) from local states
             U_local = calc_U_tcr(T_exo, P_exo, F_exo, SPECIES_TUBE,
                                  T_s, P_s, F_s, species_shell,
-                                 geom, cat_exo, cat_endo, trans)
+                                 geom, cat_exo, cat_endo, trans, ho_factor=ho_factor)
             Q_wall = U_local * geom.a_H * (T_exo - T_s)
 
             FCp = sum(F_exo[i] * calc_cp_species(SPECIES_TUBE[i], T_exo) for i in range(7))
@@ -723,7 +727,7 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
             # Local U(z) evaluated from local states of both streams
             U_local = calc_U_tcr(T_t, P_t, F_t, SPECIES_TUBE,
                                  T_endo, P_endo, F_endo, species_shell,
-                                 geom, cat_exo, cat_endo, trans)
+                                 geom, cat_exo, cat_endo, trans, ho_factor=ho_factor)
             Q_wall = U_local * geom.a_H * (T_t - T_endo)
 
             FCp = sum(F_endo[i] * calc_cp_species(species_shell[i], T_endo) for i in range(len_endo))
@@ -829,7 +833,7 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
         F_n = sol_final.y[7:7+len_endo, i]
         U_loc = calc_U_tcr(T_e, P_e, F_e, SPECIES_TUBE,
                            T_n, P_n, F_n, species_shell,
-                           geom, cat_exo, cat_endo, trans)
+                           geom, cat_exo, cat_endo, trans, ho_factor=ho_factor)
         U_arr[i] = U_loc
         Q_wall_arr[i] = U_loc * geom.a_H * (T_e - T_n)
     sol_final.U_arr = FluxArray(U_arr, z_grid=z_grid)
@@ -875,7 +879,8 @@ def solve_countercurrent(geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_
             y_exo_0, T_exo_0, P_exo_0, F_exo_total_0,
             y_endo_0, T_endo_0, P_endo_0, F_endo_total_0,
             kinetics_mode=kinetics_mode,
-            use_dynamic_thiele=use_dynamic_thiele
+            use_dynamic_thiele=use_dynamic_thiele,
+            ho_factor=ho_factor
         )
         info['bvp_cross_check'] = cross_res
         info['max_relative_deviation'] = cross_res['max_rel_deviation']

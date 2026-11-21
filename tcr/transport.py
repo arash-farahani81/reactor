@@ -403,7 +403,7 @@ calc_hw_shell_eff = calc_hw_shell
 def calc_U_tcr(T_exo: float, P_exo: float, F_exo: np.ndarray, species_exo: list,
                T_endo: float, P_endo: float, F_endo: np.ndarray, species_endo: list,
                geom: ReactorGeometry, cat_exo: CatalystBedConfig, cat_endo: CatalystBedConfig,
-               trans: TransportConfig) -> float:
+               trans: TransportConfig, ho_factor: float = 1.0) -> float:
     """
     Computes overall heat transfer coefficient U_i (based on inner tube area) for TCR:
       1 / U_i = 1 / h_i,eff + R_wall + (D_in / D_out) * (1 / h_o,eff)
@@ -411,9 +411,11 @@ def calc_U_tcr(T_exo: float, P_exo: float, F_exo: np.ndarray, species_exo: list,
       1 / h_i,eff = dp_exo / (Nu_w,i * kg_exo) + D_in / (6.133 * k_er,exo)
       1 / h_o,eff = dp_endo / (Nu_w,o * kg_endo) + Dh_shell / (6.133 * k_er,endo)
       R_wall = (D_in / (2 * Kw)) * ln(D_out / D_in)
+    Optional `ho_factor` scales the shell-side effective heat transfer coefficient h_o
+    for parametric sensitivity analysis (default 1.0).
     """
     h_i = calc_hw_tube(T_exo, P_exo, F_exo, species_exo, geom, cat_exo, trans)
-    h_o = calc_hw_shell(T_endo, P_endo, F_endo, species_endo, geom, cat_endo, trans)
+    h_o = calc_hw_shell(T_endo, P_endo, F_endo, species_endo, geom, cat_endo, trans) * float(ho_factor)
     R_wall = (geom.D_in * np.log(geom.D_out / geom.D_in)) / (2.0 * geom.Kw)
 
     U = 1.0 / (1.0 / h_i + R_wall + (geom.D_in / geom.D_out) * (1.0 / h_o))

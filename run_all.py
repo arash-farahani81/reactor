@@ -105,6 +105,7 @@ def main():
         sol_ct_base, geom, mode="countercurrent",
         cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
     )
+    res_ct_base['picard_iterations'] = int(ct_info['iterations'])
     print(f"  ✓ TCR Counter-Current converged in {time.time()-t0:.2f}s ({ct_info['iterations']} iters, res_T: {ct_info['final_res_T']:.2e}) | "
           f"MeOH Yield: {res_ct_base['yield_khademi_eq28']:.2f}% | CH Conv: {res_ct_base['X_CH']:.2f}% | Benzene: {res_ct_base['Benzene_rate_plant']:.2f} mol/s | "
           f"H2: {res_ct_base['H2_rate_plant']:.2f} mol/s | T_max: {res_ct_base['T_max_exo']:.1f} K | Lift Ratio: {res_ct_base['bed_lifting_ratio']:.2f}")
@@ -242,10 +243,40 @@ def main():
         }
     }
 
-    # Export structured eta_sweep list-of-dicts schema in JSON and plotting
+    # Sweep 5: Shell-side heat transfer coefficient sensitivity (ho_factor in [0.70, 1.00, 1.30])
+    # Evaluated at the NSGA-II TCR knee point (F_exo_0 locked at 0.640 mol/s, use_dynamic_thiele=False)
+    ho_sensitivity_records = []
+    knee_T_exo_0 = float(knee_vars['T_exo_0_K'])
+    knee_T_endo_0 = float(knee_vars['T_endo_0_K'])
+    knee_F_endo_0 = float(knee_vars['F_endo_mol_s'])
+    knee_P_endo_0 = float(knee_vars.get('P_endo_0_bar', cfg.feed_shell.P0 / 1e5)) * 1e5
+    for hf in [0.70, 1.00, 1.30]:
+        sol_ho = solve_cocurrent(
+            geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
+            cfg.feed_tube.y0, knee_T_exo_0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
+            cfg.feed_shell.y0, knee_T_endo_0, knee_P_endo_0, knee_F_endo_0,
+            kinetics_mode="production_vbf", use_dynamic_thiele=False, ho_factor=hf
+        )
+        res_ho = evaluate_run_metrics(
+            sol_ho, geom, mode="cocurrent",
+            cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+        )
+        ho_sensitivity_records.append({
+            'ho_factor': float(hf),
+            'yield_net_COx': float(res_ho['yield_net_COx']),
+            'yield_khademi_eq28': float(res_ho['yield_khademi_eq28']),
+            'X_CH': float(res_ho['X_CH']),
+            'T_max_exo': float(res_ho['T_max_exo']),
+            'T_centerline_max': float(res_ho['T_centerline_max']),
+            'Q_wall_total_MW': float(res_ho['Q_wall_total_MW']),
+            'U_mean': float(np.mean(sol_ho.U_arr)),
+        })
+
+    # Export structured eta_sweep & ho_sensitivity list-of-dicts schema in JSON and plotting
     sens_results_export = dict(sens_results)
     sens_results_export['eta_sweep'] = eta_sweep_records
     sens_results_export['eta_sweep_series'] = sens_results['eta_sweep']
+    sens_results_export['ho_sensitivity'] = ho_sensitivity_records
 
     # ──────────────────────────────────────────────────────────────────────────
     # Step 7: Plotting & Master Artifact Export
