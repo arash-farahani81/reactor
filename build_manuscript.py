@@ -1,230 +1,497 @@
 """
-Template-driven zero-hardcode manuscript compiler.
-Reads simulation_results.json (SSOT) and manuscript_template.md to build
+Template-driven zero-hardcode manuscript compiler (Path A SSOT).
+Reads simulation_results.json (SSOT) and manuscript_template.md to compile
 TCR_Methanol_Cyclohexane_Manuscript.md with exact numerical consistency.
+
+Strict SSOT rules:
+- ZERO fabricated fallback dummy values for simulation outputs.
+- Missing required Path A keys raise an explicit KeyError instructing the user
+  to re-run `python run_all.py`.
+- Post-render gate asserts ZERO unresolved `{{ ... }}` placeholders and enforces
+  strict line-by-line LaTeX syntax integrity.
 """
 
 import json
 import re
-import os
+from typing import Any, Dict, Tuple
 
-def load_results(path="simulation_results.json"):
+
+def load_results(path: str = "simulation_results.json") -> Dict[str, Any]:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def build_replacement_dict(results):
-    c_base = results["conventional_baseline"]
-    c_opt = results["conventional_optimized"]
-    co = results["cocurrent_baseline"]
-    counter = results["countercurrent_baseline"]
-    knee = results["tcr_nsga2_optimum"]
-    duties = results["process_thermal_duties"]
-    bench = results["benchmark_khademi_2009"]
 
-    # Calculate shell exit pressures dynamically from metadata or decision variables
-    P_shell_in_base = float(results.get("metadata", {}).get("shell_inlet_pressure_bar", 2.5))
-    co_P_shell_out = max(P_shell_in_base - co["dP_shell"], 0.0)
-    counter_P_shell_out = max(P_shell_in_base - counter["dP_shell"], 0.0)
-    knee_P_endo_in = float(knee.get('decision_variables', {}).get('P_endo_0_bar', P_shell_in_base))
-    knee_P_shell_out = max(knee_P_endo_in - knee["dP_shell"], 0.0)
+def _require(mapping: Dict[str, Any], key: str, path_desc: str) -> Any:
+    """Strictly fetch a required simulation key; never substitute fabricated dummy defaults."""
+    if not isinstance(mapping, dict) or key not in mapping or mapping[key] is None:
+        raise KeyError(
+            f"Missing required Path A simulation key '{path_desc}' in simulation_results.json. "
+            "Please re-run `python run_all.py` to regenerate all Path A numerical outputs "
+            "before compiling the manuscript."
+        )
+    return mapping[key]
 
-    delta_cmr_yield = (c_opt["yield_khademi_eq28"] - c_base["yield_khademi_eq28"]) / c_base["yield_khademi_eq28"] * 100.0
 
-    # Radial hotspot centerline calculations (from 2D radial profile / Biot Bi_h = 3.45)
-    c_base_T_center = c_base.get("T_centerline_max", c_base["T_max_exo"] + 3.98)
-    c_opt_T_center = c_opt.get("T_centerline_max", c_opt["T_max_exo"] + 3.98)
-    co_T_center = co.get("T_centerline_max", co["T_max_exo"] + 3.98)
-    counter_T_center = counter.get("T_centerline_max", counter["T_max_exo"] + 3.98)
-    knee_T_center = knee.get("T_centerline_max", knee["T_max_exo"] + 3.98)
+def _calc_shell_outlet_mol_pct(run_dict: Dict[str, Any], run_name: str) -> Tuple[float, float, float]:
+    """Derive shell outlet (C6H12, C6H6, H2) mol% strictly from saved JSON outputs."""
+    if "y_H2_out_total" in run_dict and "y_CH_out" in run_dict and "y_B_out" in run_dict:
+        return (
+            float(run_dict["y_CH_out"]) * 100.0,
+            float(run_dict["y_B_out"]) * 100.0,
+            float(run_dict["y_H2_out_total"]) * 100.0,
+        )
+    # Exact stoichiometric closure for production shell feed y0 = [0.95 C6H12, 0.00 C6H6, 0.05 H2]
+    X_CH_pct = float(_require(run_dict, "X_CH", f"{run_name}.X_CH"))
+    x = X_CH_pct / 100.0
+    tot = 1.0 + 2.85 * x
+    y_ch = 0.95 * (1.0 - x) / tot * 100.0
+    y_b = 0.95 * x / tot * 100.0
+    y_h2 = float(run_dict["y_H2_out_total"]) * 100.0 if "y_H2_out_total" in run_dict else (0.05 + 2.85 * x) / tot * 100.0
+    return y_ch, y_b, y_h2
 
-    # Shell outlet mole fractions (accounting for 5 mol% H2 co-feed: y0 = [0.95, 0, 0.05, 0])
-    def calc_shell_outlet_mol_pct(run_dict):
-        if "y_H2_out_total" in run_dict and "y_CH_out" in run_dict and "y_B_out" in run_dict:
-            return run_dict["y_CH_out"] * 100.0, run_dict["y_B_out"] * 100.0, run_dict["y_H2_out_total"] * 100.0
-        X_CH_pct = run_dict.get("X_CH", 0.0)
-        x = X_CH_pct / 100.0
-        tot = 1.0 + 2.85 * x
-        return 0.95 * (1.0 - x) / tot * 100.0, 0.95 * x / tot * 100.0, (0.05 + 2.85 * x) / tot * 100.0
 
-    co_ych, co_yb, co_yh2 = calc_shell_outlet_mol_pct(co)
-    ct_ych, ct_yb, ct_yh2 = calc_shell_outlet_mol_pct(counter)
-    kn_ych, kn_yb, kn_yh2 = calc_shell_outlet_mol_pct(knee)
+def _format_hold_down_status(flag: bool) -> str:
+    return "Required (bed-lifting ratio $\\ge 0.85$)" if flag else "Not required (bed-lifting ratio $< 0.85$)"
 
-    # Downstream separation duties (ChatGPT §4.1 & Swarm Critic-14)
-    # Extractive distillation reboiler duty for Benzene-Cyclohexane separation (Q_sep ~ 18.0 MJ/kg_benzene)
-    m_dot_benzene_kg_s = knee["daily_benzene_ton"] * 1000.0 / 86400.0
-    q_extractive_distillation_MW = m_dot_benzene_kg_s * 18.0
 
-    # Hydrogen PSA purification work (W_PSA ~ 2.0 MJ/kg_H2)
-    m_dot_h2_kg_s = knee["daily_h2_ton"] * 1000.0 / 86400.0
-    w_psa_power_MW = m_dot_h2_kg_s * 2.0
+def _format_signed(val: float, decimals: int = 2) -> str:
+    sign = "+" if val >= 0.0 else ""
+    return f"{sign}{val:.{decimals}f}"
 
-    # Reformate partial condensation cooling duty (approx 9.80 MW)
-    q_reformate_condenser_MW = 9.80
 
-    # Total plant thermal duty (Feed preheating + extractive distillation reboiler)
-    total_plant_thermal_input_MW = duties["total_feed_preheat_duty_MW"] + q_extractive_distillation_MW
+def _build_eta_sweep_table(sens: Dict[str, Any]) -> str:
+    """Dynamically construct Markdown Table 5 from sensitivity_analysis.eta_sweep."""
+    eta_sweep = _require(sens, "eta_sweep", "sensitivity_analysis.eta_sweep")
 
-    # Benchmark comparisons (Khademi 2009 published vs simulated vs VBF)
-    bench_pub = bench.get("khademi_published", {})
-    bench_cmr = bench.get("simulation_cmr", {})
-    bench_tcr = bench.get("simulation_tcr_thermo", {})
-    bench_lit = bench.get("simulation_tcr_literal", {})
+    if isinstance(eta_sweep, list):
+        if len(eta_sweep) == 0:
+            raise KeyError(
+                "sensitivity_analysis.eta_sweep is empty in simulation_results.json. "
+                "Please re-run `python run_all.py`."
+            )
+        rows = []
+        for idx, rec in enumerate(eta_sweep):
+            eta_v = float(_require(rec, "eta", f"sensitivity_analysis.eta_sweep[{idx}].eta"))
+            x_co2 = float(_require(rec, "X_CO2", f"sensitivity_analysis.eta_sweep[{idx}].X_CO2"))
+            x_ch = float(_require(rec, "X_CH", f"sensitivity_analysis.eta_sweep[{idx}].X_CH"))
+            y_meoh = float(_require(rec, "yield_meoh", f"sensitivity_analysis.eta_sweep[{idx}].yield_meoh"))
+            t_max = float(_require(rec, "T_max_exo", f"sensitivity_analysis.eta_sweep[{idx}].T_max_exo"))
+            rows.append(
+                f"| ${eta_v:.2f}$ | ${x_co2:.2f}\\%$ | ${x_ch:.2f}\\%$ | ${y_meoh:.2f}\\%$ | ${t_max:.1f}\\text{{ K}}$ |"
+            )
+    else:
+        raise KeyError(
+            "sensitivity_analysis.eta_sweep must be a structured list of dicts "
+            "(generated by Path A run_all.py). Please re-run `python run_all.py`."
+        )
 
-    rep = {
-        "conventional_baseline.T_exo_0": "503.15",
-        "conventional_baseline.T_coolant": "503.15",
-        "conventional_baseline.F_exo_0": f"{c_base.get('F_exo_total_0', 0.640):.3f}",
-        "conventional_baseline.MeOH_rate_net_plant": f"{c_base['MeOH_rate_net_plant']:.2f}",
-        "conventional_baseline.daily_meoh_ton": f"{c_base['daily_meoh_ton']:.2f}",
-        "conventional_baseline.X_CO2": f"{c_base['X_CO2']:.2f}",
-        "conventional_baseline.X_COx": f"{c_base['X_COx']:.2f}",
-        "conventional_baseline.yield_khademi_eq28": f"{c_base['yield_khademi_eq28']:.2f}",
-        "conventional_baseline.T_max_exo": f"{c_base['T_max_exo']:.1f}",
+    header = [
+        "**Table 5.** Parametric sensitivity of co-current TCR performance to tube catalyst effectiveness factor $\\eta_{\\text{exo}}$ (`use_dynamic_thiele = False`, $F_{\\text{exo},0} = 0.640\\text{ mol/s}$).",
+        "",
+        "| Pellet Effectiveness $\\eta_{\\text{exo}}$ (-) | $\\text{CO}_2$ Conversion (%) | $\\text{C}_6\\text{H}_{12}$ Conversion (%) | Net MeOH Yield (%) | Peak Bulk Temp $T_{\\text{max,exo}}$ (K) |",
+        "| :---: | :---: | :---: | :---: | :---: |",
+    ]
+    return "\n".join(header + rows)
+
+
+def _build_h2_cofeed_table(sens: Dict[str, Any]) -> str:
+    """Dynamically construct Markdown Table 6 from sensitivity_analysis.h2_cofeed_comparison."""
+    h2_cmp = _require(sens, "h2_cofeed_comparison", "sensitivity_analysis.h2_cofeed_comparison")
+    pure = _require(h2_cmp, "pure_cyclohexane_yH2_0", "sensitivity_analysis.h2_cofeed_comparison.pure_cyclohexane_yH2_0")
+    cofeed = _require(h2_cmp, "cofeed_5pct_yH2_005", "sensitivity_analysis.h2_cofeed_comparison.cofeed_5pct_yH2_005")
+
+    lines = [
+        "**Table 6.** Effect of $5\\text{ mol}\\%$ $\\text{H}_2$ shell co-feed on co-current TCR conversion and thermal profile.",
+        "",
+        "| Shell Feed Specification | $\\text{C}_6\\text{H}_{12}$ Conversion (%) | MeOH Yield (%) | Peak Bulk Temp $T_{\\text{max,exo}}$ (K) |",
+        "| :--- | :---: | :---: | :---: |",
+        f"| **Pure Cyclohexane ($y_{{\\text{{H}}_2,0}} = 0.00$)** | ${float(_require(pure, 'X_CH', 'h2_cofeed.pure.X_CH')):.2f}\\%$ | ${float(_require(pure, 'yield_meoh', 'h2_cofeed.pure.yield_meoh')):.2f}\\%$ | ${float(_require(pure, 'T_max_exo', 'h2_cofeed.pure.T_max_exo')):.1f}\\text{{ K}}$ |",
+        f"| **Production Co-Feed ($95\\%\\text{{ C}}_6\\text{{H}}_{{12}} / 5\\%\\text{{ H}}_2$)** | ${float(_require(cofeed, 'X_CH', 'h2_cofeed.cofeed.X_CH')):.2f}\\%$ | ${float(_require(cofeed, 'yield_meoh', 'h2_cofeed.cofeed.yield_meoh')):.2f}\\%$ | ${float(_require(cofeed, 'T_max_exo', 'h2_cofeed.cofeed.T_max_exo')):.1f}\\text{{ K}}$ |",
+    ]
+    return "\n".join(lines)
+
+
+def build_replacement_dict(results: Dict[str, Any]) -> Dict[str, str]:
+    c_base = _require(results, "conventional_baseline", "conventional_baseline")
+    c_opt = _require(results, "conventional_optimized", "conventional_optimized")
+    co = _require(results, "cocurrent_baseline", "cocurrent_baseline")
+    counter = _require(results, "countercurrent_baseline", "countercurrent_baseline")
+    knee = _require(results, "tcr_nsga2_optimum", "tcr_nsga2_optimum")
+    duties = _require(results, "process_thermal_duties", "process_thermal_duties")
+    bench = _require(results, "benchmark_khademi_2009", "benchmark_khademi_2009")
+    sens = _require(results, "sensitivity_analysis", "sensitivity_analysis")
+
+    knee_vars = _require(knee, "decision_variables", "tcr_nsga2_optimum.decision_variables")
+
+    # Shell outlet pressures directly from simulation metrics
+    co_P_shell_out = float(_require(co, "P_shell_out", "cocurrent_baseline.P_shell_out"))
+    counter_P_shell_out = float(_require(counter, "P_shell_out", "countercurrent_baseline.P_shell_out"))
+    knee_P_endo_in = float(_require(knee_vars, "P_endo_0_bar", "tcr_nsga2_optimum.decision_variables.P_endo_0_bar"))
+    knee_P_shell_out = float(_require(knee, "P_shell_out", "tcr_nsga2_optimum.P_shell_out"))
+
+    # Unified dynamic k_er centerline temperatures (strictly from JSON, zero hardcoded offsets)
+    c_base_T_center = float(_require(c_base, "T_centerline_max", "conventional_baseline.T_centerline_max"))
+    c_opt_T_center = float(_require(c_opt, "T_centerline_max", "conventional_optimized.T_centerline_max"))
+    co_T_center = float(_require(co, "T_centerline_max", "cocurrent_baseline.T_centerline_max"))
+    counter_T_center = float(_require(counter, "T_centerline_max", "countercurrent_baseline.T_centerline_max"))
+    knee_T_center = float(_require(knee, "T_centerline_max", "tcr_nsga2_optimum.T_centerline_max"))
+
+    c_base_T_max = float(_require(c_base, "T_max_exo", "conventional_baseline.T_max_exo"))
+    c_opt_T_max = float(_require(c_opt, "T_max_exo", "conventional_optimized.T_max_exo"))
+    co_T_max = float(_require(co, "T_max_exo", "cocurrent_baseline.T_max_exo"))
+    counter_T_max = float(_require(counter, "T_max_exo", "countercurrent_baseline.T_max_exo"))
+    knee_T_max = float(_require(knee, "T_max_exo", "tcr_nsga2_optimum.T_max_exo"))
+
+    # Yields (both gross Eq. 28 and net COx)
+    c_base_y_eq28 = float(_require(c_base, "yield_khademi_eq28", "conventional_baseline.yield_khademi_eq28"))
+    c_base_y_net = float(_require(c_base, "yield_net_COx", "conventional_baseline.yield_net_COx"))
+    c_opt_y_eq28 = float(_require(c_opt, "yield_khademi_eq28", "conventional_optimized.yield_khademi_eq28"))
+    c_opt_y_net = float(_require(c_opt, "yield_net_COx", "conventional_optimized.yield_net_COx"))
+    co_y_eq28 = float(_require(co, "yield_khademi_eq28", "cocurrent_baseline.yield_khademi_eq28"))
+    co_y_net = float(_require(co, "yield_net_COx", "cocurrent_baseline.yield_net_COx"))
+    ct_y_eq28 = float(_require(counter, "yield_khademi_eq28", "countercurrent_baseline.yield_khademi_eq28"))
+    ct_y_net = float(_require(counter, "yield_net_COx", "countercurrent_baseline.yield_net_COx"))
+    knee_y_eq28 = float(_require(knee, "yield_khademi_eq28", "tcr_nsga2_optimum.yield_khademi_eq28"))
+    knee_y_net = float(_require(knee, "yield_net_COx", "tcr_nsga2_optimum.yield_net_COx"))
+
+    delta_cmr_yield_eq28 = (c_opt_y_eq28 - c_base_y_eq28) / max(c_base_y_eq28, 1e-12) * 100.0
+    delta_cmr_yield_net = (c_opt_y_net - c_base_y_net) / max(c_base_y_net, 1e-12) * 100.0
+    tcr_vs_cmr_opt_yield_net_delta_pp = knee_y_net - c_opt_y_net
+
+    # Shell outlet compositions
+    co_ych, co_yb, co_yh2 = _calc_shell_outlet_mol_pct(co, "cocurrent_baseline")
+    ct_ych, ct_yb, ct_yh2 = _calc_shell_outlet_mol_pct(counter, "countercurrent_baseline")
+    kn_ych, kn_yb, kn_yh2 = _calc_shell_outlet_mol_pct(knee, "tcr_nsga2_optimum")
+
+    # Battery-limit thermal, steam-credit, and separation duties (strictly from JSON)
+    c_base_steam_MW = float(_require(c_base, "cmr_steam_credit_MW", "conventional_baseline.cmr_steam_credit_MW"))
+    c_opt_steam_MW = float(_require(c_opt, "cmr_steam_credit_MW", "conventional_optimized.cmr_steam_credit_MW"))
+    c_opt_syngas_preheat_MW = float(_require(c_opt, "syngas_preheat_duty_MW", "conventional_optimized.syngas_preheat_duty_MW"))
+    c_opt_flash_MW = float(_require(c_opt, "Q_flash_condenser_MW", "conventional_optimized.Q_flash_condenser_MW"))
+
+    knee_syngas_preheat_MW = float(_require(knee, "syngas_preheat_duty_MW", "tcr_nsga2_optimum.syngas_preheat_duty_MW"))
+    knee_ch_preheat_MW = float(_require(knee, "cyclohexane_vaporization_and_preheat_duty_MW", "tcr_nsga2_optimum.cyclohexane_vaporization_and_preheat_duty_MW"))
+    knee_feed_preheat_MW = float(_require(knee, "total_feed_preheat_duty_MW", "tcr_nsga2_optimum.total_feed_preheat_duty_MW"))
+    knee_reboiler_MW = float(_require(knee, "Q_reboiler_sep_MW", "tcr_nsga2_optimum.Q_reboiler_sep_MW"))
+    knee_psa_MW = float(_require(knee, "W_psa_H2_MW", "tcr_nsga2_optimum.W_psa_H2_MW"))
+    knee_flash_shell_MW = float(_require(knee, "Q_flash_condenser_shell_MW", "tcr_nsga2_optimum.Q_flash_condenser_shell_MW"))
+    knee_flash_tube_MW = float(_require(knee, "Q_flash_condenser_tube_MW", "tcr_nsga2_optimum.Q_flash_condenser_tube_MW"))
+
+    knee_total_thermal_input_MW = knee_feed_preheat_MW + knee_reboiler_MW
+    cmr_opt_net_thermal_demand_MW = c_opt_syngas_preheat_MW - c_opt_steam_MW
+    tcr_vs_cmr_net_thermal_penalty_MW = knee_total_thermal_input_MW - cmr_opt_net_thermal_demand_MW
+
+    # Khademi (2009) benchmark & typo proof
+    bench_pub = _require(bench, "khademi_published", "benchmark_khademi_2009.khademi_published")
+    bench_cmr = _require(bench, "simulation_cmr", "benchmark_khademi_2009.simulation_cmr")
+    bench_tcr = _require(bench, "simulation_tcr_thermo", "benchmark_khademi_2009.simulation_tcr_thermo")
+    bench_lit = _require(bench, "simulation_tcr_literal", "benchmark_khademi_2009.simulation_tcr_literal")
+    typo = _require(bench, "table4_typo_proof", "benchmark_khademi_2009.table4_typo_proof")
+    thiele = _require(bench, "thiele_analysis", "benchmark_khademi_2009.thiele_analysis")
+
+    apparent_dH_R = float(_require(typo, "apparent_delta_H_over_R", "benchmark_khademi_2009.table4_typo_proof.apparent_delta_H_over_R"))
+    true_dH_R = float(_require(typo, "true_delta_H_over_R", "benchmark_khademi_2009.table4_typo_proof.true_delta_H_over_R"))
+    typo_ratio = abs(true_dH_R / apparent_dH_R)
+
+    # OTP & Real-Gas PR-EOS Audit
+    otp_audit = _require(bench, "otp_and_eos_audit", "benchmark_khademi_2009.otp_and_eos_audit")
+    otp_035 = _require(otp_audit, "eta_0.35", "benchmark_khademi_2009.otp_and_eos_audit.eta_0.35")
+    otp_100 = _require(otp_audit, "eta_1.0", "benchmark_khademi_2009.otp_and_eos_audit.eta_1.0")
+    eos_cmp = _require(otp_audit, "eos_comparison", "benchmark_khademi_2009.otp_and_eos_audit.eos_comparison")
+
+    otp_035_net = float(_require(otp_035, "otp_yield_net", "otp_and_eos_audit.eta_0.35.otp_yield_net"))
+    otp_035_eq28 = float(_require(otp_035, "otp_yield_eq28", "otp_and_eos_audit.eta_0.35.otp_yield_eq28"))
+    iso_035_net = float(_require(otp_035, "best_isothermal_yield_net", "otp_and_eos_audit.eta_0.35.best_isothermal_yield_net"))
+    iso_035_eq28 = float(_require(otp_035, "best_isothermal_yield_eq28", "otp_and_eos_audit.eta_0.35.best_isothermal_yield_eq28"))
+    otp_035_nodes = _require(otp_035, "otp_T_nodes", "otp_and_eos_audit.eta_0.35.otp_T_nodes")
+
+    otp_100_net = float(_require(otp_100, "otp_yield_net", "otp_and_eos_audit.eta_1.0.otp_yield_net"))
+    otp_100_eq28 = float(_require(otp_100, "otp_yield_eq28", "otp_and_eos_audit.eta_1.0.otp_yield_eq28"))
+    iso_100_net = float(_require(otp_100, "best_isothermal_yield_net", "otp_and_eos_audit.eta_1.0.best_isothermal_yield_net"))
+    iso_100_eq28 = float(_require(otp_100, "best_isothermal_yield_eq28", "otp_and_eos_audit.eta_1.0.best_isothermal_yield_eq28"))
+    otp_100_nodes = _require(otp_100, "otp_T_nodes", "otp_and_eos_audit.eta_1.0.otp_T_nodes")
+
+    cmr_opt_vs_otp_gap = otp_035_net - c_opt_y_net
+    tcr_knee_vs_otp_gap = otp_035_net - knee_y_net
+    cmr_opt_vs_iso_gap = iso_035_net - c_opt_y_net
+
+    eos_diff_pp = float(_require(eos_cmp, "diff_pct_points", "otp_and_eos_audit.eos_comparison.diff_pct_points"))
+
+    # Hydraulic bed-lifting flags
+    co_hold_down = bool(_require(co, "requires_hold_down_grid", "cocurrent_baseline.requires_hold_down_grid"))
+    ct_hold_down = bool(_require(counter, "requires_hold_down_grid", "countercurrent_baseline.requires_hold_down_grid"))
+    knee_hold_down = bool(_require(knee, "requires_hold_down_grid", "tcr_nsga2_optimum.requires_hold_down_grid"))
+
+    # Fixed equal-throughput feed rate (locked at design F_exo_0)
+    F_exo_locked = float(_require(knee_vars, "F_exo_mol_s", "tcr_nsga2_optimum.decision_variables.F_exo_mol_s"))
+
+    rep: Dict[str, str] = {
+        # --- Conventional Baseline ---
+        "conventional_baseline.T_exo_0": f"{float(c_base.get('T_exo_0', 503.15)):.2f}",
+        "conventional_baseline.T_coolant": f"{float(c_base.get('T_coolant', 503.15)):.2f}",
+        "conventional_baseline.F_exo_0": f"{float(c_base.get('F_exo_total_0', F_exo_locked)):.3f}",
+        "conventional_baseline.MeOH_rate_net_plant": f"{float(_require(c_base, 'MeOH_rate_net_plant', 'conventional_baseline.MeOH_rate_net_plant')):.2f}",
+        "conventional_baseline.daily_meoh_ton": f"{float(_require(c_base, 'daily_meoh_ton', 'conventional_baseline.daily_meoh_ton')):.2f}",
+        "conventional_baseline.X_CO2": f"{float(_require(c_base, 'X_CO2', 'conventional_baseline.X_CO2')):.2f}",
+        "conventional_baseline.X_COx": f"{float(_require(c_base, 'X_COx', 'conventional_baseline.X_COx')):.2f}",
+        "conventional_baseline.yield_khademi_eq28": f"{c_base_y_eq28:.2f}",
+        "conventional_baseline.yield_net_COx": f"{c_base_y_net:.2f}",
+        "conventional_baseline.T_max_exo": f"{c_base_T_max:.1f}",
         "conventional_baseline.T_centerline_max": f"{c_base_T_center:.1f}",
-        "conventional_baseline.dP_tube": f"{c_base['dP_tube']:.2f}",
-        "conventional_baseline.Q_wall_total_MW": f"{c_base['Q_wall_total_MW']:.2f}",
+        "conventional_baseline.k_er_mean": f"{float(_require(c_base, 'k_er_mean', 'conventional_baseline.k_er_mean')):.2f}",
+        "conventional_baseline.dP_tube": f"{float(_require(c_base, 'dP_tube', 'conventional_baseline.dP_tube')):.2f}",
+        "conventional_baseline.Q_wall_total_MW": f"{float(_require(c_base, 'Q_wall_total_MW', 'conventional_baseline.Q_wall_total_MW')):.2f}",
+        "conventional_baseline.cmr_steam_credit_MW": f"{c_base_steam_MW:.2f}",
+        "conventional_baseline.enthalpy_err_tube_pct": f"{float(_require(c_base, 'enthalpy_err_tube_pct', 'conventional_baseline.enthalpy_err_tube_pct')):.4f}",
 
-        "conventional_optimized.T_exo_0": f"{c_opt['T_exo_0']:.1f}",
-        "conventional_optimized.T_coolant": f"{c_opt['T_coolant']:.1f}",
-        "conventional_optimized.F_exo_0": f"{c_opt.get('F_exo_total_0', 0.640):.3f}",
-        "conventional_optimized.MeOH_rate_net_plant": f"{c_opt['MeOH_rate_net_plant']:.2f}",
-        "conventional_optimized.daily_meoh_ton": f"{c_opt['daily_meoh_ton']:.2f}",
-        "conventional_optimized.X_CO2": f"{c_opt['X_CO2']:.2f}",
-        "conventional_optimized.X_COx": f"{c_opt['X_COx']:.2f}",
-        "conventional_optimized.yield_khademi_eq28": f"{c_opt['yield_khademi_eq28']:.2f}",
-        "conventional_optimized.T_max_exo": f"{c_opt['T_max_exo']:.1f}",
+        # --- Conventional Optimized ---
+        "conventional_optimized.T_exo_0": f"{float(_require(c_opt, 'T_exo_0', 'conventional_optimized.T_exo_0')):.1f}",
+        "conventional_optimized.T_coolant": f"{float(_require(c_opt, 'T_coolant', 'conventional_optimized.T_coolant')):.1f}",
+        "conventional_optimized.F_exo_0": f"{float(c_opt.get('F_exo_total_0', F_exo_locked)):.3f}",
+        "conventional_optimized.MeOH_rate_net_plant": f"{float(_require(c_opt, 'MeOH_rate_net_plant', 'conventional_optimized.MeOH_rate_net_plant')):.2f}",
+        "conventional_optimized.daily_meoh_ton": f"{float(_require(c_opt, 'daily_meoh_ton', 'conventional_optimized.daily_meoh_ton')):.2f}",
+        "conventional_optimized.X_CO2": f"{float(_require(c_opt, 'X_CO2', 'conventional_optimized.X_CO2')):.2f}",
+        "conventional_optimized.X_COx": f"{float(_require(c_opt, 'X_COx', 'conventional_optimized.X_COx')):.2f}",
+        "conventional_optimized.yield_khademi_eq28": f"{c_opt_y_eq28:.2f}",
+        "conventional_optimized.yield_net_COx": f"{c_opt_y_net:.2f}",
+        "conventional_optimized.T_max_exo": f"{c_opt_T_max:.1f}",
         "conventional_optimized.T_centerline_max": f"{c_opt_T_center:.1f}",
-        "conventional_optimized.dP_tube": f"{c_opt['dP_tube']:.2f}",
-        "conventional_optimized.Q_wall_total_MW": f"{c_opt['Q_wall_total_MW']:.2f}",
+        "conventional_optimized.k_er_mean": f"{float(_require(c_opt, 'k_er_mean', 'conventional_optimized.k_er_mean')):.2f}",
+        "conventional_optimized.dP_tube": f"{float(_require(c_opt, 'dP_tube', 'conventional_optimized.dP_tube')):.2f}",
+        "conventional_optimized.Q_wall_total_MW": f"{float(_require(c_opt, 'Q_wall_total_MW', 'conventional_optimized.Q_wall_total_MW')):.2f}",
+        "conventional_optimized.cmr_steam_credit_MW": f"{c_opt_steam_MW:.2f}",
+        "conventional_optimized.syngas_preheat_duty_MW": f"{c_opt_syngas_preheat_MW:.2f}",
+        "conventional_optimized.Q_flash_condenser_MW": f"{c_opt_flash_MW:.2f}",
+        "conventional_optimized.enthalpy_err_tube_pct": f"{float(_require(c_opt, 'enthalpy_err_tube_pct', 'conventional_optimized.enthalpy_err_tube_pct')):.4f}",
 
-        "cocurrent_baseline.F_exo_0": f"{co.get('F_exo_total_0', 0.640):.3f}",
-        "cocurrent_baseline.T_max_exo": f"{co['T_max_exo']:.1f}",
+        # --- TCR Co-Current Baseline ---
+        "cocurrent_baseline.F_exo_0": f"{float(co.get('F_exo_total_0', F_exo_locked)):.3f}",
+        "cocurrent_baseline.T_max_exo": f"{co_T_max:.1f}",
         "cocurrent_baseline.T_centerline_max": f"{co_T_center:.1f}",
-        "cocurrent_baseline.yield_khademi_eq28": f"{co['yield_khademi_eq28']:.2f}",
-        "cocurrent_baseline.daily_meoh_ton": f"{co['daily_meoh_ton']:.2f}",
-        "cocurrent_baseline.MeOH_rate_net_plant": f"{co['MeOH_rate_net_plant']:.2f}",
-        "cocurrent_baseline.X_CO2": f"{co['X_CO2']:.2f}",
-        "cocurrent_baseline.X_COx": f"{co['X_COx']:.2f}",
-        "cocurrent_baseline.X_CH": f"{co['X_CH']:.2f}",
-        "cocurrent_baseline.Benzene_rate_plant": f"{co['Benzene_rate_plant']:.2f}",
-        "cocurrent_baseline.daily_benzene_ton": f"{co['daily_benzene_ton']:.2f}",
-        "cocurrent_baseline.H2_rate_plant": f"{co['H2_rate_plant']:.2f}",
-        "cocurrent_baseline.daily_h2_ton": f"{co['daily_h2_ton']:.2f}",
-        "cocurrent_baseline.dP_tube": f"{co['dP_tube']:.2f}",
-        "cocurrent_baseline.dP_shell": f"{co['dP_shell']:.2f}",
+        "cocurrent_baseline.k_er_mean": f"{float(_require(co, 'k_er_mean', 'cocurrent_baseline.k_er_mean')):.2f}",
+        "cocurrent_baseline.yield_khademi_eq28": f"{co_y_eq28:.2f}",
+        "cocurrent_baseline.yield_net_COx": f"{co_y_net:.2f}",
+        "cocurrent_baseline.daily_meoh_ton": f"{float(_require(co, 'daily_meoh_ton', 'cocurrent_baseline.daily_meoh_ton')):.2f}",
+        "cocurrent_baseline.MeOH_rate_net_plant": f"{float(_require(co, 'MeOH_rate_net_plant', 'cocurrent_baseline.MeOH_rate_net_plant')):.2f}",
+        "cocurrent_baseline.X_CO2": f"{float(_require(co, 'X_CO2', 'cocurrent_baseline.X_CO2')):.2f}",
+        "cocurrent_baseline.X_COx": f"{float(_require(co, 'X_COx', 'cocurrent_baseline.X_COx')):.2f}",
+        "cocurrent_baseline.X_CH": f"{float(_require(co, 'X_CH', 'cocurrent_baseline.X_CH')):.2f}",
+        "cocurrent_baseline.daily_benzene_ton": f"{float(_require(co, 'daily_benzene_ton', 'cocurrent_baseline.daily_benzene_ton')):.2f}",
+        "cocurrent_baseline.daily_h2_ton": f"{float(_require(co, 'daily_h2_ton', 'cocurrent_baseline.daily_h2_ton')):.2f}",
+        "cocurrent_baseline.dP_tube": f"{float(_require(co, 'dP_tube', 'cocurrent_baseline.dP_tube')):.2f}",
+        "cocurrent_baseline.dP_shell": f"{float(_require(co, 'dP_shell', 'cocurrent_baseline.dP_shell')):.2f}",
         "cocurrent_baseline.P_shell_out": f"{co_P_shell_out:.2f}",
+        "cocurrent_baseline.bed_lifting_ratio": f"{float(_require(co, 'bed_lifting_ratio', 'cocurrent_baseline.bed_lifting_ratio')):.2f}",
+        "cocurrent_baseline.Q_wall_total_MW": f"{float(_require(co, 'Q_wall_total_MW', 'cocurrent_baseline.Q_wall_total_MW')):.2f}",
+        "cocurrent_baseline.enthalpy_err_tube_pct": f"{float(_require(co, 'enthalpy_err_tube_pct', 'cocurrent_baseline.enthalpy_err_tube_pct')):.4f}",
         "cocurrent_baseline.outlet_y_CH": f"{co_ych:.2f}",
         "cocurrent_baseline.outlet_y_B": f"{co_yb:.2f}",
         "cocurrent_baseline.outlet_y_H2": f"{co_yh2:.2f}",
 
-        "countercurrent_baseline.F_exo_0": f"{counter.get('F_exo_total_0', 0.640):.3f}",
-        "countercurrent_baseline.T_max_exo": f"{counter['T_max_exo']:.1f}",
+        # --- TCR Counter-Current Baseline ---
+        "countercurrent_baseline.F_exo_0": f"{float(counter.get('F_exo_total_0', F_exo_locked)):.3f}",
+        "countercurrent_baseline.T_max_exo": f"{counter_T_max:.1f}",
         "countercurrent_baseline.T_centerline_max": f"{counter_T_center:.1f}",
-        "countercurrent_baseline.yield_khademi_eq28": f"{counter['yield_khademi_eq28']:.2f}",
-        "countercurrent_baseline.daily_meoh_ton": f"{counter['daily_meoh_ton']:.2f}",
-        "countercurrent_baseline.MeOH_rate_net_plant": f"{counter['MeOH_rate_net_plant']:.2f}",
-        "countercurrent_baseline.X_CO2": f"{counter['X_CO2']:.2f}",
-        "countercurrent_baseline.X_COx": f"{counter['X_COx']:.2f}",
-        "countercurrent_baseline.X_CH": f"{counter['X_CH']:.2f}",
-        "countercurrent_baseline.Benzene_rate_plant": f"{counter['Benzene_rate_plant']:.2f}",
-        "countercurrent_baseline.daily_benzene_ton": f"{counter['daily_benzene_ton']:.2f}",
-        "countercurrent_baseline.H2_rate_plant": f"{counter['H2_rate_plant']:.2f}",
-        "countercurrent_baseline.daily_h2_ton": f"{counter['daily_h2_ton']:.2f}",
-        "countercurrent_baseline.dP_tube": f"{counter['dP_tube']:.2f}",
-        "countercurrent_baseline.dP_shell": f"{counter['dP_shell']:.2f}",
+        "countercurrent_baseline.k_er_mean": f"{float(_require(counter, 'k_er_mean', 'countercurrent_baseline.k_er_mean')):.2f}",
+        "countercurrent_baseline.yield_khademi_eq28": f"{ct_y_eq28:.2f}",
+        "countercurrent_baseline.yield_net_COx": f"{ct_y_net:.2f}",
+        "countercurrent_baseline.daily_meoh_ton": f"{float(_require(counter, 'daily_meoh_ton', 'countercurrent_baseline.daily_meoh_ton')):.2f}",
+        "countercurrent_baseline.MeOH_rate_net_plant": f"{float(_require(counter, 'MeOH_rate_net_plant', 'countercurrent_baseline.MeOH_rate_net_plant')):.2f}",
+        "countercurrent_baseline.X_CO2": f"{float(_require(counter, 'X_CO2', 'countercurrent_baseline.X_CO2')):.2f}",
+        "countercurrent_baseline.X_COx": f"{float(_require(counter, 'X_COx', 'countercurrent_baseline.X_COx')):.2f}",
+        "countercurrent_baseline.X_CH": f"{float(_require(counter, 'X_CH', 'countercurrent_baseline.X_CH')):.2f}",
+        "countercurrent_baseline.daily_benzene_ton": f"{float(_require(counter, 'daily_benzene_ton', 'countercurrent_baseline.daily_benzene_ton')):.2f}",
+        "countercurrent_baseline.daily_h2_ton": f"{float(_require(counter, 'daily_h2_ton', 'countercurrent_baseline.daily_h2_ton')):.2f}",
+        "countercurrent_baseline.dP_tube": f"{float(_require(counter, 'dP_tube', 'countercurrent_baseline.dP_tube')):.2f}",
+        "countercurrent_baseline.dP_shell": f"{float(_require(counter, 'dP_shell', 'countercurrent_baseline.dP_shell')):.2f}",
         "countercurrent_baseline.P_shell_out": f"{counter_P_shell_out:.2f}",
+        "countercurrent_baseline.bed_lifting_ratio": f"{float(_require(counter, 'bed_lifting_ratio', 'countercurrent_baseline.bed_lifting_ratio')):.2f}",
+        "countercurrent_baseline.Q_wall_total_MW": f"{float(_require(counter, 'Q_wall_total_MW', 'countercurrent_baseline.Q_wall_total_MW')):.2f}",
+        "countercurrent_baseline.enthalpy_err_tube_pct": f"{float(_require(counter, 'enthalpy_err_tube_pct', 'countercurrent_baseline.enthalpy_err_tube_pct')):.4f}",
         "countercurrent_baseline.outlet_y_CH": f"{ct_ych:.2f}",
         "countercurrent_baseline.outlet_y_B": f"{ct_yb:.2f}",
         "countercurrent_baseline.outlet_y_H2": f"{ct_yh2:.2f}",
 
-        "tcr_nsga2_optimum.T_exo_0": f"{knee['decision_variables']['T_exo_0_K']:.1f}",
-        "tcr_nsga2_optimum.T_endo_0": f"{knee['decision_variables']['T_endo_0_K']:.1f}",
+        # --- TCR NSGA-II Knee Point ---
+        "tcr_nsga2_optimum.T_exo_0": f"{float(_require(knee_vars, 'T_exo_0_K', 'tcr_nsga2_optimum.decision_variables.T_exo_0_K')):.1f}",
+        "tcr_nsga2_optimum.T_endo_0": f"{float(_require(knee_vars, 'T_endo_0_K', 'tcr_nsga2_optimum.decision_variables.T_endo_0_K')):.1f}",
         "tcr_nsga2_optimum.P_endo_0": f"{knee_P_endo_in:.2f}",
-        "tcr_nsga2_optimum.F_exo_0": f"{knee.get('decision_variables', {}).get('F_exo_mol_s', 0.640):.3f}",
-        "tcr_nsga2_optimum.F_endo_0": f"{knee['decision_variables']['F_endo_mol_s']:.4f}",
-        "tcr_nsga2_optimum.T_max_exo": f"{knee['T_max_exo']:.1f}",
+        "tcr_nsga2_optimum.F_exo_0": f"{F_exo_locked:.3f}",
+        "tcr_nsga2_optimum.F_endo_0": f"{float(_require(knee_vars, 'F_endo_mol_s', 'tcr_nsga2_optimum.decision_variables.F_endo_mol_s')):.4f}",
+        "tcr_nsga2_optimum.T_max_exo": f"{knee_T_max:.1f}",
         "tcr_nsga2_optimum.T_centerline_max": f"{knee_T_center:.1f}",
-        "tcr_nsga2_optimum.yield_khademi_eq28": f"{knee['yield_khademi_eq28']:.2f}",
-        "tcr_nsga2_optimum.daily_meoh_ton": f"{knee['daily_meoh_ton']:.2f}",
-        "tcr_nsga2_optimum.MeOH_rate_net_plant": f"{knee['MeOH_rate_net_plant']:.2f}",
-        "tcr_nsga2_optimum.X_CO2": f"{knee['X_CO2']:.2f}",
-        "tcr_nsga2_optimum.X_COx": f"{knee['X_COx']:.2f}",
-        "tcr_nsga2_optimum.X_CH": f"{knee['X_CH']:.2f}",
-        "tcr_nsga2_optimum.Benzene_rate_plant": f"{knee['Benzene_rate_plant']:.2f}",
-        "tcr_nsga2_optimum.daily_benzene_ton": f"{knee['daily_benzene_ton']:.2f}",
-        "tcr_nsga2_optimum.H2_rate_plant": f"{knee['H2_rate_plant']:.2f}",
-        "tcr_nsga2_optimum.daily_h2_ton": f"{knee['daily_h2_ton']:.2f}",
-        "tcr_nsga2_optimum.dP_tube": f"{knee['dP_tube']:.2f}",
-        "tcr_nsga2_optimum.dP_shell": f"{knee['dP_shell']:.2f}",
+        "tcr_nsga2_optimum.k_er_mean": f"{float(_require(knee, 'k_er_mean', 'tcr_nsga2_optimum.k_er_mean')):.2f}",
+        "tcr_nsga2_optimum.yield_khademi_eq28": f"{knee_y_eq28:.2f}",
+        "tcr_nsga2_optimum.yield_net_COx": f"{knee_y_net:.2f}",
+        "tcr_nsga2_optimum.daily_meoh_ton": f"{float(_require(knee, 'daily_meoh_ton', 'tcr_nsga2_optimum.daily_meoh_ton')):.2f}",
+        "tcr_nsga2_optimum.MeOH_rate_net_plant": f"{float(_require(knee, 'MeOH_rate_net_plant', 'tcr_nsga2_optimum.MeOH_rate_net_plant')):.2f}",
+        "tcr_nsga2_optimum.X_CO2": f"{float(_require(knee, 'X_CO2', 'tcr_nsga2_optimum.X_CO2')):.2f}",
+        "tcr_nsga2_optimum.X_COx": f"{float(_require(knee, 'X_COx', 'tcr_nsga2_optimum.X_COx')):.2f}",
+        "tcr_nsga2_optimum.X_CH": f"{float(_require(knee, 'X_CH', 'tcr_nsga2_optimum.X_CH')):.2f}",
+        "tcr_nsga2_optimum.daily_benzene_ton": f"{float(_require(knee, 'daily_benzene_ton', 'tcr_nsga2_optimum.daily_benzene_ton')):.2f}",
+        "tcr_nsga2_optimum.daily_h2_ton": f"{float(_require(knee, 'daily_h2_ton', 'tcr_nsga2_optimum.daily_h2_ton')):.2f}",
+        "tcr_nsga2_optimum.dP_tube": f"{float(_require(knee, 'dP_tube', 'tcr_nsga2_optimum.dP_tube')):.2f}",
+        "tcr_nsga2_optimum.dP_shell": f"{float(_require(knee, 'dP_shell', 'tcr_nsga2_optimum.dP_shell')):.2f}",
         "tcr_nsga2_optimum.P_shell_out": f"{knee_P_shell_out:.2f}",
+        "tcr_nsga2_optimum.bed_weight_bar": f"{float(_require(knee, 'bed_weight_bar', 'tcr_nsga2_optimum.bed_weight_bar')):.3f}",
+        "tcr_nsga2_optimum.bed_lifting_ratio": f"{float(_require(knee, 'bed_lifting_ratio', 'tcr_nsga2_optimum.bed_lifting_ratio')):.2f}",
+        "tcr_nsga2_optimum.Q_wall_total_MW": f"{float(_require(knee, 'Q_wall_total_MW', 'tcr_nsga2_optimum.Q_wall_total_MW')):.2f}",
+        "tcr_nsga2_optimum.syngas_preheat_duty_MW": f"{knee_syngas_preheat_MW:.2f}",
+        "tcr_nsga2_optimum.cyclohexane_vaporization_and_preheat_duty_MW": f"{knee_ch_preheat_MW:.2f}",
+        "tcr_nsga2_optimum.total_feed_preheat_duty_MW": f"{knee_feed_preheat_MW:.2f}",
+        "tcr_nsga2_optimum.Q_reboiler_sep_MW": f"{knee_reboiler_MW:.2f}",
+        "tcr_nsga2_optimum.W_psa_H2_MW": f"{knee_psa_MW:.2f}",
+        "tcr_nsga2_optimum.Q_flash_condenser_shell_MW": f"{knee_flash_shell_MW:.2f}",
+        "tcr_nsga2_optimum.Q_flash_condenser_tube_MW": f"{knee_flash_tube_MW:.2f}",
+        "tcr_nsga2_optimum.total_plant_thermal_input_MW": f"{knee_total_thermal_input_MW:.2f}",
+        "tcr_nsga2_optimum.enthalpy_err_tube_pct": f"{float(_require(knee, 'enthalpy_err_tube_pct', 'tcr_nsga2_optimum.enthalpy_err_tube_pct')):.4f}",
+        "tcr_nsga2_optimum.hoop_stress_MPa": f"{float(_require(knee, 'hoop_stress_MPa', 'tcr_nsga2_optimum.hoop_stress_MPa')):.1f}",
+        "tcr_nsga2_optimum.asme_safety_factor": f"{float(_require(knee, 'asme_safety_factor', 'tcr_nsga2_optimum.asme_safety_factor')):.2f}",
         "tcr_nsga2_optimum.outlet_y_CH": f"{kn_ych:.2f}",
         "tcr_nsga2_optimum.outlet_y_B": f"{kn_yb:.2f}",
         "tcr_nsga2_optimum.outlet_y_H2": f"{kn_yh2:.2f}",
 
-        "delta_cmr_yield_pct": f"{delta_cmr_yield:.1f}",
+        # --- Process Thermal Duties (Baseline TCR) ---
+        "process_thermal_duties.total_feed_preheat_duty_MW": f"{float(_require(duties, 'total_feed_preheat_duty_MW', 'process_thermal_duties.total_feed_preheat_duty_MW')):.2f}",
 
-        "process_thermal_duties.syngas_preheat_duty_MW": f"{duties['syngas_preheat_duty_MW']:.2f}",
-        "process_thermal_duties.cyclohexane_vaporization_and_preheat_duty_MW": f"{duties['cyclohexane_vaporization_and_preheat_duty_MW']:.2f}",
-        "process_thermal_duties.total_feed_preheat_duty_MW": f"{duties['total_feed_preheat_duty_MW']:.2f}",
-        "process_thermal_duties.reaction_zone_external_cooling_utility_kW": f"{duties['reaction_zone_external_cooling_utility_kW']:.1f}",
+        # --- Derived Comparisons & Diagnostics ---
+        "delta_cmr_yield_eq28_pct": f"{delta_cmr_yield_eq28:.1f}",
+        "delta_cmr_yield_net_pct": f"{delta_cmr_yield_net:.1f}",
+        "tcr_vs_cmr_opt_yield_net_delta_pp": _format_signed(tcr_vs_cmr_opt_yield_net_delta_pp, 2),
+        "cmr_opt_vs_otp_eta035_gap_pp": f"{cmr_opt_vs_otp_gap:.2f}",
+        "tcr_knee_vs_otp_eta035_gap_pp": f"{tcr_knee_vs_otp_gap:.2f}",
+        "cmr_opt_vs_iso_eta035_gap_pp": f"{cmr_opt_vs_iso_gap:.2f}",
+        "tcr_knee_unconverted_ch_pct": f"{100.0 - float(_require(knee, 'X_CH', 'tcr_nsga2_optimum.X_CH')):.2f}",
+        "tcr_knee_delta_T_radial_K": f"{(knee_T_center - knee_T_max):.2f}",
+        "cmr_opt_delta_T_radial_K": f"{(c_opt_T_center - c_opt_T_max):.2f}",
+        "tcr_knee_hold_down_status": _format_hold_down_status(knee_hold_down),
+        "co_hold_down_status": _format_hold_down_status(co_hold_down),
+        "counter_hold_down_status": _format_hold_down_status(ct_hold_down),
+        "cmr_opt_net_thermal_demand_MW": f"{cmr_opt_net_thermal_demand_MW:.2f}",
+        "tcr_vs_cmr_net_thermal_penalty_MW": _format_signed(tcr_vs_cmr_net_thermal_penalty_MW, 2),
 
-        "separation_duties.extractive_distillation_duty_MW": f"{q_extractive_distillation_MW:.2f}",
-        "separation_duties.psa_power_MW": f"{w_psa_power_MW:.2f}",
-        "separation_duties.reformate_condenser_duty_MW": f"{q_reformate_condenser_MW:.2f}",
-        "separation_duties.total_plant_thermal_duty_MW": f"{total_plant_thermal_input_MW:.2f}",
+        # --- Khademi et al. (2009) Benchmark & Typo Proof ---
+        "benchmark.khademi_published.cmr_yield": f"{float(_require(bench_pub, 'cmr_yield_pct', 'benchmark_khademi_2009.khademi_published.cmr_yield_pct')):.2f}",
+        "benchmark.khademi_published.tcr_yield": f"{float(_require(bench_pub, 'tcr_yield_pct', 'benchmark_khademi_2009.khademi_published.tcr_yield_pct')):.2f}",
+        "benchmark.khademi_published.relative_improvement": f"{float(_require(bench_pub, 'relative_improvement_pct', 'benchmark_khademi_2009.khademi_published.relative_improvement_pct')):.2f}",
+        "benchmark.khademi_published.X_CH": f"{float(_require(bench_pub, 'X_CH_pct', 'benchmark_khademi_2009.khademi_published.X_CH_pct')):.2f}",
+        "benchmark.khademi_published.T_max": f"{float(_require(bench_pub, 'T_max_K', 'benchmark_khademi_2009.khademi_published.T_max_K')):.1f}",
 
-        "benchmark.khademi_published.cmr_yield": f"{bench_pub.get('cmr_yield_pct', 38.83):.2f}",
-        "benchmark.khademi_published.tcr_yield": f"{bench_pub.get('tcr_yield_pct', 40.02):.2f}",
-        "benchmark.khademi_published.X_CH": f"{bench_pub.get('X_CH_pct', 100.0):.2f}",
-        "benchmark.khademi_published.T_max": f"{bench_pub.get('T_max_K', 531.0):.1f}",
-        "benchmark.simulation_cmr.yield": f"{bench_cmr.get('yield_pct', 43.55):.2f}",
-        "benchmark.simulation_cmr.X_CO2": f"{bench_cmr.get('X_CO2_pct', 28.58):.2f}",
-        "benchmark.simulation_cmr.T_max": f"{bench_cmr.get('T_max_K', 567.5):.1f}",
-        "benchmark.simulation_tcr.yield": f"{bench_tcr.get('yield_pct', 37.62):.2f}",
-        "benchmark.simulation_tcr.X_CO2": f"{bench_tcr.get('X_CO2_pct', 25.72):.2f}",
-        "benchmark.simulation_tcr.X_CH": f"{bench_tcr.get('X_CH_pct', 99.92):.2f}",
-        "benchmark.simulation_tcr.T_max": f"{bench_tcr.get('T_max_K', 567.7):.1f}",
-        "benchmark.simulation_tcr_literal.yield": f"{bench_lit.get('yield_pct', 0.0):.2f}",
-        "benchmark.simulation_tcr_literal.X_CO2": f"{bench_lit.get('X_CO2_pct', 0.0):.2f}",
-        "benchmark.simulation_tcr_literal.X_CH": f"{bench_lit.get('X_CH_pct', 0.0):.2f}",
-        "benchmark.simulation_tcr_literal.T_max": f"{bench_lit.get('T_max_K', 0.0):.1f}",
+        "benchmark.simulation_cmr.yield_eq28": f"{float(_require(bench_cmr, 'yield_pct', 'benchmark_khademi_2009.simulation_cmr.yield_pct')):.2f}",
+        "benchmark.simulation_cmr.yield_net": f"{float(_require(bench_cmr, 'yield_net_pct', 'benchmark_khademi_2009.simulation_cmr.yield_net_pct')):.2f}",
+        "benchmark.simulation_cmr.X_CO2": f"{float(_require(bench_cmr, 'X_CO2_pct', 'benchmark_khademi_2009.simulation_cmr.X_CO2_pct')):.2f}",
+        "benchmark.simulation_cmr.T_max": f"{float(_require(bench_cmr, 'T_max_K', 'benchmark_khademi_2009.simulation_cmr.T_max_K')):.1f}",
+
+        "benchmark.simulation_tcr_thermo.yield_eq28": f"{float(_require(bench_tcr, 'yield_pct', 'benchmark_khademi_2009.simulation_tcr_thermo.yield_pct')):.2f}",
+        "benchmark.simulation_tcr_thermo.yield_net": f"{float(_require(bench_tcr, 'yield_net_pct', 'benchmark_khademi_2009.simulation_tcr_thermo.yield_net_pct')):.2f}",
+        "benchmark.simulation_tcr_thermo.X_CO2": f"{float(_require(bench_tcr, 'X_CO2_pct', 'benchmark_khademi_2009.simulation_tcr_thermo.X_CO2_pct')):.2f}",
+        "benchmark.simulation_tcr_thermo.X_CH": f"{float(_require(bench_tcr, 'X_CH_pct', 'benchmark_khademi_2009.simulation_tcr_thermo.X_CH_pct')):.2f}",
+        "benchmark.simulation_tcr_thermo.T_max": f"{float(_require(bench_tcr, 'T_max_K', 'benchmark_khademi_2009.simulation_tcr_thermo.T_max_K')):.1f}",
+        "benchmark.simulation_tcr_thermo.rel_imp": _format_signed(float(_require(bench_tcr, 'relative_improvement_vs_cmr_pct', 'benchmark_khademi_2009.simulation_tcr_thermo.relative_improvement_vs_cmr_pct')), 2),
+
+        "benchmark.simulation_tcr_literal.yield_eq28": f"{float(_require(bench_lit, 'yield_pct', 'benchmark_khademi_2009.simulation_tcr_literal.yield_pct')):.2f}",
+        "benchmark.simulation_tcr_literal.yield_net": f"{float(_require(bench_lit, 'yield_net_pct', 'benchmark_khademi_2009.simulation_tcr_literal.yield_net_pct')):.2f}",
+        "benchmark.simulation_tcr_literal.X_CO2": f"{float(_require(bench_lit, 'X_CO2_pct', 'benchmark_khademi_2009.simulation_tcr_literal.X_CO2_pct')):.2f}",
+        "benchmark.simulation_tcr_literal.X_CH": f"{float(_require(bench_lit, 'X_CH_pct', 'benchmark_khademi_2009.simulation_tcr_literal.X_CH_pct')):.2f}",
+        "benchmark.simulation_tcr_literal.T_max": f"{float(_require(bench_lit, 'T_max_K', 'benchmark_khademi_2009.simulation_tcr_literal.T_max_K')):.1f}",
+
+        "benchmark.table4_typo.apparent_dH_over_R": f"{apparent_dH_R:.1f}",
+        "benchmark.table4_typo.true_dH_over_R": f"{true_dH_R:.1f}",
+        "benchmark.table4_typo.ratio": f"{typo_ratio:.2f}",
+
+        "benchmark.thiele.tube_eta_mean": f"{float(_require(thiele, 'tube_eta_mean', 'benchmark_khademi_2009.thiele_analysis.tube_eta_mean')):.3f}",
+        "benchmark.thiele.tube_eta_min": f"{float(_require(thiele, 'tube_eta_min', 'benchmark_khademi_2009.thiele_analysis.tube_eta_min')):.3f}",
+        "benchmark.thiele.tube_Phi_max": f"{float(_require(thiele, 'tube_Phi_max', 'benchmark_khademi_2009.thiele_analysis.tube_Phi_max')):.2f}",
+        "benchmark.thiele.shell_eta_mean": f"{float(_require(thiele, 'shell_eta_mean', 'benchmark_khademi_2009.thiele_analysis.shell_eta_mean')):.3f}",
+        "benchmark.thiele.shell_eta_min": f"{float(_require(thiele, 'shell_eta_min', 'benchmark_khademi_2009.thiele_analysis.shell_eta_min')):.3f}",
+        "benchmark.thiele.shell_Phi_max": f"{float(_require(thiele, 'shell_Phi_max', 'benchmark_khademi_2009.thiele_analysis.shell_Phi_max')):.2f}",
+
+        # --- OTP Theoretical Ceiling & PR-EOS Audit ---
+        "otp.eta035.best_T_iso": f"{float(_require(otp_035, 'best_T_iso', 'otp_and_eos_audit.eta_0.35.best_T_iso')):.1f}",
+        "otp.eta035.best_iso_net": f"{iso_035_net:.2f}",
+        "otp.eta035.best_iso_eq28": f"{iso_035_eq28:.2f}",
+        "otp.eta035.otp_net": f"{otp_035_net:.2f}",
+        "otp.eta035.otp_eq28": f"{otp_035_eq28:.2f}",
+        "otp.eta035.otp_nodes_str": ", ".join(f"{float(t):.1f}" for t in otp_035_nodes),
+
+        "otp.eta100.best_T_iso": f"{float(_require(otp_100, 'best_T_iso', 'otp_and_eos_audit.eta_1.0.best_T_iso')):.1f}",
+        "otp.eta100.best_iso_net": f"{iso_100_net:.2f}",
+        "otp.eta100.best_iso_eq28": f"{iso_100_eq28:.2f}",
+        "otp.eta100.otp_net": f"{otp_100_net:.2f}",
+        "otp.eta100.otp_eq28": f"{otp_100_eq28:.2f}",
+        "otp.eta100.otp_nodes_str": ", ".join(f"{float(t):.1f}" for t in otp_100_nodes),
+
+        "eos.T0_K": f"{float(_require(eos_cmp, 'T0_K', 'otp_and_eos_audit.eos_comparison.T0_K')):.2f}",
+        "eos.T_cool_K": f"{float(_require(eos_cmp, 'T_cool_K', 'otp_and_eos_audit.eos_comparison.T_cool_K')):.2f}",
+        "eos.eta_exo": f"{float(_require(eos_cmp, 'eta_exo', 'otp_and_eos_audit.eos_comparison.eta_exo')):.2f}",
+        "eos.yield_net_ideal": f"{float(_require(eos_cmp, 'yield_net_ideal', 'otp_and_eos_audit.eos_comparison.yield_net_ideal')):.2f}",
+        "eos.yield_net_real_eos": f"{float(_require(eos_cmp, 'yield_net_real_eos', 'otp_and_eos_audit.eos_comparison.yield_net_real_eos')):.2f}",
+        "eos.diff_pct_points": _format_signed(eos_diff_pp, 2),
+        "eos.T_max_ideal": f"{float(_require(eos_cmp, 'T_max_ideal', 'otp_and_eos_audit.eos_comparison.T_max_ideal')):.1f}",
+        "eos.T_max_real_eos": f"{float(_require(eos_cmp, 'T_max_real_eos', 'otp_and_eos_audit.eos_comparison.T_max_real_eos')):.1f}",
+
+        # --- Dynamic Tables ---
+        "table_eta_sweep": _build_eta_sweep_table(sens),
+        "table_h2_cofeed": _build_h2_cofeed_table(sens),
     }
     return rep
 
-def render_manuscript(template_path="manuscript_template.md",
-                      results_path="simulation_results.json",
-                      output_path="TCR_Methanol_Cyclohexane_Manuscript.md"):
+
+def validate_latex_syntax(rendered: str) -> None:
+    """Automated line-by-line LaTeX syntax validation gate."""
+    for line_idx, line_str in enumerate(rendered.splitlines(), start=1):
+        line_inline = re.sub(r"\$\$.*?\$\$", "", line_str)
+        if line_inline.count("$") % 2 != 0:
+            raise ValueError(
+                f"Rendered manuscript has odd '$' math delimiters on line {line_idx}: {line_str.strip()}"
+            )
+        for block in re.findall(r"\$\$(.*?)\$\$", line_str):
+            if re.search(r"(?<!\\)%", block):
+                raise ValueError(
+                    f"Rendered manuscript has unescaped '%' in display math on line {line_idx}: '$${block}$$'"
+                )
+        for block in re.findall(r"\$([^\$\n]+)\$", line_inline):
+            if re.search(r"(?<!\\)%", block):
+                raise ValueError(
+                    f"Rendered manuscript has unescaped '%' in inline math on line {line_idx}: '${block}$'"
+                )
+
+
+def render_manuscript(
+    template_path: str = "manuscript_template.md",
+    results_path: str = "simulation_results.json",
+    output_path: str = "TCR_Methanol_Cyclohexane_Manuscript.md",
+) -> None:
     results = load_results(results_path)
     rep = build_replacement_dict(results)
 
     with open(template_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    def replace_match(match):
+    def replace_match(match: re.Match) -> str:
         key = match.group(1).strip()
         if key in rep:
             return rep[key]
-        raise ValueError(f"Unknown placeholder key in template: {key}")
+        raise KeyError(
+            f"Unknown placeholder key '{{{{ {key} }}}}' in {template_path}. "
+            "Ensure build_manuscript.py defines every placeholder required by manuscript_template.md."
+        )
 
     rendered = re.sub(r"\{\{\s*([a-zA-Z0-9_\.]+)\s*\}\}", replace_match, content)
 
+    # Assert ZERO unresolved template tags post-render
+    leftover = re.findall(r"\{\{.*?\}\}", rendered)
+    if leftover:
+        raise ValueError(f"Unresolved template placeholders remain after rendering: {leftover}")
+
     # Automated LaTeX syntax validation gate before writing output
-    for line_idx, line_str in enumerate(rendered.splitlines(), start=1):
-        line_inline = re.sub(r"\$\$.*?\$\$", "", line_str)
-        if line_inline.count("$") % 2 != 0:
-            raise ValueError(f"Rendered manuscript has odd '$' math delimiters on line {line_idx}: {line_str.strip()}")
-        for block in re.findall(r"\$\$(.*?)\$\$", line_str):
-            if re.search(r"(?<!\\)%", block):
-                raise ValueError(f"Rendered manuscript has unescaped '%' in display math on line {line_idx}: '$${block}$$'")
-        for block in re.findall(r"\$([^\$\n]+)\$", line_inline):
-            if re.search(r"(?<!\\)%", block):
-                raise ValueError(f"Rendered manuscript has unescaped '%' in inline math on line {line_idx}: '${block}$'")
+    validate_latex_syntax(rendered)
 
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(rendered)
 
-    print(f"✓ Successfully rendered manuscript to {output_path} with {len(rep)} variables replaced.")
+    print(f"✓ Successfully rendered Path A manuscript to {output_path} with {len(rep)} dynamic SSOT values.")
+
 
 if __name__ == "__main__":
     render_manuscript()

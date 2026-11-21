@@ -50,11 +50,16 @@ def main():
     sol_cmr_base = solve_conventional(
         geom, cfg.cat_tube, cfg.transport, cfg.solver,
         cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
-        T_coolant=cfg.transport.T_coolant, kinetics_mode="production_vbf"
+        T_coolant=cfg.transport.T_coolant, kinetics_mode="production_vbf",
+        use_dynamic_thiele=False
     )
-    res_cmr_base = evaluate_run_metrics(sol_cmr_base, geom, is_conventional=True)
+    res_cmr_base = evaluate_run_metrics(
+        sol_cmr_base, geom, mode="conventional", is_conventional=True,
+        cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+    )
     print(f"  ✓ CMR Baseline solved in {time.time()-t0:.2f}s | MeOH Yield: {res_cmr_base['yield_khademi_eq28']:.2f}% | "
-          f"Rate: {res_cmr_base['MeOH_rate_net_plant']:.2f} mol/s ({res_cmr_base['daily_meoh_ton']:.2f} t/d) | T_max: {res_cmr_base['T_max_exo']:.1f} K")
+          f"Rate: {res_cmr_base['MeOH_rate_net_plant']:.2f} mol/s ({res_cmr_base['daily_meoh_ton']:.2f} t/d) | "
+          f"T_max: {res_cmr_base['T_max_exo']:.1f} K | Steam Credit: {res_cmr_base['cmr_steam_credit_MW']:.2f} MW")
 
     # ──────────────────────────────────────────────────────────────────────────
     # Step 2: Conventional Reactor Fair Optimization (CMR_opt)
@@ -63,7 +68,8 @@ def main():
     t0 = time.time()
     res_cmr_opt = optimize_cmr(cfg)
     print(f"  ✓ CMR Optimized solved in {time.time()-t0:.2f}s | Optimal T_in: {res_cmr_opt['T_exo_0']:.1f} K, T_cool: {res_cmr_opt['T_coolant']:.1f} K | "
-          f"MeOH Yield: {res_cmr_opt['yield_khademi_eq28']:.2f}% | Rate: {res_cmr_opt['MeOH_rate_net_plant']:.2f} mol/s | T_max: {res_cmr_opt['T_max_exo']:.1f} K")
+          f"MeOH Yield: {res_cmr_opt['yield_khademi_eq28']:.2f}% | Rate: {res_cmr_opt['MeOH_rate_net_plant']:.2f} mol/s | "
+          f"T_max: {res_cmr_opt['T_max_exo']:.1f} K | Steam Credit: {res_cmr_opt['cmr_steam_credit_MW']:.2f} MW")
 
     # ──────────────────────────────────────────────────────────────────────────
     # Step 3: TCR Co-Current Simulation
@@ -74,11 +80,15 @@ def main():
         geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
         cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
         cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
-        kinetics_mode="production_vbf"
+        kinetics_mode="production_vbf", use_dynamic_thiele=False
     )
-    res_co_base = evaluate_run_metrics(sol_co_base, geom, mode="cocurrent")
+    res_co_base = evaluate_run_metrics(
+        sol_co_base, geom, mode="cocurrent",
+        cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+    )
     print(f"  ✓ TCR Co-Current solved in {time.time()-t0:.2f}s | MeOH Yield: {res_co_base['yield_khademi_eq28']:.2f}% | "
-          f"CH Conv: {res_co_base['X_CH']:.2f}% | Benzene: {res_co_base['Benzene_rate_plant']:.2f} mol/s | H2: {res_co_base['H2_rate_plant']:.2f} mol/s | T_max: {res_co_base['T_max_exo']:.1f} K")
+          f"CH Conv: {res_co_base['X_CH']:.2f}% | Benzene: {res_co_base['Benzene_rate_plant']:.2f} mol/s | H2: {res_co_base['H2_rate_plant']:.2f} mol/s | "
+          f"T_max: {res_co_base['T_max_exo']:.1f} K | Lift Ratio: {res_co_base['bed_lifting_ratio']:.2f}")
 
     # ──────────────────────────────────────────────────────────────────────────
     # Step 4: TCR Counter-Current Simulation (Picard Fixed-Point Iteration)
@@ -89,11 +99,15 @@ def main():
         geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
         cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
         cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
-        kinetics_mode="production_vbf"
+        kinetics_mode="production_vbf", use_dynamic_thiele=False
     )
-    res_ct_base = evaluate_run_metrics(sol_ct_base, geom, mode="countercurrent")
+    res_ct_base = evaluate_run_metrics(
+        sol_ct_base, geom, mode="countercurrent",
+        cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+    )
     print(f"  ✓ TCR Counter-Current converged in {time.time()-t0:.2f}s ({ct_info['iterations']} iters, res_T: {ct_info['final_res_T']:.2e}) | "
-          f"MeOH Yield: {res_ct_base['yield_khademi_eq28']:.2f}% | CH Conv: {res_ct_base['X_CH']:.2f}% | Benzene: {res_ct_base['Benzene_rate_plant']:.2f} mol/s | H2: {res_ct_base['H2_rate_plant']:.2f} mol/s | T_max: {res_ct_base['T_max_exo']:.1f} K")
+          f"MeOH Yield: {res_ct_base['yield_khademi_eq28']:.2f}% | CH Conv: {res_ct_base['X_CH']:.2f}% | Benzene: {res_ct_base['Benzene_rate_plant']:.2f} mol/s | "
+          f"H2: {res_ct_base['H2_rate_plant']:.2f} mol/s | T_max: {res_ct_base['T_max_exo']:.1f} K | Lift Ratio: {res_ct_base['bed_lifting_ratio']:.2f}")
 
     # ──────────────────────────────────────────────────────────────────────────
     # Step 5: NSGA-II Multi-Objective Optimization
@@ -105,7 +119,9 @@ def main():
     print(f"  ✓ NSGA-II completed in {opt_res['opt_time_s']:.2f}s | Knee Point: T_exo={knee_vars['T_exo_0_K']:.1f} K, T_endo={knee_vars['T_endo_0_K']:.1f} K, "
           f"F_endo={knee_vars['F_endo_mol_s']:.4f} mol/s, P_endo={knee_vars.get('P_endo_0_bar', 2.0):.2f} bar, F_exo={knee_vars['F_exo_mol_s']:.4f} mol/s | "
           f"MeOH Yield: {knee_results['yield_khademi_eq28']:.2f}% | Rate: {knee_results['MeOH_rate_net_plant']:.2f} mol/s ({knee_results['daily_meoh_ton']:.2f} t/d) | "
-          f"Benzene: {knee_results['Benzene_rate_plant']:.2f} mol/s | H2: {knee_results['H2_rate_plant']:.2f} mol/s | T_max: {knee_results['T_max_exo']:.1f} K")
+          f"Benzene: {knee_results['Benzene_rate_plant']:.2f} mol/s | H2: {knee_results['H2_rate_plant']:.2f} mol/s | "
+          f"T_max: {knee_results['T_max_exo']:.1f} K (T_cl: {knee_results['T_centerline_max']:.1f} K) | "
+          f"Lift Ratio: {knee_results['bed_lifting_ratio']:.2f} (Hold-Down Grid: {knee_results['requires_hold_down_grid']})")
 
     # ──────────────────────────────────────────────────────────────────────────
     # Step 6: Benchmark & Sensitivity Analysis
@@ -140,9 +156,12 @@ def main():
             geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
             cfg.feed_tube.y0, t_val, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
             cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
-            kinetics_mode="production_vbf"
+            kinetics_mode="production_vbf", use_dynamic_thiele=False
         )
-        res_tmp = evaluate_run_metrics(sol_tmp, geom, mode="cocurrent")
+        res_tmp = evaluate_run_metrics(
+            sol_tmp, geom, mode="cocurrent",
+            cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+        )
         sens_results['T_exo_sweep']['X_CO2'].append(res_tmp['X_CO2'])
         sens_results['T_exo_sweep']['X_CH'].append(res_tmp['X_CH'])
 
@@ -152,24 +171,38 @@ def main():
             geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
             cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
             cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, f_val,
-            kinetics_mode="production_vbf"
+            kinetics_mode="production_vbf", use_dynamic_thiele=False
         )
-        res_tmp = evaluate_run_metrics(sol_tmp, geom, mode="cocurrent")
+        res_tmp = evaluate_run_metrics(
+            sol_tmp, geom, mode="cocurrent",
+            cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+        )
         sens_results['F_endo_sweep']['X_CO2'].append(res_tmp['X_CO2'])
         sens_results['F_endo_sweep']['X_CH'].append(res_tmp['X_CH'])
 
-    # Sweep 3: eta_exo
+    # Sweep 3: eta_exo (explicitly disable dynamic Thiele so cat_exo.eta varies as intended)
+    eta_sweep_records = []
     for eta_val in sens_results['eta_sweep']['eta_vals']:
         cat_tmp = CatalystBedConfig(dp=cfg.cat_tube.dp, rho_b=cfg.cat_tube.rho_b, eps=cfg.cat_tube.eps, eta=eta_val)
         sol_tmp = solve_cocurrent(
             geom, cat_tmp, cfg.cat_shell, cfg.transport, cfg.solver,
             cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
             cfg.feed_shell.y0, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
-            kinetics_mode="production_vbf"
+            kinetics_mode="production_vbf", use_dynamic_thiele=False
         )
-        res_tmp = evaluate_run_metrics(sol_tmp, geom, mode="cocurrent")
+        res_tmp = evaluate_run_metrics(
+            sol_tmp, geom, mode="cocurrent",
+            cat_tube=cat_tmp, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+        )
         sens_results['eta_sweep']['X_CO2'].append(res_tmp['X_CO2'])
         sens_results['eta_sweep']['yield_meoh'].append(res_tmp['yield_khademi_eq28'])
+        eta_sweep_records.append({
+            'eta': float(eta_val),
+            'X_CO2': float(res_tmp['X_CO2']),
+            'X_CH': float(res_tmp['X_CH']),
+            'yield_meoh': float(res_tmp['yield_net_COx']),
+            'T_max_exo': float(res_tmp['T_max_exo']),
+        })
 
     # Sweep 4: H2 co-feed comparison (pure cyclohexane y_H2=0.0 vs 5% co-feed y_H2=0.05)
     # Proves zero singularity in rationalized Itoh kinetics when y_H2 = 0 (Critique Item 10)
@@ -178,9 +211,12 @@ def main():
         geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
         cfg.feed_tube.y0, cfg.feed_tube.T0, cfg.feed_tube.P0, cfg.feed_tube.F_total0,
         y_shell_pure, cfg.feed_shell.T0, cfg.feed_shell.P0, cfg.feed_shell.F_total0,
-        kinetics_mode="production_vbf"
+        kinetics_mode="production_vbf", use_dynamic_thiele=False
     )
-    res_pure = evaluate_run_metrics(sol_pure, geom, mode="cocurrent")
+    res_pure = evaluate_run_metrics(
+        sol_pure, geom, mode="cocurrent",
+        cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+    )
     sens_results['h2_cofeed_comparison'] = {
         'pure_cyclohexane_yH2_0': {
             'y_H2_in': 0.0,
@@ -221,6 +257,11 @@ def main():
     res_co_base['P_shell_out'] = round(float((cfg.feed_shell.P0 / 1e5) - res_co_base['dP_shell']), 4)
     res_ct_base['P_shell_out'] = round(float((cfg.feed_shell.P0 / 1e5) - res_ct_base['dP_shell']), 4)
 
+    # Export structured eta_sweep records in JSON while preserving plotting dict above
+    sens_results_export = dict(sens_results)
+    sens_results_export['eta_sweep'] = eta_sweep_records
+    sens_results_export['eta_sweep_series'] = sens_results['eta_sweep']
+
     # Master SSOT data structure
     master_ssot = {
         "metadata": {
@@ -238,7 +279,7 @@ def main():
         "tcr_nsga2_optimum": knee_results,
         "benchmark_khademi_2009": bench_data,
         "process_thermal_duties": process_duties,
-        "sensitivity_analysis": sens_results
+        "sensitivity_analysis": sens_results_export
     }
 
     export_simulation_results(master_ssot, "simulation_results.json")

@@ -10,6 +10,8 @@ from .thermo import (
     MW
 )
 from .geometry import ReactorGeometry
+from .config import CatalystBedConfig, TransportConfig
+from .transport import calc_hw_tube
 
 def _integrate_flux(y: np.ndarray, x: np.ndarray) -> float:
     """Computes integrated wall heat using Simpson's rule with trapezoidal fallback."""
@@ -111,6 +113,64 @@ def calc_centerline_temp(T_mean: float, q_vol: float, R_in: float, k_er: float =
         T_centerline = T_mean + (q_vol * R_in^2) / (8 * k_er)
     """
     return float(T_mean + (q_vol * (R_in ** 2)) / (8.0 * max(k_er, 1e-3)))
+
+
+def _calc_unified_centerline_max(
+    geom: ReactorGeometry,
+    F_exo: np.ndarray,
+    T_exo: np.ndarray,
+    P_exo: np.ndarray,
+    Q_wall_arr: np.ndarray,
+    cat_tube: CatalystBedConfig = None,
+    trans: TransportConfig = None,
+) -> tuple[float, float]:
+    """
+    Computes peak radial centerline temperature using unified dynamic Bauer-Schlünder
+    effective radial thermal conductivity k_er(z) (~11.54 W/(m·K) at 0.640 mol/s)
+    consistent with tcr.transport.calc_hw_tube:
+        T_centerline(z) = T_mean(z) + (|Q_wall(z)| / A_tube) * R_in^2 / (8 * k_er(z))
+    Returns (T_centerline_max, k_er_mean).
+    """
+    cat_eff = (
+        cat_tube
+        if cat_tube is not None
+        else CatalystBedConfig(dp=0.00547, rho_b=1140.0, eps=0.39, eta=0.35)
+    )
+    trans_eff = (
+        trans
+        if trans is not None
+        else TransportConfig(
+            h_cool=6000.0,
+            T_coolant=503.15,
+            Kg_exo=0.12,
+            Kg_endo=0.04,
+            mu_exo=1.8e-5,
+            mu_endo=1.2e-5,
+        )
+    )
+
+    n_pts = len(T_exo)
+    k_er_arr = np.zeros(n_pts)
+    T_cl_arr = np.zeros(n_pts)
+    R_in = geom.R_in
+
+    for i in range(n_pts):
+        details = calc_hw_tube(
+            float(T_exo[i]),
+            float(P_exo[i]),
+            F_exo[:, i],
+            SPECIES_TUBE,
+            geom,
+            cat_eff,
+            trans_eff,
+            return_details=True,
+        )
+        k_er_i = float(details["k_er"])
+        k_er_arr[i] = k_er_i
+        q_vol_i = abs(float(Q_wall_arr[i])) / geom.A_tube if i < len(Q_wall_arr) else 0.0
+        T_cl_arr[i] = calc_centerline_temp(float(T_exo[i]), q_vol_i, R_in, k_er=k_er_i)
+
+    return float(np.max(T_cl_arr)), float(np.mean(k_er_arr))
 
 
 def calc_mechanical_hoop_stress(geom: ReactorGeometry,
@@ -251,7 +311,10 @@ def calc_downstream_separation_and_duties(
     }
 
 def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
-                         is_conventional: bool = False) -> dict:
+                         is_conventional: bool = False,
+                         cat_tube: CatalystBedConfig = None,
+                         trans: TransportConfig = None,
+                         rho_b_shell: float = 1077.0) -> dict:
     """
     Extracts all physical, chemical, and thermodynamic performance metrics from a solution.
     Strictly verifies independent stream enthalpy balances and element balances.
@@ -259,7 +322,9 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
     z = sol.t
     n_pts = len(z)
 
-    if is_conventional:
+    is_conv_mode = bool(is_conventional or mode == "conventional" or sol.y.shape[0] < 14)
+
+    if is_conv_mode:
         # State vector: [F_exo (7), T_exo, P_exo]
         F_exo = sol.y[0:7, :]
         T_exo = sol.y[7, :]
@@ -286,19 +351,22 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
         H_dot_out = calc_stream_enthalpy_flow(F_exo[:, -1], SPECIES_TUBE, T_exo[-1])
         delta_H_tube = H_dot_out - H_dot_in  # W per tube
 
-        # Integrated wall heat removed
+        # Integrated wall heat removed across one tube (W)
         Q_wall_arr = sol.Q_wall_arr if hasattr(sol, 'Q_wall_arr') else np.zeros(n_pts)
         Q_wall_total = _integrate_flux(Q_wall_arr, z) if len(Q_wall_arr) == n_pts else abs(delta_H_tube)
+        Q_wall_tube_total_W = float(Q_wall_total)
+
+        # Boiling-water steam-generation thermal credit for CMR (MW across N_tubes)
+        cmr_steam_credit_MW = float(abs(Q_wall_tube_total_W) * geom.N_tubes / 1e6)
 
         enthalpy_err_tube = float(abs(delta_H_tube + Q_wall_total) / max(abs(Q_wall_total), 1.0) * 100.0)
         verify_enthalpy_balances(enthalpy_err_tube, tol_pct=0.5)
 
         duties = calc_downstream_separation_and_duties(sol, geom, mode="conventional", is_conventional=True)
         T_mean_max = float(np.max(T_exo))
-        if hasattr(sol, 'T_centerline_arr') and sol.T_centerline_arr is not None:
-            T_centerline_max = float(np.max(sol.T_centerline_arr))
-        else:
-            T_centerline_max = T_mean_max + 4.0
+        T_centerline_max, k_er_mean = _calc_unified_centerline_max(
+            geom, F_exo, T_exo, P_exo, Q_wall_arr, cat_tube=cat_tube, trans=trans
+        )
 
         stress_info = calc_mechanical_hoop_stress(geom, float(np.max(P_exo)), P_shell_Pa=1.01325e5)
 
@@ -315,16 +383,21 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
             'T_max_exo': float(T_mean_max),
             'T_mean_max': float(T_mean_max),
             'T_centerline_max': float(T_centerline_max),
+            'k_er_mean': float(k_er_mean),
             'T_exo_out': float(T_exo[-1]),
             'dP_tube': float((P_exo[0] - P_exo[-1]) / 1e5),
             'dP_shell': 0.0,
             'P_shell_out': None,
+            'bed_weight_bar': 0.0,
+            'bed_lifting_ratio': 0.0,
+            'requires_hold_down_grid': False,
             'y_H2_out_total': 0.0,
             'y_H2_out_inert_free': 0.0,
             'y_H2_out': 0.0,
             'elem_err_tube': elem_err_tube,
             'enthalpy_err_tube_pct': enthalpy_err_tube,
             'Q_wall_total_MW': float(Q_wall_total * geom.N_tubes * 1e-6),
+            'cmr_steam_credit_MW': float(cmr_steam_credit_MW),
             'hoop_stress': stress_info,
             'hoop_stress_MPa': float(stress_info['sigma_theta_inner_MPa']),
             'asme_safety_factor': float(stress_info['safety_factor']),
@@ -403,10 +476,9 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
 
     duties = calc_downstream_separation_and_duties(sol, geom, mode=mode, is_conventional=False)
     T_mean_max = float(np.max(T_exo))
-    if hasattr(sol, 'T_centerline_arr') and sol.T_centerline_arr is not None:
-        T_centerline_max = float(np.max(sol.T_centerline_arr))
-    else:
-        T_centerline_max = T_mean_max + 4.0
+    T_centerline_max, k_er_mean = _calc_unified_centerline_max(
+        geom, F_exo, T_exo, P_exo, Q_wall_arr, cat_tube=cat_tube, trans=trans
+    )
 
     if mode == "cocurrent":
         P_shell_out = float(P_endo[-1] / 1e5)
@@ -414,6 +486,12 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
     else:
         P_shell_out = float(P_endo[0] / 1e5)
         F_endo_out = F_endo[:, 0]
+
+    dP_shell_bar = float(abs(P_endo[0] - P_endo[-1]) / 1e5)
+    bed_weight_bar = float(rho_b_shell * 9.80665 * geom.L / 1e5)
+    bed_lifting_ratio = float(dP_shell_bar / max(bed_weight_bar, 1e-12))
+    requires_hold_down_grid = bool(bed_lifting_ratio >= 0.85)
+    cmr_steam_credit_MW = 0.0
 
     F_tot_out = float(np.sum(F_endo_out))
     F_inert_free_out = float(np.sum(F_endo_out[:3]))
@@ -441,12 +519,16 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
         'T_max_exo': float(T_mean_max),
         'T_mean_max': float(T_mean_max),
         'T_centerline_max': float(T_centerline_max),
+        'k_er_mean': float(k_er_mean),
         'T_max_endo': float(np.max(T_endo)),
         'T_exo_out': float(T_exo[-1]),
         'T_endo_out': float(T_endo_out),
         'dP_tube': float((P_exo[0] - P_exo[-1]) / 1e5),
-        'dP_shell': float(abs(P_endo[0] - P_endo[-1]) / 1e5),
+        'dP_shell': float(dP_shell_bar),
         'P_shell_out': float(P_shell_out),
+        'bed_weight_bar': float(bed_weight_bar),
+        'bed_lifting_ratio': float(bed_lifting_ratio),
+        'requires_hold_down_grid': bool(requires_hold_down_grid),
         'y_H2_out_total': float(y_H2_out_total),
         'y_H2_out_inert_free': float(y_H2_out_inert_free),
         'y_H2_out': float(y_H2_out),
@@ -455,6 +537,7 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
         'enthalpy_err_tube_pct': enthalpy_err_tube,
         'enthalpy_err_shell_pct': enthalpy_err_shell,
         'Q_wall_total_MW': float(Q_wall_total * geom.N_tubes * 1e-6),
+        'cmr_steam_credit_MW': float(cmr_steam_credit_MW),
         'delta_H_tube_MW': float(delta_H_tube * geom.N_tubes * 1e-6),
         'delta_H_shell_MW': float(delta_H_shell * geom.N_tubes * 1e-6),
         'hoop_stress': stress_info,
@@ -465,3 +548,22 @@ def evaluate_run_metrics(sol, geom: ReactorGeometry, mode: str = "cocurrent",
     }
     ret.update(duties)
     return ret
+
+
+def extract_conventional_metrics(sol, geom: ReactorGeometry,
+                                 cat_tube: CatalystBedConfig = None,
+                                 trans: TransportConfig = None,
+                                 rho_b_shell: float = 1077.0) -> dict:
+    """
+    Convenience wrapper for conventional boiling-water jacketed reactor (CMR) metrics,
+    including boiling-water steam-generation thermal credit (cmr_steam_credit_MW).
+    """
+    return evaluate_run_metrics(
+        sol,
+        geom,
+        mode="conventional",
+        is_conventional=True,
+        cat_tube=cat_tube,
+        trans=trans,
+        rho_b_shell=rho_b_shell,
+    )

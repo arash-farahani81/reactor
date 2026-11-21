@@ -40,7 +40,7 @@ def optimize_cmr(cfg: AppConfig) -> dict:
     )
 
     t_max_limit = float(cfg.optimization.T_max_limit)
-    F_exo_fixed = float(cfg.feed_tube.F_total0)  # Strictly locked at 0.640 mol/s
+    F_exo_fixed = 0.640  # Strictly locked at 0.640 mol/s
 
     def obj_func(x):
         T_exo_0 = float(x[0])
@@ -49,10 +49,14 @@ def optimize_cmr(cfg: AppConfig) -> dict:
             sol = solve_conventional(
                 geom, cfg.cat_tube, cfg.transport, sol_cfg,
                 cfg.feed_tube.y0, T_exo_0, cfg.feed_tube.P0, F_exo_fixed,
-                T_coolant=T_cool, kinetics_mode="production_vbf"
+                T_coolant=T_cool, kinetics_mode="production_vbf",
+                use_dynamic_thiele=False
             )
-            res = evaluate_run_metrics(sol, geom, is_conventional=True)
-            # Penalty if T_max > 535 K
+            res = evaluate_run_metrics(
+                sol, geom, mode="conventional", is_conventional=True,
+                cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+            )
+            # Penalty if T_centerline_max > 535 K (computed with unified dynamic k_er)
             T_peak = res.get('T_centerline_max', res['T_max_exo'])
             penalty = max(0.0, T_peak - t_max_limit) * 10.0
             return -res['yield_khademi_eq28'] + penalty
@@ -71,9 +75,13 @@ def optimize_cmr(cfg: AppConfig) -> dict:
     sol_opt = solve_conventional(
         geom, cfg.cat_tube, cfg.transport, cfg.solver,
         cfg.feed_tube.y0, best_T_exo_0, cfg.feed_tube.P0, F_exo_fixed,
-        T_coolant=best_T_cool, kinetics_mode="production_vbf"
+        T_coolant=best_T_cool, kinetics_mode="production_vbf",
+        use_dynamic_thiele=False
     )
-    metrics_opt = evaluate_run_metrics(sol_opt, geom, is_conventional=True)
+    metrics_opt = evaluate_run_metrics(
+        sol_opt, geom, mode="conventional", is_conventional=True,
+        cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+    )
     metrics_opt['T_exo_0'] = best_T_exo_0
     metrics_opt['T_coolant'] = best_T_cool
     metrics_opt['F_exo_total_0'] = F_exo_fixed
@@ -101,7 +109,7 @@ class TCROptimizationProblem(ElementwiseProblem):
         self.sol_fast = sol_fast
         self.mode = mode.lower()
         self.has_inert_var = has_inert_var
-        self.F_exo_fixed = float(cfg.feed_tube.F_total0)  # Locked at 0.640 mol/s per tube
+        self.F_exo_fixed = 0.640  # Strictly locked at 0.640 mol/s per tube
         n_var = 5 if has_inert_var else 4
         super().__init__(
             n_var=n_var, n_obj=3, n_ieq_constr=2,
@@ -128,21 +136,29 @@ class TCROptimizationProblem(ElementwiseProblem):
                     self.geom, self.cfg.cat_tube, self.cfg.cat_shell, self.cfg.transport, self.sol_fast,
                     self.cfg.feed_tube.y0, T_exo, self.cfg.feed_tube.P0, self.F_exo_fixed,
                     y_shell, T_endo, P_endo, F_endo,
-                    kinetics_mode="production_vbf"
+                    kinetics_mode="production_vbf", use_dynamic_thiele=False
                 )
                 if not sol.success:
                     out["F"] = [1e4, 1e4, 1e4]
                     out["G"] = [1e4, 1e4]
                     return
-                res = evaluate_run_metrics(sol, self.geom, mode="cocurrent")
+                res = evaluate_run_metrics(
+                    sol, self.geom, mode="cocurrent",
+                    cat_tube=self.cfg.cat_tube, trans=self.cfg.transport,
+                    rho_b_shell=self.cfg.cat_shell.rho_b
+                )
             else:  # countercurrent
                 sol, info = solve_countercurrent(
                     self.geom, self.cfg.cat_tube, self.cfg.cat_shell, self.cfg.transport, self.sol_fast,
                     self.cfg.feed_tube.y0, T_exo, self.cfg.feed_tube.P0, self.F_exo_fixed,
                     y_shell, T_endo, P_endo, F_endo,
-                    kinetics_mode="production_vbf"
+                    kinetics_mode="production_vbf", use_dynamic_thiele=False
                 )
-                res = evaluate_run_metrics(sol, self.geom, mode="countercurrent")
+                res = evaluate_run_metrics(
+                    sol, self.geom, mode="countercurrent",
+                    cat_tube=self.cfg.cat_tube, trans=self.cfg.transport,
+                    rho_b_shell=self.cfg.cat_shell.rho_b
+                )
 
             # Objectives:
             # f1: Maximize Methanol Yield (%) -> minimize negative yield
@@ -153,7 +169,7 @@ class TCROptimizationProblem(ElementwiseProblem):
             f3 = float(res['T_max_exo'])
 
             # Constraints:
-            # g1: T_centerline_max <= 535.0 K (copper sintering limit)
+            # g1: T_centerline_max <= 535.0 K (copper sintering limit, unified dynamic k_er)
             # g2: P_shell_out >= 1.10 bar (positive exit pressure)
             T_peak = float(res.get('T_centerline_max', res['T_max_exo']))
             P_out = float(res.get('P_shell_out', (P_endo / 1e5) - res['dP_shell']))
@@ -204,7 +220,7 @@ def select_knee_point(X_valid: np.ndarray, F_valid: np.ndarray,
     dist_ideal = np.sqrt((1.0 - norm_y) ** 2 + (1.0 - norm_b) ** 2 + 0.10 * (norm_T ** 2))
     candidate_order = np.argsort(dist_ideal)
 
-    F_exo_fixed = float(cfg.feed_tube.F_total0)
+    F_exo_fixed = 0.640  # Strictly locked at 0.640 mol/s
     p_knee_min = float(cfg.optimization.P_shell_out_knee)  # 1.15 bar
     t_limit = float(cfg.optimization.T_max_limit)        # 535.0 K
 
@@ -231,19 +247,25 @@ def select_knee_point(X_valid: np.ndarray, F_valid: np.ndarray,
                 geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
                 cfg.feed_tube.y0, T_exo_cand, cfg.feed_tube.P0, F_exo_fixed,
                 y_shell, T_endo_cand, P_endo_cand, F_endo_cand,
-                kinetics_mode="production_vbf"
+                kinetics_mode="production_vbf", use_dynamic_thiele=False
             )
             if not sol_cand.success:
                 continue
-            cand_res = evaluate_run_metrics(sol_cand, geom, mode="cocurrent")
+            cand_res = evaluate_run_metrics(
+                sol_cand, geom, mode="cocurrent",
+                cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+            )
         else:
             sol_cand, info = solve_countercurrent(
                 geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
                 cfg.feed_tube.y0, T_exo_cand, cfg.feed_tube.P0, F_exo_fixed,
                 y_shell, T_endo_cand, P_endo_cand, F_endo_cand,
-                kinetics_mode="production_vbf"
+                kinetics_mode="production_vbf", use_dynamic_thiele=False
             )
-            cand_res = evaluate_run_metrics(sol_cand, geom, mode="countercurrent")
+            cand_res = evaluate_run_metrics(
+                sol_cand, geom, mode="countercurrent",
+                cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+            )
 
         cand_T_peak = float(cand_res.get('T_centerline_max', cand_res['T_max_exo']))
         p_out = float(cand_res.get('P_shell_out', (P_endo_cand / 1e5) - cand_res['dP_shell']))
@@ -271,19 +293,25 @@ def select_knee_point(X_valid: np.ndarray, F_valid: np.ndarray,
                     geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
                     cfg.feed_tube.y0, T_exo_cand, cfg.feed_tube.P0, F_exo_fixed,
                     y_shell, T_endo_cand, P_endo_cand, F_endo_cand,
-                    kinetics_mode="production_vbf"
+                    kinetics_mode="production_vbf", use_dynamic_thiele=False
                 )
                 if not sol_cand.success:
                     continue
-                cand_res = evaluate_run_metrics(sol_cand, geom, mode="cocurrent")
+                cand_res = evaluate_run_metrics(
+                    sol_cand, geom, mode="cocurrent",
+                    cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+                )
             else:
                 sol_cand, info = solve_countercurrent(
                     geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
                     cfg.feed_tube.y0, T_exo_cand, cfg.feed_tube.P0, F_exo_fixed,
                     y_shell, T_endo_cand, P_endo_cand, F_endo_cand,
-                    kinetics_mode="production_vbf"
+                    kinetics_mode="production_vbf", use_dynamic_thiele=False
                 )
-                cand_res = evaluate_run_metrics(sol_cand, geom, mode="countercurrent")
+                cand_res = evaluate_run_metrics(
+                    sol_cand, geom, mode="countercurrent",
+                    cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+                )
             cand_T_peak = float(cand_res.get('T_centerline_max', cand_res['T_max_exo']))
             p_out = float(cand_res.get('P_shell_out', (P_endo_cand / 1e5) - cand_res['dP_shell']))
             if cand_T_peak <= t_limit + 1e-4 and p_out >= 1.10 - 1e-4:
@@ -302,17 +330,23 @@ def select_knee_point(X_valid: np.ndarray, F_valid: np.ndarray,
                 geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
                 cfg.feed_tube.y0, float(knee_x[0]), cfg.feed_tube.P0, F_exo_fixed,
                 cfg.feed_shell.y0, float(knee_x[1]), float(knee_x[3]), float(knee_x[2]),
-                kinetics_mode="production_vbf"
+                kinetics_mode="production_vbf", use_dynamic_thiele=False
             )
-            res_knee = evaluate_run_metrics(sol_knee, geom, mode="cocurrent")
+            res_knee = evaluate_run_metrics(
+                sol_knee, geom, mode="cocurrent",
+                cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+            )
         else:
             sol_knee, info = solve_countercurrent(
                 geom, cfg.cat_tube, cfg.cat_shell, cfg.transport, cfg.solver,
                 cfg.feed_tube.y0, float(knee_x[0]), cfg.feed_tube.P0, F_exo_fixed,
                 cfg.feed_shell.y0, float(knee_x[1]), float(knee_x[3]), float(knee_x[2]),
-                kinetics_mode="production_vbf"
+                kinetics_mode="production_vbf", use_dynamic_thiele=False
             )
-            res_knee = evaluate_run_metrics(sol_knee, geom, mode="countercurrent")
+            res_knee = evaluate_run_metrics(
+                sol_knee, geom, mode="countercurrent",
+                cat_tube=cfg.cat_tube, trans=cfg.transport, rho_b_shell=cfg.cat_shell.rho_b
+            )
 
     res_knee['decision_variables'] = {
         'T_exo_0_K': float(knee_x[0]),
@@ -327,6 +361,14 @@ def select_knee_point(X_valid: np.ndarray, F_valid: np.ndarray,
     res_knee['P_shell_out'] = float(knee_x[3] / 1e5) - float(res_knee['dP_shell'])
     if 'T_centerline_max' not in res_knee:
         res_knee['T_centerline_max'] = float(res_knee['T_max_exo'])
+
+    bed_weight_bar = float(cfg.cat_shell.rho_b * 9.80665 * geom.L / 1e5)
+    bed_lifting_ratio = float(
+        res_knee.get('bed_lifting_ratio', float(res_knee['dP_shell']) / max(bed_weight_bar, 1e-12))
+    )
+    res_knee['bed_weight_bar'] = bed_weight_bar
+    res_knee['bed_lifting_ratio'] = bed_lifting_ratio
+    res_knee['requires_hold_down_grid'] = bool(bed_lifting_ratio >= 0.85)
 
     return chosen_idx, knee_x, sol_knee, res_knee
 
@@ -557,6 +599,14 @@ def optimize_both_modes(cfg: AppConfig, seeds: Optional[List[int]] = None) -> di
             'P_shell_out_bar': {
                 'cocurrent': res_co['knee_results']['P_shell_out'],
                 'countercurrent': res_ct['knee_results']['P_shell_out'],
+            },
+            'bed_lifting_ratio': {
+                'cocurrent': res_co['knee_results']['bed_lifting_ratio'],
+                'countercurrent': res_ct['knee_results']['bed_lifting_ratio'],
+            },
+            'requires_hold_down_grid': {
+                'cocurrent': res_co['knee_results']['requires_hold_down_grid'],
+                'countercurrent': res_ct['knee_results']['requires_hold_down_grid'],
             },
             'final_hypervolume_mean': {
                 'cocurrent': float(np.mean(res_co['final_hypervolumes'])),

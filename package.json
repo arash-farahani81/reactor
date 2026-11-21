@@ -1,0 +1,12 @@
+{
+  "name": "tcr-simulation-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node preview_server.mjs",
+    "start": "node preview_server.mjs",
+    "build": "node --check preview_server.mjs",
+    "lint": "node --check preview_server.mjs"
+  }
+}

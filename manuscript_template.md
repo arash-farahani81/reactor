@@ -1,388 +1,318 @@
-# Process Intensification and Multi-Objective Pareto Optimization of a Thermally Coupled Shell-and-Tube Reactor for Simultaneous Methanol Synthesis and Cyclohexane Dehydrogenation
+# A Critical Re-Assessment and Thermodynamic Ceiling Analysis of Thermally Coupled Methanol–Cyclohexane Reactors
 
-**Author:** Reactor Design & Process Intensification Project Team  
-**Institution:** Department of Chemical Engineering  
-**Target Journals:** *Chemical Engineering Science* / *International Journal of Hydrogen Energy* / *Chemical Engineering and Processing: Process Intensification*  
-**Date:** November 2026  
+**Authors:** Process Systems Engineering & Reaction Engineering Research Group  
+**Keywords:** Thermally Coupled Reactor (TCR), Methanol Synthesis, Cyclohexane Dehydrogenation, Optimal Temperature Profile (OTP), Peng–Robinson EOS, Khademi (2009) Benchmark Forensics, Battery-Limit Energy Accounting, Bed-Lifting Hydraulics
 
 ---
 
 ## Abstract
-In this study, a rigorous 1D pseudo-homogeneous mathematical model and multi-objective Pareto optimization framework are developed for an industrially sized thermally coupled shell-and-tube reactor (TCR). The reactor directly integrates the strongly exothermic synthesis of methanol from syngas ($\text{CO}/\text{CO}_2/\text{H}_2$) on the tube side (over commercial $\text{CuO/ZnO/Al}_2\text{O}_3$ catalyst, $\eta_{\text{exo}} = 0.35$) with the strongly endothermic dehydrogenation of cyclohexane to co-produced benzene and an $\text{H}_2$-rich reformate stream on the shell side (over $\text{Pt/Al}_2\text{O}_3$ catalyst). Rigorous Langmuir–Hinshelwood–Hougen–Watson (LHHW) kinetics (Vanden Bussche and Froment, 1996) with thermodynamically consistent adsorption parameterization and reversible dehydrogenation kinetics with a thermodynamically consistent van 't Hoff equilibrium constant are coupled alongside multi-component Ergun momentum balances and packed-bed wall heat transfer correlations (Dixon; Li & Finlayson). Both **co-current** and **counter-current** flow configurations are simulated and contrasted against conventional boiling-water-cooled industrial reactors (CMR), including both baseline operation and a fairly optimized CMR baseline. To solve the stiff two-point boundary value problem (BVP) of the counter-current regime without numerical divergence, a physics-based Under-Relaxed Picard Fixed-Point Iteration solver ($\alpha = 0.70$) with continuous axial interpolation is implemented, converging to strict dual tolerances ($\max |\Delta T| < 10^{-3}\text{ K}$ and $\max |\Delta F_i / F_i| < 10^{-3}$) alongside pressure convergence. Furthermore, the Non-Dominated Sorting Genetic Algorithm II (**NSGA-II**) is formulated across four continuous operational decision variables ($T_{\text{exo},0}$, $T_{\text{endo},0}$, $F_{\text{endo},0}$, $P_{\text{endo},0}$) at fixed design syngas capacity ($F_{\text{exo},0} = 0.640\text{ mol/s}$ per tube) to explore trade-offs across conflicting objectives: maximizing methanol yield, maximizing benzene/hydrogen coproduction, and minimizing catalyst hotspot rise, subject to an inequality constraint preventing copper catalyst sintering ($T_{\text{max}} \le 535.0\text{ K}$) and positive exit pressure ($P_{\text{out}} \ge 1.10\text{ bar}$). Results demonstrate that thermal coupling flattens the intra-tubular temperature profile. In co-current baseline mode, entrance hotspotting reaches ${{ cocurrent_baseline.T_max_exo }}\text{ K}$ (centerline ${{ cocurrent_baseline.T_centerline_max }}\text{ K}$) with a single-pass methanol yield of ${{ cocurrent_baseline.yield_khademi_eq28 }}\%$, coproduction of ${{ cocurrent_baseline.daily_benzene_ton }}\text{ t/d}$ co-produced benzene, and ${{ cocurrent_baseline.daily_h2_ton }}\text{ t/d}$ hydrogen contained within an $\text{H}_2$-rich reformate stream (${{ cocurrent_baseline.outlet_y_H2 }}\text{ mol}\% \text{ H}_2$). In counter-current mode, higher thermal driving forces achieve ${{ countercurrent_baseline.yield_khademi_eq28 }}\%$ methanol yield, ${{ countercurrent_baseline.daily_benzene_ton }}\text{ t/d}$ benzene, and ${{ countercurrent_baseline.daily_h2_ton }}\text{ t/d}$ hydrogen with peak bulk temperature ${{ countercurrent_baseline.T_max_exo }}\text{ K}$ (centerline ${{ countercurrent_baseline.T_centerline_max }}\text{ K}$). When compared against an optimized conventional reactor (CMR, yield ${{ conventional_optimized.yield_khademi_eq28 }}\%$, ${{ conventional_optimized.daily_meoh_ton }}\text{ t/d}$), the TCR NSGA-II balanced knee-point solution delivers ${{ tcr_nsga2_optimum.daily_meoh_ton }}\text{ t/d}$ methanol (yield ${{ tcr_nsga2_optimum.yield_khademi_eq28 }}\%$), ${{ tcr_nsga2_optimum.daily_benzene_ton }}\text{ t/d}$ co-produced benzene, and ${{ tcr_nsga2_optimum.daily_h2_ton }}\text{ t/d}$ hydrogen in an $\text{H}_2$-rich reformate stream (${{ tcr_nsga2_optimum.outlet_y_H2 }}\text{ mol}\% \text{ H}_2$), with peak bulk temperature safely constrained to ${{ tcr_nsga2_optimum.T_max_exo }}\text{ K}$ and peak centerline temperature to ${{ tcr_nsga2_optimum.T_centerline_max }}\text{ K}$ (strictly below the $535.0\text{ K}$ Cu sintering threshold), a positive shell outlet pressure of ${{ tcr_nsga2_optimum.P_shell_out }}\text{ bar}$, and complete elimination of reaction-zone external cooling utilities ($0.0\text{ kW}$). A complete battery-limit engineering analysis reveals that upstream feed conditioning requires ${{ process_thermal_duties.total_feed_preheat_duty_MW }}\text{ MW}$, downstream extractive distillation for benzene-cyclohexane separation requires ${{ separation_duties.extractive_distillation_duty_MW }}\text{ MW}$, and hydrogen PSA upgrading consumes ${{ separation_duties.psa_power_MW }}\text{ MW}_e$.
 
-**Keywords:** Thermally Coupled Reactor; Process Intensification; Methanol Synthesis; Cyclohexane Dehydrogenation; Counter-Current BVP; Picard Fixed-Point Iteration; Multi-Objective Optimization; NSGA-II; Hydrogen Reformate; Extractive Distillation.
+Thermally coupled shell-and-tube reactors (TCRs) pairing exothermic methanol synthesis ($\text{CO}/\text{CO}_2$ hydrogenation over $\text{Cu/ZnO/Al}_2\text{O}_3$) with endothermic cyclohexane dehydrogenation ($\text{C}_6\text{H}_{12} \rightleftharpoons \text{C}_6\text{H}_6 + 3\text{H}_2$ over $\text{Pt/Al}_2\text{O}_3$) have been widely promoted in the process-intensification literature as a means to outperform conventional boiling-water-cooled methanol reactors (CMRs) while eliminating external cooling utilities. This study presents a rigorous, critical re-assessment and thermodynamic ceiling analysis of the methanol–cyclohexane TCR using a thermodynamically consistent, variable-property 1D pseudo-homogeneous fixed-bed model coupled with unified dynamic Bauer–Schlünder radial thermal conductivity, Peng–Robinson real-gas fugacities, and strict equal-throughput benchmarking ($F_{\text{exo},0} = 0.640\text{ mol/s}$ per tube across $N_{\text{tubes}} = 2962$ tubes, $L = 7.022\text{ m}$).
 
----
-
-## 1. Introduction & Research Motivation
-
-### 1.1 Industrial Context of Methanol Synthesis
-Methanol ($\text{CH}_3\text{OH}$) is one of the most critical platform chemicals globally, serving as a primary precursor for formaldehyde, acetic acid, dimethyl ether (DME), olefins (MTO process), and synthetic fuels. Industrially, methanol is produced via the catalytic hydrogenation of carbon oxides over copper-based catalysts ($\text{CuO/ZnO/Al}_2\text{O}_3$) at elevated pressures ($50\text{–}100\text{ bar}$) and temperatures between $480\text{ K}$ and $550\text{ K}$:
-
-$$\text{CO}_2 + 3\text{H}_2 \rightleftharpoons \text{CH}_3\text{OH} + \text{H}_2\text{O} \quad (\Delta H^\circ_{298} = -49.5\text{ kJ/mol})$$
-$$\text{CO}_2 + \text{H}_2 \rightleftharpoons \text{CO} + \text{H}_2\text{O} \quad (\Delta H^\circ_{298} = +41.2\text{ kJ/mol})$$
-
-Because the primary reaction is intensely exothermic and thermodynamically favored at lower temperatures, standard commercial reactors (e.g., Lurgi multitubular boiling-water reactors) face severe operational compromises:
-1. **Catalyst Sintering:** Copper crystallites undergo irreversible thermal sintering and loss of active metallic surface area when bed temperatures exceed $535\text{–}550\text{ K}$.
-2. **Equilibrium Limitations:** High heat generation in the entrance zone triggers a steep temperature "hotspot", which dramatically reduces single-pass equilibrium conversion and forces substantial recycle ratios (recycle-to-fresh feed ratios typically $4:1$ to $6:1$), requiring massive compressor duty.
-
-### 1.2 The Concept of Thermally Coupled Reactors (TCR)
-Process Intensification (PI) offers a transformative pathway through **reaction-reaction thermal coupling**. By placing a strongly endothermic reaction in immediate conductive thermal contact with the exothermic bed across a dividing metal wall (in a shell-and-tube arrangement), the heat released by methanol synthesis is absorbed *in situ* as the driving thermodynamic force for the endothermic reaction. 
-
-In this work, the paired endothermic system is the **catalytic dehydrogenation of cyclohexane to benzene and hydrogen**:
-
-$$\text{C}_6\text{H}_{12} \rightleftharpoons \text{C}_6\text{H}_6 + 3\text{H}_2 \quad (\Delta H^\circ_{298} = +205.4\text{ kJ/mol})$$
-
-This pairing presents multiple synergistic advantages:
-- **In Situ Reaction Zone Cooling:** The endothermic reaction absorbs the reaction heat *in situ*, eliminating the need for high-pressure boiling water jackets in the reaction zone ($0.0\text{ kW}$ cooling utility).
-- **Continuous Heat Sink:** Hotspot formation in the methanol catalyst bed is mitigated by the endothermic reaction, maintaining favorable kinetic rates while protecting the catalyst.
-- **Valuable Chemical Coproduction:** In addition to co-produced benzene, the endothermic stream generates three moles of hydrogen per mole of converted cyclohexane, producing an $\text{H}_2$-rich reformate stream ($y_{\text{H}_2} \approx {{ tcr_nsga2_optimum.outlet_y_H2 }}\text{–}{{ countercurrent_baseline.outlet_y_H2 }}\text{ mol}\%$) that can be upgraded via pressure swing adsorption (PSA) or membrane separation for syngas recycle or merchant chemical use.
-
-### 1.3 Literature Gap and Contributions of this Study
-While seminal works by Rahimpour and coworkers (Khademi et al., 2009, 2012) demonstrated the conceptual feasibility of thermally coupled reactors, several crucial physical, transport, and methodological issues require first-principles resolution:
-1. **Unfair Optimization Baselines:** Prior optimization studies often compared multi-objective TCR designs against an unoptimized baseline CMR, rather than optimizing the conventional reactor over its own operational degrees of freedom ($T_{\text{exo},0}, T_{\text{coolant}}$).
-2. **Benchmark Typographical Errors:** Published kinetic tables in benchmark literature contain typographical errors—most notably in Khademi et al. (2009) Table 4, where the printed equilibrium constant exponent for cyclohexane dehydrogenation ($-3190\text{ K}$ instead of $-24704\text{ K}$) underpredicts temperature sensitivity by $7.7\times$.
-3. **Radial Heat Conduction & Centerline Hotspots:** Fixed-bed reactors with low aspect ratio ($D_{\text{in}}/d_p = 6.95 < 10$) exhibit significant wall Biot numbers ($Bi_h = 3.45 \gg 0.1$). A 1D model masks internal radial temperature gradients ($\Delta T_{\text{radial}} \approx 4.0\text{ K}$), requiring rigorous quantification to ensure the catalyst core remains safely below the $535.0\text{ K}$ copper sintering limit.
-4. **High-Pressure Non-Ideality:** Methanol synthesis operates at $77\text{ bar}$ where polar vapors (methanol, water) deviate from ideal gas behavior. Rigorous Peng–Robinson EOS calculations reveal a fugacity coefficient ratio of $K_\phi = 0.7868$, demonstrating that the ideal gas assumption introduces an offset in true equilibrium driving forces.
-5. **Variable Fluid Properties & Hydrogen Generation:** On the shell side, the generation of 3 moles of light hydrogen ($\Delta n = +3$) enriches the reformate gas, shifting gas thermal conductivity by up to $+63.3\%$ at the inlet to $-36.5\%$ downstream compared to constant property models.
-6. **Le Chatelier Shell Dilution:** Elevating shell operating pressure to $2.5\text{ bar}$ to prevent sub-atmospheric discharge significantly suppresses single-pass cyclohexane conversion ($X_{\text{CH}} \le 13.65\%$ vs. $86.8\%$ with 90% inert diluent), establishing that over $88\%$ of the shell effluent must be separated and recycled.
-7. **Plant-Wide Energy Accounting:** "Zero-utility" claims must be evaluated across the entire plant battery limit, including upstream feed conditioning (${{ process_thermal_duties.total_feed_preheat_duty_MW }}\text{ MW}$) and downstream extractive distillation for separating the close-boiling benzene–cyclohexane azeotrope.
+Five principal engineering findings reshape the techno-economic evaluation of this coupled architecture:
+1. **Forensic Benchmark Reconciliation:** Independent verification of the canonical Khademi et al. (2009) benchmark reveals two severe typographical errors in their printed Table 1 methanol kinetic parameters (CO hydrogenation activation energy misprinted as $63{,}000$ vs. $113{,}000\text{ J/mol}$, and RWGS pre-exponential misprinted as $9.64 \times 10^{6}$ vs. $9.64 \times 10^{11}$ from Graaf et al., 1988) alongside a dual sign-and-magnitude typographical error in Table 4 for the cyclohexane equilibrium constant ($K_p$ printed with $+3190/T$ instead of the NIST-anchored Kirchhoff van 't Hoff slope $-\Delta H_r^\circ / R \approx -24{,}704\text{ K}$). Furthermore, Eq. (28) in Khademi et al. (2009) reports a *gross* methanol yield that includes inlet recycle methanol ($y_{\text{CH}_3\text{OH},0} = 0.0050$, contributing a fixed $+3.57\text{ percentage-point}$ baseline offset above net newly synthesized yield).
+2. **Thermodynamic Ceiling (OTP) Analysis:** A 5-node L-BFGS-B Optimal Temperature Profile (OTP) ceiling analysis bounded by the $535.0\text{ K}$ copper sintering limit establishes a strict single-pass net methanol yield ceiling of ${{ otp.eta035.otp_net }}\%$ (${{ otp.eta035.otp_eq28 }}\%$ Eq. 28 gross) at the commercial pellet effectiveness factor $\eta_{\text{exo}} = 0.35$, and ${{ otp.eta100.otp_net }}\%$ (${{ otp.eta100.otp_eq28 }}\%$ gross) in the intrinsic limit $\eta_{\text{exo}} = 1.0$. Crucially, a fairly optimized boiling-water CMR at equal throughput already achieves ${{ conventional_optimized.yield_net_COx }}\%$ net yield (${{ conventional_optimized.yield_khademi_eq28 }}\%$ gross, ${{ conventional_optimized.daily_meoh_ton }}\text{ t/d}$)—within ${{ cmr_opt_vs_otp_eta035_gap_pp }}\text{ percentage points}$ of the theoretical OTP ceiling—demonstrating that thermal coupling cannot dramatically surpass a properly tuned conventional reactor in single-pass methanol yield.
+3. **Battery-Limit Energy & Steam-Credit Accounting:** While the TCR achieves $0.0\text{ kW}$ of external cooling duty inside the reaction zone via ${{ tcr_nsga2_optimum.Q_wall_total_MW }}\text{ MW}$ of *in situ* wall heat transfer, the optimized CMR simultaneously generates ${{ conventional_optimized.cmr_steam_credit_MW }}\text{ MW}$ of valuable medium-pressure steam credit from its boiling-water jacket. Across plant battery limits, the NSGA-II TCR knee point (${{ tcr_nsga2_optimum.daily_meoh_ton }}\text{ t/d}$ methanol, ${{ tcr_nsga2_optimum.daily_benzene_ton }}\text{ t/d}$ co-produced benzene, ${{ tcr_nsga2_optimum.daily_h2_ton }}\text{ t/d}$ hydrogen within an $\text{H}_2$-rich reformate stream) incurs ${{ tcr_nsga2_optimum.total_feed_preheat_duty_MW }}\text{ MW}$ of feed vaporization/preheating, ${{ tcr_nsga2_optimum.Q_reboiler_sep_MW }}\text{ MW}$ of extractive distillation reboiler duty to break the benzene–cyclohexane azeotrope, and ${{ tcr_nsga2_optimum.W_psa_H2_MW }}\text{ MW}_e$ of hydrogen PSA purification work.
+4. **Unified Dynamic Radial Conduction & Shell Hydraulics:** Evaluating packed-bed radial conductivity dynamically via the Bauer–Schlünder correlation yields $k_{er,\text{mean}} = {{ tcr_nsga2_optimum.k_er_mean }}\text{ W/(m}\cdot\text{K)}$ at the TCR knee point, confining the centerline radial overshoot to $\Delta T_{\text{radial}} = {{ tcr_knee_delta_T_radial_K }}\text{ K}$ ($T_{\text{centerline,max}} = {{ tcr_nsga2_optimum.T_centerline_max }}\text{ K} \le 535.0\text{ K}$). On the shell side, hydraulic stability auditing against static catalyst bed weight ($P_{\text{bed}} = {{ tcr_nsga2_optimum.bed_weight_bar }}\text{ bar}$) quantifies the upward-flow bed-lifting ratio at $\Delta P_{\text{shell}} / P_{\text{bed}} = {{ tcr_nsga2_optimum.bed_lifting_ratio }}$ (hold-down grid requirement: ${{ tcr_knee_hold_down_status }}$).
+5. **Real-Gas Peng–Robinson EOS Audit:** Incorporating full Peng–Robinson fugacity coefficients at $76.98\text{ bar}$ shifts the benchmark CMR net methanol yield from ${{ eos.yield_net_ideal }}\%$ (ideal gas) to ${{ eos.yield_net_real_eos }}\%$ (real gas, $\Delta = {{ eos.diff_pct_points }}\text{ percentage points}$). Contrary to simplified equilibrium-only intuition, real-gas non-ideality slightly *reduces* kinetically controlled single-pass yield because non-ideal fugacities accelerate RWGS water formation and intensify kinetic water inhibition on the $\text{Cu/ZnO/Al}_2\text{O}_3$ surface.
 
 ---
 
-## 2. Mathematical Modeling & Kinetic Formulations
+## 1. Introduction & Critical Motivation
 
-### 2.1 Reactor Architecture & Catalyst Properties
-The reactor is modeled on an industrial multitubular shell-and-tube geometry containing $N_{\text{tubes}} = 2962$ vertical tubes enclosed within an outer shell. The exothermic methanol synthesis occurs inside the catalyst-packed tubes, while the endothermic cyclohexane dehydrogenation takes place within the catalyst-packed shell space surrounding the tubes.
+### 1.1 Industrial Methanol Synthesis and the Thermal Coupling Hypothesis
+Commercial methanol synthesis converts pressurized synthesis gas ($\text{H}_2/\text{CO}/\text{CO}_2$, $50\text{–}100\text{ bar}$, $480\text{–}540\text{ K}$) over $\text{Cu/ZnO/Al}_2\text{O}_3$ catalysts via exothermic hydrogenation reactions coupled with the endothermic reverse water-gas shift (RWGS) reaction. Because copper crystallites sinter rapidly above $535\text{–}550\text{ K}$ while equilibrium conversion deteriorates monotonically with rising temperature, industrial Lurgi-type reactors pack catalyst inside narrow tubes ($D_{\text{in}} = 0.038\text{ m}$) surrounded by boiling water. Crucially, that boiling-water jacket is not merely a waste-heat sink: it recovers the enthalpy of reaction as exportable medium-pressure steam ($20\text{–}40\text{ bar}$), offsetting upstream compression and distillation energy demands.
 
-| Parameter | Symbol | Tube Side (Exothermic) | Shell Side (Endothermic) | Unit | Source Citation |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Reaction Hosted** | — | Methanol Synthesis | Cyclohexane Dehydrogenation | — | — |
-| **Catalyst Material** | — | $\text{CuO/ZnO/Al}_2\text{O}_3$ | $\text{Pt/Al}_2\text{O}_3$ | — | Khademi et al. (2009) |
-| **Catalyst Effectiveness Factor** | $\eta$ | $0.35$ | $1.00$ | — | Khademi et al. (2009) |
-| **Reactor Length** | $L$ | $7.022$ | $7.022$ | $\text{m}$ | Khademi et al. (2009), Table 6 |
-| **Tube Inner Diameter** | $D_{i}$ | $0.038$ | — | $\text{m}$ | Khademi et al. (2009), Table 6 |
-| **Tube Outer Diameter** | $D_{o}$ | $0.042$ | — | $\text{m}$ | Khademi et al. (2009), Table 6 |
-| **Shell Equivalent Diameter** | $D_{\text{shell}}$ | — | $0.058$ | $\text{m}$ | Khademi et al. (2009), Table 6 |
-| **Catalyst Particle Diameter** | $d_p$ | $5.47 \times 10^{-3}$ | $3.55 \times 10^{-3}$ | $\text{m}$ | Khademi et al. (2009), Table 6 |
-| **Bulk Bed Density** | $\rho_b$ | $1140.0$ | $1077.0$ | $\text{kg/m}^3$ | Khademi et al. (2009), Table 6 |
-| **Bed Voidage (Porosity)** | $\varepsilon$ | $0.39$ | $0.40$ | — | Khademi et al. (2009), Table 6 |
-| **Baseline Inlet Temperature** | $T_0$ | $503.15$ ($230.0^\circ\text{C}$) | $485.0$ ($211.85^\circ\text{C}$) | $\text{K}$ | Baseline design |
-| **Operating Pressure** | $P_0$ | $76.98$ | $2.50$ ($2.5 \times 10^5\text{ Pa}$) | $\text{bar}$ | Baseline design |
-| **Feed Composition** | $y_0$ | $y_{\text{H}_2}=0.669, y_{\text{CO}_2}=0.223, y_{\text{CO}}=0.046, y_{\text{CH}_3\text{OH}}=0.005, y_{\text{H}_2\text{O}}=0.004, y_{\text{CH}_4}=0.017, y_{\text{N}_2}=0.036$ | $y_{\text{CH}}=0.95, y_{\text{B}}=0.00, y_{\text{H}_2}=0.05, y_{\text{inert}}=0.00$ | — | Khademi et al. (2009), Tables 7 & 8 |
-| **Inlet Molar Flow (per tube)** | $F_{\text{total},0}$ | $0.640$ | $0.040$ | $\text{mol/s}$ | Khademi et al. (2009), Tables 7 & 8 |
-| **Wall Thermal Conductivity** | $K_w$ | $48.0$ | $48.0$ | $\text{W/(m}\cdot\text{K)}$ | Stainless Steel |
+Thermally coupled reactors (TCRs) replace the boiling-water jacket with a second catalytic bed in the shell carrying an endothermic reaction—most prominently cyclohexane dehydrogenation ($\text{C}_6\text{H}_{12} \rightleftharpoons \text{C}_6\text{H}_6 + 3\text{H}_2$, $\Delta H_{298}^\circ = +205.4\text{ kJ/mol}$) over $\text{Pt/Al}_2\text{O}_3$, proposed for liquid organic hydrogen carrier (LOHC) release and chemical co-production (Khademi et al., 2009). Prior optimization studies frequently claim significant methanol yield improvements alongside "zero cooling utility" operation. However, a rigorous engineering appraisal reveals five critical blind spots in earlier literature:
 
-#### Radial Conduction Resistance, Wall Biot Number, and Centerline Hotspots
-Because the tube-to-particle aspect ratio is low:
-$$\frac{D_{\text{in}}}{d_p} = \frac{0.038\text{ m}}{0.00547\text{ m}} = 6.95 < 10$$
-radial temperature gradients across the packed bed cannot be assumed negligible a priori. The effective radial thermal conductivity of the packed bed ($k_{er}$) combines stagnant bed conduction and turbulent dispersion (Bauer & Schlünder):
-$$k_{er} = k_{er}^0 + \frac{Re_p Pr}{Pe_{hr}} K_g \approx 0.22 + \frac{1200 \times 0.70}{9.0}(0.12) \approx 2.20\text{ W/(m}\cdot\text{K)}$$
+1. **Unverified Literature Kinetics & Equilibrium Typos:** Published TCR benchmark papers contain severe typographical errors in printed kinetic activation energies, pre-exponential factors, and endothermic equilibrium correlations, as well as a gross yield metric (Eq. 28) that folds inlet recycle methanol into reported conversion yields.
+2. **Absence of a Thermodynamic Ceiling Benchmark:** Comparing a tuned TCR against an *unoptimized* baseline CMR conflates thermal coupling benefits with simple inlet-temperature optimization. Without computing the theoretical Optimal Temperature Profile (OTP) ceiling under identical kinetic and thermal sintering bounds, the true thermodynamic headroom available to any thermal-management scheme remains obscured.
+3. **Incomplete Battery-Limit Energy Accounting:** Treating boiling-water heat removal in a CMR as a pure utility penalty ignores its valuable steam-generation credit, while treating TCR reaction-zone heat integration as "free" ignores cyclohexane vaporization/preheating, low single-pass equilibrium conversion, and the energy-intensive extractive distillation required to break the benzene–cyclohexane azeotrope ($\Delta T_{\text{bp}} = 0.6\text{ K}$).
+4. **Inconsistent Radial Conductivity & Ignored Shell Bed-Lifting Hydraulics:** Fixed-bed thermal analyses that apply artificially low static radial conductivities ($k_{er}$) misstate centerline sintering margins, while shell-side packed beds subjected to high Ergun pressure drops in upward-flow configurations face fluidization and bed-lifting risks unless audited against catalyst bed weight ($\Delta P_{\text{shell}} / P_{\text{bed}}$).
+5. **Mischaracterized High-Pressure Real-Gas Effects:** At $77\text{ bar}$, polar $\text{CH}_3\text{OH}$ and $\text{H}_2\text{O}$ exhibit sub-unity fugacity coefficients. Evaluating real-gas Peng–Robinson thermodynamics solely via equilibrium ratios omits the coupled kinetic consequence of shifted RWGS water formation and surface water inhibition.
 
-The wall heat transfer Biot number ($Bi_h$) compares internal bed conduction resistance to wall film resistance:
-$$Bi_h = \frac{h_w R_{\text{in}}}{k_{er}} = \frac{400.0 \times 0.019}{2.20} = \mathbf{3.45} \gg 0.10$$
-
-Because $Bi_h \gg 0.10$, internal radial temperature gradients exist inside each tube. At the entrance hotspot ($z \approx 0.6\text{–}1.2\text{ m}$), volumetric heat release reaches $q_v \approx 1.94 \times 10^5\text{ W/m}^3$ ($194.0\text{ kW/m}^3$). For a steady parabolic radial temperature profile, the differences between centerline temperature $T_{\text{center}}$, cross-sectional cup-average temperature $T_{\text{mean}}$, and inner wall temperature $T_{\text{wall}}$ are:
-$$\Delta T_{\text{center-mean}} = \frac{q_v R_{\text{in}}^2}{8 k_{er}} = \frac{(1.94 \times 10^5)(0.019)^2}{8(2.20)} \approx \mathbf{3.98\text{ K}} \approx 4.0\text{ K}$$
-$$\Delta T_{\text{center-wall}} = \frac{q_v R_{\text{in}}^2}{4 k_{er}} = \frac{(1.94 \times 10^5)(0.019)^2}{4(2.20)} \approx \mathbf{7.96\text{ K}} \approx 8.0\text{ K}$$
-
-Consequently, to strictly satisfy the copper catalyst thermal deactivation threshold ($T_{\text{solid}} \le 535.0\text{ K}$) at the tube centerline:
-$$T_{\text{centerline,max}} = T_{\text{mean,max}} + \Delta T_{\text{center-mean}} \le 535.0\text{ K} \implies T_{\text{mean,max}} \le 531.02\text{ K}$$
-In the NSGA-II optimal design, the peak 1D bulk temperature is safely maintained at ${{ tcr_nsga2_optimum.T_max_exo }}\text{ K}$, yielding a centerline temperature of ${{ tcr_nsga2_optimum.T_centerline_max }}\text{ K} \le 535.0\text{ K}$, ensuring complete catalyst thermal preservation.
-
-#### Triangular Tube Pitch Unit-Cell Geometry & Hydraulic Diameter
-The industrial shell-and-tube bundle is arranged on an equilateral triangular tube pitch ($p_t = 0.05523\text{ m}$, yielding pitch-to-diameter ratio $p_t / D_{\text{out}} = 1.315$). In an equilateral triangular layout, the unit-cell area associated with each tube is:
-$$A_{\text{cell}} = \frac{\sqrt{3}}{2} p_t^2 = \frac{\sqrt{3}}{2} (0.05523\text{ m})^2 = 2.6419 \times 10^{-3}\text{ m}^2$$
-Subtracting the tube outer cross-sectional area yields the net shell-side flow area per tube:
-$$A_{\text{shell}} = A_{\text{cell}} - \frac{\pi}{4} D_{\text{out}}^2 = 2.6419 \times 10^{-3} - \frac{\pi}{4} (0.042\text{ m})^2 = 1.2563 \times 10^{-3}\text{ m}^2$$
-The equivalent shell diameter $D_{\text{shell,eff}} = p_t \sqrt{\frac{2\sqrt{3}}{\pi}} = 0.0580\text{ m}$ matches Khademi et al. (2009, Table 6). The shell-side hydraulic diameter based on wetted perimeter ($\pi D_{\text{out}}$) is rigorously:
-$$D_{h,\text{shell}} = \frac{4 A_{\text{shell}}}{\pi D_{\text{out}}} = \frac{4 (1.2563 \times 10^{-3}\text{ m}^2)}{\pi (0.042\text{ m})} = \mathbf{0.03808\text{ m}} \quad (38.08\text{ mm})$$
-
-#### Wall-Effect Ergun Momentum Correction (Eisfeld & Schnitzlein, 2001)
-In confined packed beds with moderate aspect ratio ($D_h / d_p < 20$), packing disorder and elevated voidage near solid walls reduce viscous drag and inertial resistance. In accordance with the peer-reviewed correlations of Eisfeld & Schnitzlein (2001), the Ergun pressure drop equation incorporates wall-effect correction factors $A_w$ and $B_w$:
-$$\frac{dP}{dz} = -\left[ 150 \frac{\mu (1-\varepsilon)^2}{\varepsilon^3 d_p^2} u_s A_w + 1.75 \frac{(1-\varepsilon)}{\varepsilon^3 d_p} \rho_g u_s^2 B_w \right]$$
-$$A_w = 1 + \frac{2}{3 (D_h/d_p) (1 - \varepsilon)}, \quad B_w = \left[ k_1 \left(\frac{d_p}{D_h}\right)^2 + k_2 \right]^2$$
-where for cylindrical/spherical pellets $k_1 = 0.45$ and $k_2 = 1.00$. For the tube side ($D_h / d_p = 6.95$, $\varepsilon = 0.39$), $A_w \approx 1.157$ and $B_w \approx 1.019$, accounting for near-wall channeling and friction.
-
-#### Mechanical Integrity & Lamé Thick-Wall Hoop Stress Verification
-Operating at an intra-tubular pressure of $P_{\text{tube}} \approx 76.98\text{ bar}$ against a shell pressure of $P_{\text{shell}} \approx 2.50\text{ bar}$ produces a differential pressure of $\Delta P \approx 74.48\text{ bar}$ ($7.448\text{ MPa}$). For thick-walled seamless cylindrical tubing ($D_{\text{out}} = 42\text{ mm}, D_{\text{in}} = 38\text{ mm}$, wall thickness $t_w = 2.0\text{ mm}$), the peak elastic hoop stress occurs at the inner tube radius and is calculated from Lamé's thick-wall formulation:
-$$\sigma_\theta = \Delta P \frac{D_{\text{out}}^2 + D_{\text{in}}^2}{D_{\text{out}}^2 - D_{\text{in}}^2} = (7.448\text{ MPa}) \frac{(0.042)^2 + (0.038)^2}{(0.042)^2 - (0.038)^2} = \mathbf{74.67\text{ MPa}}$$
-Per ASME Boiler and Pressure Vessel Code (Section VIII, Division 1, Part UCS), seamless alloy steel tubing (SA-213 Grade T22 / 2.25Cr-1Mo) possesses an allowable design stress of $S_{\text{allow}} = 138.0\text{ MPa}$ at design metal temperatures up to $550\text{ K}$. The resulting mechanical safety factor is:
-$$\text{SF} = \frac{S_{\text{allow}}}{\sigma_\theta} = \frac{138.0\text{ MPa}}{74.67\text{ MPa}} = \mathbf{1.85} \ge 1.50$$
-satisfying mandatory ASME Section VIII Division 1 structural design criteria with a 23% safety margin above the code minimum ($1.50$).
-
-#### 2-Point Radial Gauss–Legendre Quadrature Feedback into ODE Reaction Kinetics
-To capture the impact of internal radial temperature gradients on highly non-linear Arrhenius kinetics without incurring the prohibitive computational overhead of a full 2D PDE discretization, a 2-point Gauss–Legendre radial quadrature is coupled directly into the 1D ODE solver. Assuming a classical parabolic radial temperature distribution:
-$$T(r, z) = T_{\text{mean}}(z) + \Delta T_{\text{rad}}(z) \left( 1 - 2 \left(\frac{r}{R}\right)^2 \right)$$
-where $\Delta T_{\text{rad}}(z) = \frac{q_v(z) R_{\text{in}}^2}{8 k_{er}}$. Mapping radial coordinate $u = (r/R)^2 \in [0, 1]$, the Gauss–Legendre quadrature nodes and weights are:
-$$u_1 = \frac{1}{2} - \frac{\sqrt{3}}{6} \approx 0.2113, \quad u_2 = \frac{1}{2} + \frac{\sqrt{3}}{6} \approx 0.7887, \quad w_1 = w_2 = 0.5$$
-The corresponding radial evaluation temperatures are:
-$$T_1(z) = T_{\text{mean}}(z) + \Delta T_{\text{rad}}(z) \frac{\sqrt{3}}{3}, \quad T_2(z) = T_{\text{mean}}(z) - \Delta T_{\text{rad}}(z) \frac{\sqrt{3}}{3}$$
-The effective cross-sectional reaction rates evaluated at each axial ODE step are:
-$$r_{\text{eff}}(z) = 0.5 \left[ r(T_1, P, \mathbf{y}) + r(T_2, P, \mathbf{y}) \right]$$
-This formulation captures non-linear Arrhenius acceleration near the hotter tube center and deceleration near the cooler tube wall, providing a conservative, physically grounded reaction rate.
-
-### 2.2 Kinetic Expressions
-
-#### A. Tube Side: Methanol Synthesis & RWGS (Vanden Bussche & Froment, 1996)
-Accounting for catalyst pellet internal pore diffusion ($\eta_{\text{exo}} = 0.35$), the authentic Vanden Bussche & Froment (1996) LHHW rate equations are expressed as:
-
-$$r_{\text{CH}_3\text{OH}} = \eta_{\text{exo}} \frac{k_1 \left(p_{\text{CO}_2} p_{\text{H}_2} - \frac{p_{\text{CH}_3\text{OH}} p_{\text{H}_2\text{O}}}{K_{eq,1} p_{\text{H}_2}^2}\right)}{\left(1 + K_{\text{ratio}} \frac{p_{\text{H}_2\text{O}}}{p_{\text{H}_2}} + \sqrt{K_{\text{H}_2} p_{\text{H}_2}} + K_{\text{H}_2\text{O}} p_{\text{H}_2\text{O}}\right)^3}$$
-
-$$r_{\text{RWGS}} = \eta_{\text{exo}} \frac{k_2 \left(p_{\text{CO}_2} - \frac{p_{\text{CO}} p_{\text{H}_2\text{O}}}{K_{eq,2} p_{\text{H}_2}}\right)}{1 + K_{\text{ratio}} \frac{p_{\text{H}_2\text{O}}}{p_{\text{H}_2}} + \sqrt{K_{\text{H}_2} p_{\text{H}_2}} + K_{\text{H}_2\text{O}} p_{\text{H}_2\text{O}}}$$
-
-Where partial pressures $p_i$ are in $\text{bar}$, and the kinetic and adsorption parameters are:
-
-$$k_1 = 1.07 \exp\left(\frac{36696}{R T}\right) \quad [\text{mol/(kg}_{\text{cat}}\cdot\text{s}\cdot\text{bar}^2)]$$
-$$k_2 = 1.22 \times 10^{10} \exp\left(-\frac{94765}{R T}\right) \quad [\text{mol/(kg}_{\text{cat}}\cdot\text{s}\cdot\text{bar})]$$
-$$K_{\text{ratio}} = 3453.38$$
-$$\sqrt{K_{\text{H}_2}} = 0.499 \exp\left(+\frac{17197}{R T}\right) \quad [\text{bar}^{-0.5}]$$
-$$K_{\text{H}_2\text{O}} = 6.62 \times 10^{-11} \exp\left(\frac{124119}{R T}\right) \quad [\text{bar}^{-1}]$$
-
-The equilibrium constants are:
-$$\log_{10}(K_{eq,1}) = \frac{3066}{T} - 10.592 \quad [\text{bar}^{-2}]$$
-$$\log_{10}(K_{eq,2}) = -\frac{2073}{T} + 2.029 \quad [-]$$
-
-##### High-Pressure Real-Gas Non-Ideality & Peng–Robinson Fugacity Analysis
-The tube operates at $P = 76.98\text{ bar}$ where polar products ($\text{CH}_3\text{OH}, \text{H}_2\text{O}$) and supercritical gases ($\text{H}_2, \text{CO}_2$) exhibit non-ideal volumetric and thermodynamic behavior. Evaluating the 7-component mixture via the Peng–Robinson Equation of State (PR-EOS) at $503.15\text{ K}$ and $76.98\text{ bar}$ yields mixture compressibility $Z = 1.0171$ and component fugacity coefficients $\phi_i = f_i / (y_i P)$:
-$$\phi_{\text{H}_2} = 1.0231, \quad \phi_{\text{CO}_2} = 0.9776, \quad \phi_{\text{CO}} = 1.0237, \quad \phi_{\text{CH}_3\text{OH}} = 0.9125, \quad \phi_{\text{H}_2\text{O}} = 0.9028$$
-
-The fugacity correction factor for $\text{CO}_2$ hydrogenation to methanol ($\Delta \nu = -2$) is:
-$$K_{\phi,1} = \frac{\phi_{\text{CH}_3\text{OH}} \phi_{\text{H}_2\text{O}}}{\phi_{\text{CO}_2} \phi_{\text{H}_2}^3} = \frac{(0.9125)(0.9028)}{(0.9776)(1.0231)^3} = \mathbf{0.7868}$$
-and for RWGS ($\Delta \nu = 0$):
-$$K_{\phi,2} = \frac{\phi_{\text{CO}} \phi_{\text{H}_2\text{O}}}{\phi_{\text{CO}_2} \phi_{\text{H}_2}} = \frac{(1.0237)(0.9028)}{(0.9776)(1.0231)} = \mathbf{0.9239}$$
-
-Because the true thermodynamic equilibrium constant depends on fugacities ($K_a = K_\phi K_p$), the apparent equilibrium constant is $K_{p,\text{true}} = K_a / 0.7868 = 1.271 \times K_{p,\text{ideal}}$. Assuming an ideal gas ($K_\phi = 1$) introduces a $21.32\%$ offset in the equilibrium ratio, underpredicting equilibrium conversion by $3\text{–}6$ percentage points and ensuring that the 1D model predictions remain intrinsically conservative.
-
-#### B. Shell Side: Cyclohexane Dehydrogenation (Reversible LHHW Formulation)
-The catalytic endothermic conversion of cyclohexane ($\text{C}_6\text{H}_{12}$) to benzene ($\text{C}_6\text{H}_6$) and hydrogen over $\text{Pt/Al}_2\text{O}_3$ is governed by the peer-reviewed rate law of Itoh (1987) / Kusakabe et al. (2003) / Khademi et al. (2009, Eq. 8 & Table 4), algebraically rationalized into a singularity-free reversible LHHW formulation:
-
-$$r_{\text{CH}} = \eta_{\text{endo}}(z) \frac{k(T) \left[ K_p(T) P_{\text{CH}} - P_{\text{B}} P_{\text{H}_2}^3 \right]}{P_{\text{H}_2}^3 + K_{\text{B}}(T) K_p(T) P_{\text{CH}}}$$
-
-Where the kinetic, adsorption, and exact thermodynamic parameters are:
-$$k(T) = \frac{0.221}{\rho_b} \exp\left(-\frac{4270}{T}\right) \quad [\text{mol/(kg}_{\text{cat}}\cdot\text{s}\cdot\text{Pa})]$$
-$$K_{\text{B}}(T) = 2.03 \times 10^{-10} \exp\left(\frac{6270}{T}\right) \quad [\text{Pa}^{-1}]$$
-
-where partial pressures $P_i$ are in $\text{Pa}$, catalyst bulk density $\rho_b = 1077.0\text{ kg/m}^3$, and the thermodynamic equilibrium constant $K_p(T)$ is evaluated directly via rigorous Kirchhoff–Gibbs–Helmholtz enthalpy and entropy integration:
-$$\Delta H_r^\circ(T) = \Delta H_{r,298}^\circ + \int_{298.15}^T \Delta C_p(T')\,dT'$$
-$$\Delta S_r^\circ(T) = \Delta S_{r,298}^\circ + \int_{298.15}^T \frac{\Delta C_p(T')}{T'}\,dT'$$
-$$\ln K_{p,\text{bar}^3}(T) = -\frac{\Delta H_r^\circ(T) - T \Delta S_r^\circ(T)}{R T}, \quad K_{p,\text{Pa}^3}(T) = K_{p,\text{bar}^3}(T) \times 10^{15}$$
-
-This formulation guarantees that the numerical van 't Hoff derivative $R T^2 \frac{d\ln K_p}{dT} \equiv \Delta H_r(T)$ holds to machine precision ($\le 10^{-12}$ relative error) across $300\text{–}650\text{ K}$, and ensures microscopic reversibility ($r_{\text{CH}} \equiv 0$) at exact thermodynamic equilibrium without numerical division-by-zero singularities at zero hydrogen partial pressure.
-
-##### Le Chatelier Principle & Shell Feed Dilution Analysis
-The reaction involves a net expansion of three moles ($\Delta \nu = +3$). In terms of total pressure $P$ and inert diluent mole fraction $y_{\text{inert}}$, the equilibrium conversion $X_{\text{eq}}$ satisfies the exact relation:
-$$27(1 - y_{\text{inert}})^3 P_{\text{total}}^3 X_{\text{eq}}^4 - K_p(T)(1 - X_{\text{eq}})\left[ 1 + 3(1 - y_{\text{inert}})X_{\text{eq}} \right]^3 = 0$$
-
-In Khademi et al. (2009), the shell feed contained $90\text{ mol}\%\text{ Ar}$ diluent at $P_0 = 1.013\text{ bar}$, reducing the initial cyclohexane partial pressure to $p_{\text{CH},0} = 0.101\text{ bar}$. In our production TCR, pure cyclohexane is fed at an elevated inlet pressure of $P_0 = 2.50\text{ bar}$ (to guarantee above-atmospheric discharge $P_{\text{out}} \ge 1.10\text{ bar}$), raising $p_{\text{CH},0}$ by $24.7\times$. The resulting thermodynamic equilibrium conversion is compared below:
-
-| Temperature $T$ | Khademi Benchmark ($1.013\text{ bar}, 90\%\text{ Ar}$) | Production TCR ($2.50\text{ bar}, 0\%\text{ Ar}$) | Le Chatelier Penalty Factor |
-| :---: | :---: | :---: | :---: |
-| **$460.0\text{ K}$ ($186.85^\circ\text{C}$)** | $17.52\%$ | **$1.65\%$** | $10.6\times$ |
-| **$480.0\text{ K}$ ($206.85^\circ\text{C}$)** | $30.56\%$ | **$3.00\%$** | $10.2\times$ |
-| **$500.0\text{ K}$ ($226.85^\circ\text{C}$)** | $49.60\%$ | **$5.28\%$** | $9.4\times$ |
-| **$520.0\text{ K}$ ($246.85^\circ\text{C}$)** | $72.42\%$ | **$9.12\%$** | $7.9\times$ |
-| **$535.0\text{ K}$ ($261.85^\circ\text{C}$)** | $86.84\%$ | **$13.65\%$** | $6.4\times$ |
-
-By Le Chatelier's principle, elevating shell pressure suppresses single-pass equilibrium conversion to $\le 13.65\%$ across the allowable catalyst temperature window ($T \le 535.0\text{ K}$). Consequently, in an undiluted feed, single-pass conversion is bounded at $8\text{–}12\%$, and $>88\%$ of the effluent hydrocarbon passes through unconverted, acting as an internal thermal heat-transfer fluid that requires downstream extractive separation and recycling.
-
-#### C. Packed-Bed Transport & Dynamic Overall Heat Transfer
-The overall heat transfer coefficient $U(z)$ is computed dynamically from local fluid velocities, packed-bed transport correlations, and cylindrical tube wall conduction:
-$$\frac{1}{U_i(z)} = \frac{1}{h_{w,i}(z)} + \frac{D_i \ln(D_o/D_i)}{2 K_w} + \frac{D_i}{D_o h_{w,o}(z)}$$
-
-Packed-bed wall heat transfer coefficients $h_{w,i}$ and $h_{w,o}$ are calculated using Dixon and Li & Finlayson correlations for packed cylinders and annuli. For the conventional reactor jacket, boiling water film heat transfer ($h_{\text{cool}} = 6000\text{ W/(m}^2\cdot\text{K)}$) is applied. The shell cross-sectional flow area is strictly defined by the annular geometry without arbitrary multipliers:
-$$A_{\text{shell}} = \frac{\pi}{4}(D_{\text{shell,eff}}^2 - D_{\text{out}}^2)$$
-
-##### Hydrogen Generation & Variable Fluid Properties (Wassiljewa-Mason-Saxena)
-During shell dehydrogenation, heavy cyclohexane ($k_g = 0.0245\text{ W/(m}\cdot\text{K)}$ at $500\text{ K}$) converts to benzene and three moles of light hydrogen ($k_g = 0.2580\text{ W/(m}\cdot\text{K)}$). The gas mixture conductivity varies with conversion $X_{\text{CH}}$ according to the Wassiljewa equation with Mason–Saxena interaction parameters:
-$$k_{\text{mix}} = \sum_i \frac{y_i k_i}{\sum_j y_j \Phi_{ij}}, \quad \Phi_{ij} = \frac{\left[1 + (\mu_i / \mu_j)^{1/2} (M_{w,j} / M_{w,i})^{1/4}\right]^2}{\left[8(1 + M_{w,i} / M_{w,j})\right]^{1/2}}$$
-As $X_{\text{CH}}$ advances from $0\%$ to $30\%$, the hydrogen mole fraction rises from $0\%$ to $47.4\%$, driving $k_{\text{mix}}$ from $0.0245\text{ W/(m}\cdot\text{K)}$ to $0.0630\text{ W/(m}\cdot\text{K)}$. While a constant $K_{g,\text{endo}} = 0.040\text{ W/(m}\cdot\text{K)}$ provides a robust average representation, local heat transfer coefficients increase downstream as hydrogen accumulates.
-
-### 2.3 Governing Conservation Equations
-- **Mass Balances:**
-  $$\frac{dF_{i,\text{tube}}}{dz} = A_{\text{tube}} \rho_{b,\text{exo}} \sum_{j} \nu_{i,j} r_{j,\text{exo}}$$
-  $$\frac{dF_{k,\text{shell}}}{dz} = \pm A_{\text{shell}} \rho_{b,\text{endo}} \sum_{m} \nu_{k,m} r_{m,\text{endo}} \quad (+ \text{ for co-current, } - \text{ for counter-current})$$
-
-- **Energy Balances:**
-  $$Q_{\text{wall}}(z) = U(z) a_H \left(T_{\text{tube}}(z) - T_{\text{shell}}(z)\right), \quad a_H = \pi D_i$$
-  $$\frac{dT_{\text{tube}}}{dz} = \frac{A_{\text{tube}} \rho_{b,\text{exo}} \sum (-\Delta H_{r,j}) r_j - Q_{\text{wall}}(z)}{\sum F_{i,\text{tube}} C_{p,i}(T)}$$
-  $$\frac{dT_{\text{shell}}}{dz} = \pm \left[\frac{A_{\text{shell}} \rho_{b,\text{endo}} \sum (-\Delta H_{r,m}) r_m + Q_{\text{wall}}(z)}{\sum F_{k,\text{shell}} C_{p,k}(T)}\right]$$
-
-- **Momentum Balances (Ergun Equation):**
-  $$\frac{dP}{dz} = -\left[\frac{150 \mu (1-\varepsilon)^2}{\varepsilon^3 d_p^2} u_s + \frac{1.75 (1-\varepsilon)}{\varepsilon^3 d_p} \rho_g u_s^2\right]$$
+### 1.2 Scope and Contributions of This Study
+This work resolves each of these five gaps within a single-source-of-truth (SSOT) multiphysics simulation framework where every conservation law, thermodynamic derivative, and transport correlation is verified to machine or tight numerical precision:
+- **(a) Khademi et al. (2009) Forensic Audit:** Exact reproduction using Khademi Table 7/8 shell geometry ($D_{\text{shell}} = 0.060\text{ m}$, $A_{\text{shell}} = 1.44199 \times 10^{-3}\text{ m}^2$, $\varepsilon_{\text{shell}} = 0.39$), reconciliation of Table 1 and Table 4 typographical errors, exact 3-to-2 Graaf stoichiometric projection, and transparent dual reporting of gross Eq. (28) versus net $\text{CO}_x$ methanol yields.
+- **(b) Optimal Temperature Profile (OTP) Ceiling Analysis:** 5-node L-BFGS-B optimal temperature trajectory and best isothermal reactor ceilings at $\eta_{\text{exo}} = 0.35$ and $\eta_{\text{exo}} = 1.0$, proving that an equal-throughput optimized CMR already operates near the theoretical kinetic-thermodynamic ceiling.
+- **(c) Fair Battery-Limit Energy & Steam-Credit Accounting:** Full comparison of CMR steam-generation thermal credit against TCR feed conditioning, extractive distillation reboiler duty, flash condensation, and hydrogen PSA compression work.
+- **(d) Unified Dynamic Radial Conduction & Shell Hydraulic Stability:** Implementation of dynamic Bauer–Schlünder $k_{er}(z)$ for centerline hotspot verification alongside upward-flow bed-lifting ratio ($\Delta P_{\text{shell}} / P_{\text{bed}}$) and hold-down grid flagging.
+- **(e) Coupled Real-Gas Peng–Robinson EOS Audit:** Quantitative comparison of full PR-EOS fugacity kinetics against ideal-gas kinetics, explaining the physical mechanism of the real-gas yield shift.
 
 ---
 
-## 3. Numerical Solution Strategy
+## 2. Mathematical Modeling & Physical Formulations
+
+### 2.1 Reactor Geometry, Catalyst Beds, and Feed Specifications
+The industrial benchmark basis follows a multi-tubular shell-and-tube Lurgi geometry ($N_{\text{tubes}} = 2962$, $L = 7.022\text{ m}$, $D_{\text{in}} = 0.038\text{ m}$, $D_{\text{out}} = 0.042\text{ m}$, carbon steel wall $K_w = 48.0\text{ W/(m}\cdot\text{K)}$). For the production unit-cell model, tubes are arranged on a triangular pitch ($p_t = 0.05523\text{ m}$, $p_t / D_{\text{out}} = 1.315$), yielding an equivalent shell unit-cell diameter $D_{\text{shell,eff}} = 0.058\text{ m}$ and shell flow area $A_{\text{shell}} = \frac{\pi}{4}(D_{\text{shell,eff}}^2 - D_{\text{out}}^2) = 1.2566 \times 10^{-3}\text{ m}^2$. For exact literature benchmarking against Khademi et al. (2009) Tables 7–8, the benchmark module overrides shell geometry to their published $D_{\text{shell}} = 0.060\text{ m}$ ($A_{\text{shell}} = 1.44199 \times 10^{-3}\text{ m}^2$) and $\varepsilon_{\text{shell}} = 0.39$.
+
+| Parameter | Exothermic Tube ($\text{Cu/ZnO/Al}_2\text{O}_3$) | Endothermic Shell ($\text{Pt/Al}_2\text{O}_3$) | Source / Notes |
+| :--- | :--- | :--- | :--- |
+| **Reactor Length $L$** | $7.022\text{ m}$ | $7.022\text{ m}$ | Khademi et al. (2009), Table 7 |
+| **Flow Diameters** | $D_{\text{in}} = 0.038\text{ m}$, $D_{\text{out}} = 0.042\text{ m}$ | $D_{\text{shell,eff}} = 0.058\text{ m}$ ($0.060\text{ m}$ bench.) | Triangular unit-cell / Table 8 |
+| **Catalyst Pellet Diameter $d_p$** | $5.47 \times 10^{-3}\text{ m}$ | $3.55 \times 10^{-3}\text{ m}$ | Khademi et al. (2009), Tables 7 & 8 |
+| **Catalyst Bulk Density $\rho_b$** | $1140.0\text{ kg/m}^3$ | $1077.0\text{ kg/m}^3$ | Khademi et al. (2009); Itoh (1987) |
+| **Bed Void Fraction $\varepsilon$** | $0.39$ | $0.40$ ($0.39$ bench.) | Table 7 / Production & Table 8 |
+| **Baseline Effectiveness $\eta$** | $0.35$ (VBF prod.); $1.0$ (Graaf bench.) | $1.0$ | Froment et al. (2011); Khademi (2009) |
+| **Inlet Pressure $P_0$** | $76.98\text{ bar}$ | $2.50\text{ bar}$ prod. ($1.013\text{ bar}$ bench.) | Pressurized shell prevents vacuum |
+| **Inlet Flow Rate $F_0$ (per tube)** | $0.640\text{ mol/s}$ (strictly locked) | $0.040\text{ mol/s}$ prod. ($0.111\text{ mol/s}$ bench.) | Equal-throughput rule |
+| **Feed Composition (mol frac.)** | $\text{H}_2: 0.6590$, $\text{CO}_2: 0.0940$, $\text{CO}: 0.0460$, $\text{CH}_3\text{OH}: 0.0050$, $\text{H}_2\text{O}: 0.0004$, $\text{CH}_4: 0.1026$, $\text{N}_2: 0.0930$ | Prod.: $95\%\text{ C}_6\text{H}_{12} / 5\%\text{ H}_2$; Bench.: $10\%\text{ C}_6\text{H}_{12} / 90\%\text{ Ar}$ | Table 7; $5\%\text{ H}_2$ co-feed avoids coking & rate singularity |
+
+#### Mechanical Tube-Wall Integrity (ASME Section VIII)
+Under the worst-case differential pressure across the tube wall ($\Delta P_{\max} = 76.98 - 1.0 = 75.98\text{ bar}$, wall thickness $t = 2.0\text{ mm}$, $R_{\text{in}} = 19.0\text{ mm}$), the thin-wall hoop stress is $\sigma_\theta = \Delta P_{\max} R_{\text{in}} / t = {{ tcr_nsga2_optimum.hoop_stress_MPa }}\text{ MPa}$, corresponding to an ASME Section VIII Division 1 safety factor of ${{ tcr_nsga2_optimum.asme_safety_factor }}$ against SA-213 T11 allowable stress at $535\text{ K}$ ($\approx 138\text{ MPa}$).
+
+### 2.2 Unified Dynamic Radial Conductivity, Wall Heat Transfer, and Shell Hydraulics
+
+#### Dynamic Bauer–Schlünder Effective Radial Conductivity ($k_{er}$)
+In packed-bed methanol tubes with low tube-to-pellet aspect ratio ($D_{\text{in}}/d_p = 6.95$), radial heat dispersion is strongly dominated by convective mixing at high superficial mass flux ($Re_p \sim 1000\text{–}1400$). Rather than assuming an artificially static low radial conductivity, the model evaluates the effective radial thermal conductivity dynamically along the bed using the unified Bauer–Schlünder correlation:
+$$k_{er}(z) = k_{er}^0 + \frac{Re_p(z)\, Pr(z)}{Pe_{hr}}\, k_g(z), \qquad Pe_{hr} = 8.0 \left[2 - \left(1 - \frac{2 d_p}{D_{\text{in}}}\right)^2\right]$$
+where $k_{er}^0$ is the stagnant packed-bed conductivity and $k_g(z)$ is the local gas thermal conductivity. Using this unified dynamic $k_{er}(z)$, the local centerline catalyst temperature is reconstructed from the volumetric reaction heat release $q_v(z) = |Q_{\text{wall}}(z)| / A_{\text{tube}}$ via the parabolic radial conduction profile:
+$$T_{\text{centerline}}(z) = T_{\text{mean}}(z) + \frac{q_v(z)\, R_{\text{in}}^2}{8\, k_{er}(z)}$$
+Across the equal-throughput production regimes, dynamic convective dispersion produces $k_{er,\text{mean}} = {{ tcr_nsga2_optimum.k_er_mean }}\text{ W/(m}\cdot\text{K)}$ at the TCR knee point (and ${{ conventional_optimized.k_er_mean }}\text{ W/(m}\cdot\text{K)}$ in the optimized CMR), demonstrating that convective radial mixing keeps radial temperature excursions modest ($\Delta T_{\text{radial}} = {{ tcr_knee_delta_T_radial_K }}\text{ K}$ at the TCR knee point) while still requiring direct centerline verification against the $535.0\text{ K}$ sintering limit.
+
+#### Variable Gas Conductivity (Wassiljewa–Mason–Saxena) and Overall Heat Transfer Coefficient $U(z)$
+Local gas mixture thermal conductivity on both tube and shell sides is evaluated via the Wassiljewa equation with Mason–Saxena interaction parameters:
+$$k_{\text{mix}} = \sum_i \frac{y_i k_i}{\sum_j y_j \Phi_{ij}}, \qquad \Phi_{ij} = \frac{\left[1 + (\mu_i / \mu_j)^{1/2} (M_{w,j} / M_{w,i})^{1/4}\right]^2}{\left[8(1 + M_{w,i} / M_{w,j})\right]^{1/2}}$$
+On the shell side, hydrogen generation progressively enriches the low-conductivity cyclohexane vapor ($k_g \approx 0.0245\text{ W/(m}\cdot\text{K)}$) with high-conductivity $\text{H}_2$ ($k_g \approx 0.2580\text{ W/(m}\cdot\text{K)}$), elevating the local heat transfer coefficient downstream. Wall heat transfer coefficients $h_{w,\text{tube}}(z)$ and $h_{w,\text{shell}}(z)$ are calculated dynamically via the Dixon (1997) / Li & Finlayson (1977) packed-bed correlations, yielding the local overall heat transfer coefficient referenced to the tube inner area ($a_H = \pi D_{\text{in}}$):
+$$\frac{1}{U(z)} = \frac{1}{h_{w,\text{tube}}(z)} + \frac{D_{\text{in}}}{2 K_w} \ln\!\left(\frac{D_{\text{out}}}{D_{\text{in}}}\right) + \frac{D_{\text{in}}}{D_{\text{out}}\, h_{w,\text{shell}}(z)}$$
+For the conventional boiling-water reactor (CMR), the shell resistance is replaced by the boiling-water film coefficient $h_{\text{cool}} = 6000\text{ W/(m}^2\cdot\text{K)}$.
+
+#### Shell-Side Upward-Flow Bed-Lifting Hydraulic Audit
+Packed-bed pressure drop is governed by the Ergun (1952) equation with Eisfeld–Schnitzlein (2001) wall-effect corrections:
+$$\frac{dP}{dz} = -\left[\frac{150\, \mu\, (1-\varepsilon)^2}{\varepsilon^3 d_p^2} u_s + \frac{1.75\, (1-\varepsilon)}{\varepsilon^3 d_p} \rho_g u_s^2\right]$$
+In counter-current or vertical upflow shell arrangements, an excessive frictional pressure drop across the annular $\text{Pt/Al}_2\text{O}_3$ bed can exceed the gravitational weight per unit area of the catalyst column, causing bed lifting, channeling, and attrition. The static bed weight pressure is:
+$$P_{\text{bed}} = \rho_{b,\text{endo}}\, g\, L = 1077.0 \times 9.80665 \times 7.022 \times 10^{-5} = {{ tcr_nsga2_optimum.bed_weight_bar }}\text{ bar}$$
+We define the dimensionless **bed-lifting ratio** as:
+$$\mathcal{R}_{\text{lift}} \equiv \frac{\Delta P_{\text{shell}}}{P_{\text{bed}}}$$
+Whenever $\mathcal{R}_{\text{lift}} \ge 0.85$ (applying a standard $15\%$ fluidization safety margin), upward shell flow is hydraulically unstable without mechanical restraint and is explicitly flagged as requiring a top **catalyst hold-down grid** (or downflow shell orientation).
+
+### 2.3 Thermodynamically Consistent Reaction Kinetics & Real-Gas Fugacities
+
+#### Production Exothermic Kinetics: Vanden Bussche & Froment (1996)
+Production simulations employ the two-independent-reaction Vanden Bussche & Froment (1996) mechanism over commercial $\text{Cu/ZnO/Al}_2\text{O}_3$:
+$$\text{(R1) }\ \text{CO}_2 + 3\text{H}_2 \rightleftharpoons \text{CH}_3\text{OH} + \text{H}_2\text{O}, \qquad \Delta H_{298}^\circ = -49.5\text{ kJ/mol}$$
+$$\text{(R2) }\ \text{CO}_2 + \text{H}_2 \rightleftharpoons \text{CO} + \text{H}_2\text{O}, \qquad \Delta H_{298}^\circ = +41.2\text{ kJ/mol}$$
+using component fugacities $f_i = \phi_i y_i P$ from the Peng–Robinson equation of state (PR-EOS) with van der Waals mixing rules:
+$$r_{\text{MeOH}} = \eta_{\text{exo}} \frac{k_5'\, f_{\text{CO}_2}\, f_{\text{H}_2} \left[1 - \frac{1}{K_{\text{eq},1}} \frac{f_{\text{CH}_3\text{OH}} f_{\text{H}_2\text{O}}}{f_{\text{CO}_2} f_{\text{H}_2}^3}\right]}{\left(1 + K_{\text{ad},1} \frac{f_{\text{H}_2\text{O}}}{f_{\text{H}_2}} + K_{\text{ad},2} \sqrt{f_{\text{H}_2}} + K_{\text{ad},3} f_{\text{H}_2\text{O}}\right)^3}$$
+$$r_{\text{RWGS}} = \eta_{\text{exo}} \frac{k_1'\, f_{\text{CO}_2} \left[1 - \frac{1}{K_{\text{eq},2}} \frac{f_{\text{CO}} f_{\text{H}_2\text{O}}}{f_{\text{CO}_2} f_{\text{H}_2}}\right]}{1 + K_{\text{ad},1} \frac{f_{\text{H}_2\text{O}}}{f_{\text{H}_2}} + K_{\text{ad},2} \sqrt{f_{\text{H}_2}} + K_{\text{ad},3} f_{\text{H}_2\text{O}}}$$
+Baseline production optimizations lock $\eta_{\text{exo}} = 0.35$ (`use_dynamic_thiele = False`) across all CMR and TCR configurations so that intrapellet diffusion resistance is treated identically; parametric sensitivity over $\eta_{\text{exo}} \in [0.20, 1.00]$ is reported separately in Section 5.5.
+
+#### Benchmark Exothermic Kinetics: Authentic Graaf et al. (1988) & Exact 3-to-2 Stoichiometric Projection
+To audit Khademi et al. (2009), the benchmark module implements the authentic 3-reaction Graaf et al. (1988) kinetics over CO hydrogenation ($r_1$), RWGS ($r_2$), and $\text{CO}_2$ hydrogenation ($r_3$). Because CO hydrogenation ($\text{CO} + 2\text{H}_2 \rightleftharpoons \text{CH}_3\text{OH}$) is the exact linear difference $\text{R1} - \text{R2}$, the 3-reaction rates map onto the 2-reaction independent VBF stoichiometric basis without loss of exactness via:
+$$r_{\text{meoh}} = r_1 + r_3, \qquad r_{\text{rwgs}} = r_2 - r_1$$
+This exact projection preserves every individual species production rate ($R_{\text{H}_2}, R_{\text{CO}_2}, R_{\text{CO}}, R_{\text{CH}_3\text{OH}}, R_{\text{H}_2\text{O}}$), C/H/O elemental conservation to machine precision ($<10^{-14}$), and Hess's Law enthalpy release: $\Delta H_1 r_1 + \Delta H_2 r_2 + \Delta H_3 r_3 \equiv \Delta H_{\text{meoh}} r_{\text{meoh}} + \Delta H_{\text{rwgs}} r_{\text{rwgs}}$.
+
+#### Endothermic Kinetics & NIST-Anchored Kirchhoff Thermodynamics
+Cyclohexane dehydrogenation over $\text{Pt/Al}_2\text{O}_3$ ($\text{C}_6\text{H}_{12} \rightleftharpoons \text{C}_6\text{H}_6 + 3\text{H}_2$, $\Delta H_{298}^\circ = +205.4\text{ kJ/mol}$) follows the reversible Langmuir–Hinshelwood rate law of Itoh (1987) and Khademi et al. (2009) with microscopic reversibility guaranteed by evaluating $K_p(T)$ from exact Kirchhoff integration of Shomate/polynomial heat capacities anchored to NIST Chemistry WebBook standard entropies ($\Delta S_{r,298}^\circ = S_{298,\text{C}_6\text{H}_6}^\circ + 3 S_{298,\text{H}_2}^\circ - S_{298,\text{C}_6\text{H}_{12}}^\circ = 362.96\text{ J/(mol}\cdot\text{K)}$):
+$$\frac{d \ln K_p(T)}{dT} = \frac{\Delta H_r^\circ(T)}{R T^2}, \qquad r_{\text{CH}} = \eta_{\text{endo}} \frac{k(T) \left(p_{\text{CH}} - \frac{p_{\text{B}}\, p_{\text{H}_2}^3}{K_p(T)}\right)}{p_{\text{H}_2}^3 / K_p(T) + K_B(T)\, p_{\text{CH}}}$$
+(expressed equivalently in standard Itoh denominator form with $5\text{ mol}\%$ $\text{H}_2$ co-feed in production to suppress catalyst coking and eliminate the $p_{\text{H}_2} \to 0$ rate singularity). Exact thermodynamic consistency ($R T^2 d\ln K_p / dT \equiv \Delta H_r^\circ(T)$ to $<10^{-8}$) is verified across $350\text{–}650\text{ K}$ for all three reactions.
+
+### 2.4 Governing Conservation Equations & Yield Definitions
+The steady-state 1D pseudo-homogeneous mass, energy, and momentum balances are:
+$$\frac{dF_{i,\text{tube}}}{dz} = A_{\text{tube}} \rho_{b,\text{exo}} \sum_{j} \nu_{i,j} r_{j,\text{exo}}, \qquad \frac{dF_{k,\text{shell}}}{dz} = \pm A_{\text{shell}} \rho_{b,\text{endo}} \sum_{m} \nu_{k,m} r_{m,\text{endo}}$$
+$$\frac{dT_{\text{tube}}}{dz} = \frac{A_{\text{tube}} \rho_{b,\text{exo}} \sum (-\Delta H_{r,j}) r_j - Q_{\text{wall}}(z)}{\sum F_{i,\text{tube}} C_{p,i}(T)}, \qquad \frac{dT_{\text{shell}}}{dz} = \pm \frac{A_{\text{shell}} \rho_{b,\text{endo}} \sum (-\Delta H_{r,m}) r_m + Q_{\text{wall}}(z)}{\sum F_{k,\text{shell}} C_{p,k}(T)}$$
+where $Q_{\text{wall}}(z) = U(z) a_H (T_{\text{tube}}(z) - T_{\text{shell}}(z))$ and the $+$ / $-$ sign denotes co-current / counter-current shell flow.
+
+To eliminate ambiguity when comparing against Khademi et al. (2009), **both** methanol yield metrics are reported throughout this manuscript:
+1. **Khademi Eq. (28) Gross Methanol Yield** (includes the $0.50\text{ mol}\%$ recycle methanol already entering in the feed, adding a constant $+0.0050 / (0.0940 + 0.0460) = +3.57\text{ percentage-point}$ offset):
+   $$\text{Yield}_{\text{MeOH,Eq.28}} = \frac{F_{\text{CH}_3\text{OH},\text{out}}}{F_{\text{CO}_2,\text{in}} + F_{\text{CO},\text{in}}} \times 100\%$$
+2. **Net Carbon-Oxide Methanol Yield** (newly synthesized methanol per mole of entering $\text{CO}_x$):
+   $$\text{Yield}_{\text{MeOH,net}} = \frac{F_{\text{CH}_3\text{OH},\text{out}} - F_{\text{CH}_3\text{OH},\text{in}}}{F_{\text{CO}_2,\text{in}} + F_{\text{CO},\text{in}}} \times 100\%$$
+
+---
+
+## 3. Numerical Solution Strategy & Counter-Current Stability Analysis
 
 ```mermaid
 flowchart TD
-    subgraph CoCurrent ["Co-Current Simulation (IVP)"]
-        A1["Initial Conditions at z = 0"] --> B1["Stiff ODE Solver: Radau IIA (solve_ivp)"]
-        B1 --> C1["Axial Profiles: T(z), P(z), F_i(z)"]
+    subgraph CoCurrent ["Co-Current & CMR Simulation (IVP)"]
+        A1["Inlet State at z = 0 (F_exo = 0.640 mol/s)"] --> B1["Stiff Radau IIA ODE Solver (rtol=1e-7, atol=1e-9)"]
+        B1 --> C1["Conservation & Unified Dynamic k_er Audit"]
     end
 
-    subgraph CounterCurrent ["Counter-Current Simulation (BVP)"]
-        A2["Initial Guess: T_shell(z), P_shell(z)"] --> B2["Integrate Tube Forward: z = 0 to L"]
-        B2 --> C2["Integrate Shell Forward along physical path: z = L to 0"]
-        C2 --> D2{"Convergence Check: max|ΔT| < 1e-3 K & max|ΔF/F| < 1e-3"}
-        D2 -- No --> E2["Under-Relaxation: T_new = α·T_calc + (1-α)·T_old (α = 0.70)"]
+    subgraph CounterCurrent ["Counter-Current Simulation (Two-Point BVP)"]
+        A2["Initial Shell Profile Guess"] --> B2["Tube Forward Integration (z = 0 to L)"]
+        B2 --> C2["Shell Physical-Flow Integration (z = L to 0)"]
+        C2 --> D2{"Triple Residual Check: dT < 1e-3 K, dF/F < 1e-5, dP < 1 Pa"}
+        D2 -- No --> E2["Under-Relaxation (alpha = 0.70)"]
         E2 --> B2
-        D2 -- Yes --> F2["Store Unblended ODE-Consistent Profiles"]
+        D2 -- Yes --> F2["Unrelaxed Final Pass + solve_bvp Cross-Check"]
     end
 
-    subgraph Optimization ["NSGA-II Multi-Objective Optimization"]
-        G["Decision Variables: T_exo,0, T_endo,0, F_endo,0, P_endo,0"] --> H["Evaluate Co-Current Model + Dynamic U"]
-        H --> I["Non-Dominated Sorting & Crowding Distance"]
-        I --> J["Generate Pareto Optimal Frontier & Knee Point"]
+    subgraph CeilingOpt ["OTP Ceiling & Equal-Throughput NSGA-II"]
+        G1["5-Node L-BFGS-B OTP Ceiling (T <= 535 K)"] --> H1["Theoretical Yield Limit"]
+        G2["NSGA-II: T_exo,0, T_endo,0, F_endo,0, P_endo,0"] --> H2["Pareto Front & Hydraulic/Sintering Audit"]
     end
 ```
 
-### 3.1 Under-Relaxed Picard Fixed-Point Iteration
-The counter-current two-point BVP is solved by integrating both streams strictly along their physical forward flow directions:
-1. Tube integrates forward ($z = 0 \to L$) given interpolated shell states $T_{\text{shell}}^{(k)}(z), P_{\text{shell}}^{(k)}(z), F_{\text{shell}}^{(k)}(z)$.
-2. Shell integrates along its flow path ($z = L \to 0$) given interpolated tube states $T_{\text{tube}}^{(k)}(z), P_{\text{tube}}^{(k)}(z), F_{\text{tube}}^{(k)}(z)$.
-3. Under-relaxation update:
-   $$T_{\text{shell}}^{(k+1)}(z) = \alpha \widetilde{T}_{\text{shell}}(z) + (1 - \alpha) T_{\text{shell}}^{(k)}(z)$$
-   With $\alpha = 0.70$, convergence is attained when dual residuals satisfy $\max |\Delta T| < 10^{-3}\text{ K}$ and $\max |\Delta F_i / F_i| < 10^{-3}$ alongside pressure convergence $\max |\Delta P| < 1.0\text{ Pa}$.
+### 3.1 Picard Fixed-Point Convergence & Van Heerden Regenerative Feedback ($\mathcal{C} = 0.361$)
+Co-current and CMR initial-value problems are integrated via `scipy.integrate.solve_ivp` (Radau IIA, $r_{\text{tol}} = 10^{-7}$, $a_{\text{tol}} = 10^{-9}$, $300$ axial nodes). Counter-current two-point boundary-value problems are solved via under-relaxed Picard iteration ($\alpha = 0.70$) enforcing triple convergence ($\max |\Delta T| < 10^{-3}\text{ K}$, $\max |\Delta F_i / F_i| < 10^{-5}$, $\max |\Delta P| < 1.0\text{ Pa}$), followed by a final unrelaxed pass and independent `scipy.integrate.solve_bvp` collocation verification.
 
-#### Van Heerden Thermal Regenerative Feedback Analysis ($\mathcal{C} = 0.361$)
-In counter-current operation, the heat capacity flow rates of the entering streams are:
-$$\dot{C}_{\text{tube}} = F_{\text{exo},0} C_{p,\text{tube}} = (0.640\text{ mol/s})(32.0\text{ J/(mol}\cdot\text{K)}) = \mathbf{20.48\text{ W/K}}$$
-$$\dot{C}_{\text{shell}} = F_{\text{endo},0} C_{p,\text{shell}} = (0.040\text{ mol/s})(185.0\text{ J/(mol}\cdot\text{K)}) = \mathbf{7.40\text{ W/K}}$$
-The heat capacity flow rate ratio is:
+Evaluating the baseline stream thermal capacity flow rates clarifies counter-current ignition behavior:
+$$\dot{C}_{\text{tube}} = F_{\text{exo},0} C_{p,\text{tube}} = (0.640)(32.0) = 20.48\text{ W/K}, \qquad \dot{C}_{\text{shell}} = F_{\text{endo},0} C_{p,\text{shell}} = (0.040)(185.0) = 7.40\text{ W/K}$$
 $$\mathcal{C} \equiv \frac{\dot{C}_{\text{shell}}}{\dot{C}_{\text{tube}}} = \frac{7.40}{20.48} = \mathbf{0.361} \ll 1.0$$
+Because $\mathcal{C} = 0.361 < 1.0$, the counter-flowing shell stream heats up above the tube feed temperature ($503.15\text{ K}$) as it approaches $z = 0$, preheating the incoming syngas via Van Heerden regenerative feedback. This shifts reaction ignition upstream and elevates the counter-current peak bulk temperature to ${{ countercurrent_baseline.T_max_exo }}\text{ K}$ (centerline ${{ countercurrent_baseline.T_centerline_max }}\text{ K}$) compared with ${{ cocurrent_baseline.T_max_exo }}\text{ K}$ in co-current operation.
 
-Because $\mathcal{C} = 0.361 < 1.0$, the shell stream possesses less than $37\%$ of the thermal capacitance of the tube stream. As the shell gas travels backwards from $z = L$ towards $z = 0$, it absorbs heat and exits at $T_{\text{shell}}(0) \approx 515\text{–}525\text{ K}$, exceeding the tube feed temperature $T_{\text{tube}}(0) = 503.15\text{ K}$.
-Consequently, at the tube entrance, **the exiting shell gas preheats the incoming syngas**, establishing an internal regenerative feedback loop characteristic of Van Heerden autothermal instability. This preheating ignites the methanol synthesis reaction earlier in the bed, raising the peak bulk temperature to ${{ countercurrent_baseline.T_max_exo }}\text{ K}$ (centerline ${{ countercurrent_baseline.T_centerline_max }}\text{ K}$) and explaining the heightened parametric sensitivity of the counter-current regime.
+### 3.2 Equal-Throughput Multi-Objective Optimization (NSGA-II) & OTP Formulation
+To guarantee a fair, throughput-consistent comparison, all CMR and TCR optimizations lock $F_{\text{exo},0} = 0.640\text{ mol/s}$ per tube and $\eta_{\text{exo}} = 0.35$ (`use_dynamic_thiele = False`). The NSGA-II problem minimizes $[- \text{Yield}_{\text{MeOH,Eq.28}},\, -\dot{n}_{\text{Benzene}},\, T_{\text{centerline,max}}]$ over $T_{\text{exo},0} \in [490, 530]\text{ K}$, $T_{\text{endo},0} \in [460, 510]\text{ K}$, $F_{\text{endo},0} \in [0.025, 0.080]\text{ mol/s}$, and $P_{\text{endo},0} \in [2.0, 3.0]\text{ bar}$, subject to the copper sintering constraint $T_{\text{centerline,max}} \le 535.0\text{ K}$ and positive shell discharge constraint $P_{\text{shell,out}} \ge 1.10\text{ bar}$ ($1.15\text{ bar}$ at knee selection).
 
----
-
-## 4. Multi-Objective Optimization Formulation (NSGA-II)
-
-### 4.1 Problem Formulation
-The multi-objective problem balances yield, coproduction, and catalyst longevity:
-$$\min_{\mathbf{x}} \quad \mathbf{F}(\mathbf{x}) = \left[ - \text{Yield}_{\text{MeOH}}(\mathbf{x}), \; - \dot{n}_{\text{Benzene}}(\mathbf{x}), \; T_{\text{max,tube}}(\mathbf{x}) \right]^T$$
-
-Subject to:
-$$g_1(\mathbf{x}) = T_{\text{max,tube}}(\mathbf{x}) - 535.0\text{ K} \le 0 \quad (\text{Catalyst Sintering Limit})$$
-$$g_2(\mathbf{x}) = 1.10\text{ bar} - P_{\text{shell,out}}(\mathbf{x}) \le 0 \quad (\text{Positive Pressure Limit})$$
-
-*Formulation Integrity:* Minimizing the absolute peak temperature $T_{\text{max,tube}}$ (or bounding it via hard constraint $g_1$) avoids the optimizer loophole inherent in relative hotspot formulations ($f_3 = T_{\text{max}} - T_{\text{exo},0}$), which can artificially reward hot-inlet states ($T_{\text{exo},0} \to 530\text{ K}$) that minimize temperature rise while accelerating copper catalyst sintering.
-
-**Decision Variables & Bounds ($\mathbf{x}$):**
-- $T_{\text{exo},0} \in [490.0, 530.0]\text{ K}$
-- $T_{\text{endo},0} \in [460.0, 510.0]\text{ K}$
-- $F_{\text{endo},0} \in [0.025, 0.080]\text{ mol/s}$ per tube
-- $P_{\text{endo},0} \in [2.00, 3.00]\text{ bar}$
-- *Fixed Syngas Throughput:* The syngas feed rate is held strictly constant at design industrial capacity $F_{\text{exo},0} = 0.640\text{ mol/s}$ per tube across all compared configurations to ensure an equitable, throughput-consistent comparison.
+Independently, the **Optimal Temperature Profile (OTP)** problem determines the theoretical upper bound on single-pass methanol yield achievable by *any* conceivable axial thermal profile $T_{\text{exo}}(z) \in [450.0, 535.0]\text{ K}$ under identical tube geometry, pressure ($76.98\text{ bar}$), feed ($0.640\text{ mol/s}$), and VBF kinetics. Five axial temperature nodes linearly interpolated across $z \in [0, L]$ are optimized via L-BFGS-B alongside a 1D bounded Brent search for the best isothermal reactor temperature $T_{\text{iso}}^* \in [460.0, 535.0]\text{ K}$.
 
 ---
 
-## 5. Results & Discussion
+## 4. Khademi et al. (2009) Benchmark Forensics & Typo Proof
 
-### 5.1 Technical Comparison Across Configurations
+### 4.1 Forensic Audit of Printed Table 1 and Table 4 Typographical Errors
+Direct inspection of Khademi et al. (2009) reveals three critical discrepancies between their printed tables and thermodynamically/kinetically authentic equations:
 
-All metrics are evaluated dynamically from rigorous numerical integration over $N_{\text{tubes}} = 2962$ tubes ($L = 7.022\text{ m}$). Methanol yield is calculated per Eq. (28) on total carbon oxides fed ($\text{CO} + \text{CO}_2$):
+1. **Table 1 Kinetic Typos & Reaction Indexing:** Khademi et al. (2009) define Eq. (1) as CO hydrogenation ($k_1$), Eq. (2) as $\text{CO}_2$ hydrogenation ($k_2$), and Eq. (3) as RWGS ($k_3$), citing Graaf et al. (1988). In our code convention (`kinetics_graaf_benchmark`), `(r1, r2, r3)` follows Graaf et al.'s original ordering (`r1` = CO hydrogenation, `r2` = RWGS, `r3` = $\text{CO}_2$ hydrogenation). Cross-checking Khademi Table 1 against Graaf et al. (1988) exposes two severe misprints:
+   - **CO Hydrogenation ($k_1$, Khademi Table 1 $k_1$):** Printed as $A = 4.89 \times 10^7$, $B = -63{,}000\text{ J/mol}$, whereas authentic Graaf et al. (1988) is $B = -113{,}000\text{ J/mol}$. At $503.15\text{ K}$, this $50\text{ kJ/mol}$ activation-energy typo inflates $k_1$ by a factor of $\exp(50000 / (8.31446 \times 503.15)) \approx 1.55 \times 10^5$.
+   - **RWGS ($r_2$ in Graaf/code, printed as $k_3$ in Khademi Table 1):** Printed as $A = 9.64 \times 10^6$, $B = -152{,}900\text{ J/mol}$, whereas authentic Graaf et al. (1988) is $A = 9.64 \times 10^{11}$—five orders of magnitude larger.
+   - **$\text{CO}_2$ Hydrogenation ($r_3$ in Graaf/code, printed as $k_2$ in Khademi Table 1):** Printed accurately as $A = 1.09 \times 10^5$, $B = -87{,}500\text{ J/mol}$.
+2. **Table 4 Equilibrium Constant ($K_p$) Typo Proof:** Khademi Table 4 prints the cyclohexane dehydrogenation equilibrium constant in the form $K_p = A \exp(B/T)$ with $A = 4.89 \times 10^{35}\text{ Pa}^3$ and $B = +3190\text{ K}$ (a positive exponent that would imply an *exothermic* dehydrogenation reaction!). Even when interpreted with a negative sign as $K_p = 4.89 \times 10^{35} \exp(-3190/T)$, the apparent van 't Hoff slope is $-\Delta H_r / R = {{ benchmark.table4_typo.apparent_dH_over_R }}\text{ K}$ ($\Delta H_{\text{app}} \approx +26.5\text{ kJ/mol}$). In reality, NIST-anchored Kirchhoff thermodynamics for $\text{C}_6\text{H}_{12} \rightleftharpoons \text{C}_6\text{H}_6 + 3\text{H}_2$ ($\Delta H_{298}^\circ = +205.4\text{ kJ/mol}$, $\Delta S_{r,298}^\circ = 362.96\text{ J/(mol}\cdot\text{K)}$) mandates a true slope of $-\Delta H_r / R = {{ benchmark.table4_typo.true_dH_over_R }}\text{ K}$—a factor of **${{ benchmark.table4_typo.ratio }}\times$** steeper thermal sensitivity than printed in Table 4.
 
-$$\text{Yield}_{\text{MeOH}} = \frac{F_{\text{MeOH},\text{out}} - F_{\text{MeOH},\text{in}}}{F_{\text{CO}_2,\text{in}} + F_{\text{CO},\text{in}}} \times 100\%$$
+### 4.2 Exact Table 7/8 Benchmark Reproduction (Gross Eq. 28 vs. Net $\text{CO}_x$ Yield)
+Using exact Khademi Table 7/8 shell geometry ($D_{\text{shell}} = 0.060\text{ m}$, $A_{\text{shell}} = 1.44199 \times 10^{-3}\text{ m}^2$, $\varepsilon_{\text{shell}} = 0.39$), authentic Graaf et al. (1988) kinetics ($\eta_{\text{exo}} = 1.0$), industrial Lurgi CMR conditions ($T_0 = 503.15\text{ K}$, $T_{\text{cool}} = 515.0\text{ K}$), and Table 9 DE-optimized OTCR conditions ($T_{\text{exo},0} = 527.8\text{ K}$, $T_{\text{endo},0} = 423.0\text{ K}$, $F_{\text{endo},0} = 0.111\text{ mol/s}$, $10\%\text{ C}_6\text{H}_{12}/90\%\text{ Ar}$ at $1.013\text{ bar}$), Table 1 contrasts literature claims against thermodynamically consistent simulations.
 
-| Performance Indicator | Conventional Baseline (CMR) | Conventional Optimized (CMR) | TCR Co-Current Baseline | TCR Counter-Current Baseline | TCR NSGA-II Knee Point |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Inlet Tube Temp $T_{\text{exo},0}$ (K)** | $503.15\text{ K}$ | ${{ conventional_optimized.T_exo_0 }}\text{ K}$ | $503.15\text{ K}$ | $503.15\text{ K}$ | ${{ tcr_nsga2_optimum.T_exo_0 }}\text{ K}$ |
-| **Coolant / Shell Temp (K)** | $503.15\text{ K}$ | ${{ conventional_optimized.T_coolant }}\text{ K}$ | $485.00\text{ K}$ | $485.00\text{ K}$ | ${{ tcr_nsga2_optimum.T_endo_0 }}\text{ K}$ |
-| **Syngas Feed Rate $F_{\text{exo},0}$ (mol/s)** | ${{ conventional_baseline.F_exo_0 }}\text{ mol/s}$ | ${{ conventional_optimized.F_exo_0 }}\text{ mol/s}$ | ${{ cocurrent_baseline.F_exo_0 }}\text{ mol/s}$ | ${{ countercurrent_baseline.F_exo_0 }}\text{ mol/s}$ | ${{ tcr_nsga2_optimum.F_exo_0 }}\text{ mol/s}$ |
-| **Methanol Production Rate (mol/s)** | ${{ conventional_baseline.MeOH_rate_net_plant }}\text{ mol/s}$ | ${{ conventional_optimized.MeOH_rate_net_plant }}\text{ mol/s}$ | ${{ cocurrent_baseline.MeOH_rate_net_plant }}\text{ mol/s}$ | ${{ countercurrent_baseline.MeOH_rate_net_plant }}\text{ mol/s}$ | ${{ tcr_nsga2_optimum.MeOH_rate_net_plant }}\text{ mol/s}$ |
-| **Methanol Daily Output (t/d)** | ${{ conventional_baseline.daily_meoh_ton }}\text{ t/d}$ | ${{ conventional_optimized.daily_meoh_ton }}\text{ t/d}$ | ${{ cocurrent_baseline.daily_meoh_ton }}\text{ t/d}$ | ${{ countercurrent_baseline.daily_meoh_ton }}\text{ t/d}$ | ${{ tcr_nsga2_optimum.daily_meoh_ton }}\text{ t/d}$ |
-| **CO₂ Conversion (%)** | ${{ conventional_baseline.X_CO2 }}\%$ | ${{ conventional_optimized.X_CO2 }}\%$ | ${{ cocurrent_baseline.X_CO2 }}\%$ | ${{ countercurrent_baseline.X_CO2 }}\%$ | ${{ tcr_nsga2_optimum.X_CO2 }}\%$ |
-| **Total COx Conversion (%)** | ${{ conventional_baseline.X_COx }}\%$ | ${{ conventional_optimized.X_COx }}\%$ | ${{ cocurrent_baseline.X_COx }}\%$ | ${{ countercurrent_baseline.X_COx }}\%$ | ${{ tcr_nsga2_optimum.X_COx }}\%$ |
-| **Methanol Yield (Eq. 28) (%)** | ${{ conventional_baseline.yield_khademi_eq28 }}\%$ | ${{ conventional_optimized.yield_khademi_eq28 }}\%$ | ${{ cocurrent_baseline.yield_khademi_eq28 }}\%$ | ${{ countercurrent_baseline.yield_khademi_eq28 }}\%$ | ${{ tcr_nsga2_optimum.yield_khademi_eq28 }}\%$ |
-| **Cyclohexane Conversion (%)** | $0.00\%$ (N/A) | $0.00\%$ (N/A) | ${{ cocurrent_baseline.X_CH }}\%$ | ${{ countercurrent_baseline.X_CH }}\%$ | ${{ tcr_nsga2_optimum.X_CH }}\%$ |
-| **Benzene Production Rate (mol/s)** | $0.00\text{ mol/s}$ | $0.00\text{ mol/s}$ | ${{ cocurrent_baseline.Benzene_rate_plant }}\text{ mol/s}$ | ${{ countercurrent_baseline.Benzene_rate_plant }}\text{ mol/s}$ | ${{ tcr_nsga2_optimum.Benzene_rate_plant }}\text{ mol/s}$ |
-| **Benzene Daily Output (t/d)** | $0.00\text{ t/d}$ | $0.00\text{ t/d}$ | ${{ cocurrent_baseline.daily_benzene_ton }}\text{ t/d}$ | ${{ countercurrent_baseline.daily_benzene_ton }}\text{ t/d}$ | ${{ tcr_nsga2_optimum.daily_benzene_ton }}\text{ t/d}$ |
-| **Hydrogen Coproduction Rate (mol/s)** | $0.00\text{ mol/s}$ | $0.00\text{ mol/s}$ | ${{ cocurrent_baseline.H2_rate_plant }}\text{ mol/s}$ | ${{ countercurrent_baseline.H2_rate_plant }}\text{ mol/s}$ | ${{ tcr_nsga2_optimum.H2_rate_plant }}\text{ mol/s}$ |
-| **Hydrogen Daily Output (t/d)** | $0.00\text{ t/d}$ | $0.00\text{ t/d}$ | ${{ cocurrent_baseline.daily_h2_ton }}\text{ t/d}$ | ${{ countercurrent_baseline.daily_h2_ton }}\text{ t/d}$ | ${{ tcr_nsga2_optimum.daily_h2_ton }}\text{ t/d}$ |
-| **Shell Outlet $\text{C}_6\text{H}_{12}$ ($y_{\text{CH}}$, mol%)** | — | — | ${{ cocurrent_baseline.outlet_y_CH }}\%$ | ${{ countercurrent_baseline.outlet_y_CH }}\%$ | ${{ tcr_nsga2_optimum.outlet_y_CH }}\%$ |
-| **Shell Outlet Benzene ($y_{\text{B}}$, mol%)** | — | — | ${{ cocurrent_baseline.outlet_y_B }}\%$ | ${{ countercurrent_baseline.outlet_y_B }}\%$ | ${{ tcr_nsga2_optimum.outlet_y_B }}\%$ |
-| **Shell Outlet Hydrogen ($y_{\text{H}_2}$, mol%)** | — | — | ${{ cocurrent_baseline.outlet_y_H2 }}\%$ | ${{ countercurrent_baseline.outlet_y_H2 }}\%$ | ${{ tcr_nsga2_optimum.outlet_y_H2 }}\%$ |
-| **Peak 1D Mean Bed Temp ($T_{\text{max}}$)** | ${{ conventional_baseline.T_max_exo }}\text{ K}$ | ${{ conventional_optimized.T_max_exo }}\text{ K}$ | ${{ cocurrent_baseline.T_max_exo }}\text{ K}$ | ${{ countercurrent_baseline.T_max_exo }}\text{ K}$ | ${{ tcr_nsga2_optimum.T_max_exo }}\text{ K}$ |
-| **Peak 2D Centerline Temp ($T_{\text{centerline}}$)** | ${{ conventional_baseline.T_centerline_max }}\text{ K}$ | ${{ conventional_optimized.T_centerline_max }}\text{ K}$ | ${{ cocurrent_baseline.T_centerline_max }}\text{ K}$ | ${{ countercurrent_baseline.T_centerline_max }}\text{ K}$ | ${{ tcr_nsga2_optimum.T_centerline_max }}\text{ K}$ |
-| **Tube Pressure Drop ($\Delta P$, bar)** | ${{ conventional_baseline.dP_tube }}\text{ bar}$ | ${{ conventional_optimized.dP_tube }}\text{ bar}$ | ${{ cocurrent_baseline.dP_tube }}\text{ bar}$ | ${{ countercurrent_baseline.dP_tube }}\text{ bar}$ | ${{ tcr_nsga2_optimum.dP_tube }}\text{ bar}$ |
-| **Shell Pressure Drop ($\Delta P$, bar)** | — | — | ${{ cocurrent_baseline.dP_shell }}\text{ bar}$ | ${{ countercurrent_baseline.dP_shell }}\text{ bar}$ | ${{ tcr_nsga2_optimum.dP_shell }}\text{ bar}$ |
-| **Shell Exit Pressure ($P_{\text{out}}$, bar)** | — | — | ${{ cocurrent_baseline.P_shell_out }}\text{ bar}$ | ${{ countercurrent_baseline.P_shell_out }}\text{ bar}$ | ${{ tcr_nsga2_optimum.P_shell_out }}\text{ bar}$ |
-| **Reaction Zone Cooling Utility** | ${{ conventional_baseline.Q_wall_total_MW }}\text{ MW}$ | ${{ conventional_optimized.Q_wall_total_MW }}\text{ MW}$ | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** | **$0.0\text{ kW}$** |
+| Benchmark Case | Kinetics & Shell $K_p$ | Gross Yield Eq. (28) (%) | Net $\text{CO}_x$ Yield (%) | $\text{CO}_2$ Conv. (%) | $\text{C}_6\text{H}_{12}$ Conv. (%) | Peak $T_{\text{max}}$ (K) |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| **Khademi (2009) Published CMR** | Graaf (1988), $\eta = 1.0$, Lurgi | ${{ benchmark.khademi_published.cmr_yield }}\%$ | — | — | — | — |
+| **Khademi (2009) Published OTCR (Table 9)** | Graaf (1988), $\eta = 1.0$, Table 4 | ${{ benchmark.khademi_published.tcr_yield }}\%$ | — | — | ${{ benchmark.khademi_published.X_CH }}\%$ | ${{ benchmark.khademi_published.T_max }}\text{ K}$ |
+| **Simulated CMR (Authentic Graaf, Table 7)** | Authentic Graaf (1988), $\eta = 1.0$ | ${{ benchmark.simulation_cmr.yield_eq28 }}\%$ | ${{ benchmark.simulation_cmr.yield_net }}\%$ | ${{ benchmark.simulation_cmr.X_CO2 }}\%$ | — | ${{ benchmark.simulation_cmr.T_max }}\text{ K}$ |
+| **Simulated OTCR (Literal Table 4 $K_p$)** | Authentic Graaf (1988) + Literal $K_p$ | ${{ benchmark.simulation_tcr_literal.yield_eq28 }}\%$ | ${{ benchmark.simulation_tcr_literal.yield_net }}\%$ | ${{ benchmark.simulation_tcr_literal.X_CO2 }}\%$ | ${{ benchmark.simulation_tcr_literal.X_CH }}\%$ | ${{ benchmark.simulation_tcr_literal.T_max }}\text{ K}$ |
+| **Simulated OTCR (Kirchhoff-Corrected $K_p$)** | Authentic Graaf (1988) + NIST Kirchhoff $K_p$ | ${{ benchmark.simulation_tcr_thermo.yield_eq28 }}\%$ | ${{ benchmark.simulation_tcr_thermo.yield_net }}\%$ | ${{ benchmark.simulation_tcr_thermo.X_CO2 }}\%$ | ${{ benchmark.simulation_tcr_thermo.X_CH }}\%$ | ${{ benchmark.simulation_tcr_thermo.T_max }}\text{ K}$ |
 
-### 5.2 Key Engineering Insights
-
-1. **Fair Comparison with Conventional Optimization:**
-   When the conventional reactor is optimized over $(T_{\text{exo},0}, T_{\text{coolant}})$, its yield increases from ${{ conventional_baseline.yield_khademi_eq28 }}\%$ to ${{ conventional_optimized.yield_khademi_eq28 }}\%$ ($+{{ delta_cmr_yield_pct }}\%$ relative gain), producing ${{ conventional_optimized.daily_meoh_ton }}\text{ t/d}$ of methanol at the $535.0\text{ K}$ bulk sintering limit (with centerline reaching ${{ conventional_optimized.T_centerline_max }}\text{ K}$). TCR configurations maintain comparable methanol yields (${{ cocurrent_baseline.yield_khademi_eq28 }}\%$ to ${{ countercurrent_baseline.yield_khademi_eq28 }}\%$) while coproducing ${{ cocurrent_baseline.daily_benzene_ton }}\text{–}{{ countercurrent_baseline.daily_benzene_ton }}\text{ t/d}$ of co-produced benzene and ${{ cocurrent_baseline.daily_h2_ton }}\text{–}{{ countercurrent_baseline.daily_h2_ton }}\text{ t/d}$ of hydrogen within an $\text{H}_2$-rich reformate stream, eliminating the $5.6\text{–}6.8\text{ MW}$ reaction-zone boiling water cooling duty.
-
-2. **Counter-Current vs. Co-Current Hydrodynamics and Heat Transfer:**
-   Counter-current operation delivers higher endothermic conversion (${{ countercurrent_baseline.X_CH }}\%$ vs ${{ cocurrent_baseline.X_CH }}\%$) because the hottest exiting shell fluid preheats the reacting zone near $z = 0$. However, this configuration generates a higher peak bulk temperature (${{ countercurrent_baseline.T_max_exo }}\text{ K}$) and centerline temperature (${{ countercurrent_baseline.T_centerline_max }}\text{ K}$), requiring careful operational control. In co-current mode, the peak bulk temperature remains moderate (${{ cocurrent_baseline.T_max_exo }}\text{ K}$).
-
-3. **NSGA-II Knee Point Balance & Centerline Thermal Safety:**
-   Under equal syngas feed throughput ($0.640\text{ mol/s}$ per tube), the multi-objective knee point safely limits peak bulk temperature to ${{ tcr_nsga2_optimum.T_max_exo }}\text{ K}$ and peak centerline temperature to ${{ tcr_nsga2_optimum.T_centerline_max }}\text{ K}$ (both strictly below the $535.0\text{ K}$ threshold), producing ${{ tcr_nsga2_optimum.daily_meoh_ton }}\text{ t/d}$ of methanol (yield ${{ tcr_nsga2_optimum.yield_khademi_eq28 }}\%$), ${{ tcr_nsga2_optimum.daily_benzene_ton }}\text{ t/d}$ of co-produced benzene, and ${{ tcr_nsga2_optimum.daily_h2_ton }}\text{ t/d}$ of hydrogen within an $\text{H}_2$-rich reformate stream (${{ tcr_nsga2_optimum.outlet_y_H2 }}\text{ mol}\% \text{ H}_2$), with shell exit pressure maintained at ${{ tcr_nsga2_optimum.P_shell_out }}\text{ bar} \ge 1.10\text{ bar}$.
+The benchmark audit exposes two decisive conclusions: (i) the $+3.57\text{ percentage-point}$ gap between gross Eq. (28) yield (${{ benchmark.simulation_cmr.yield_eq28 }}\%$) and true net yield (${{ benchmark.simulation_cmr.yield_net }}\%$) arises purely from feed recycle methanol, and (ii) under authentic Graaf kinetics and exact Table 7/8 geometry, the Table 9 OTCR inlet settings ($T_{\text{exo},0} = 527.8\text{ K}$) drive a severe exothermic thermal excursion ($T_{\text{max}} = {{ benchmark.simulation_tcr_thermo.T_max }}\text{ K}$), yielding a relative change of ${{ benchmark.simulation_tcr_thermo.rel_imp }}\%$ versus the simulated CMR rather than the published $+{{ benchmark.khademi_published.relative_improvement }}\%$. Dynamic Thiele modulus diagnostics at benchmark conditions yield tube-side $\bar{\eta}_{\text{tube}} = {{ benchmark.thiele.tube_eta_mean }}$ ($\eta_{\min} = {{ benchmark.thiele.tube_eta_min }}$, $\Phi_{\max} = {{ benchmark.thiele.tube_Phi_max }}$) and shell-side $\bar{\eta}_{\text{shell}} = {{ benchmark.thiele.shell_eta_mean }}$ ($\eta_{\min} = {{ benchmark.thiele.shell_eta_min }}$, $\Phi_{\max} = {{ benchmark.thiele.shell_Phi_max }}$), confirming why commercial $5.47\text{ mm}$ $\text{Cu/ZnO/Al}_2\text{O}_3$ pellets operate far below the $\eta = 1.0$ intrinsic limit.
 
 ---
 
-## 6. Process Energy Duties & Honest Technical Assessment
+## 5. Results & Thermodynamic Ceiling Analysis
 
-A rigorous techno-economic evaluation requires accounting for all process duties across the entire plant battery limits, distinguishing between reaction-zone cooling, upstream feed preparation, and downstream product separation:
+### 5.1 Theoretical Methanol Yield Ceiling (OTP) vs. Optimized CMR & TCR
+Table 2 presents the 5-node L-BFGS-B Optimal Temperature Profile (OTP) ceiling and best isothermal reactor performance under production VBF kinetics ($L = 7.022\text{ m}$, $P_0 = 76.98\text{ bar}$, $F_0 = 0.640\text{ mol/s}$, $T_{\max} = 535.0\text{ K}$), alongside the equal-throughput optimized CMR and NSGA-II TCR knee point.
 
-| Process Heat Duty Stream | Thermal Duty (MW) | Engineering Description |
-| :--- | :--- | :--- |
-| **Syngas Sensible Preheating ($300\text{ K} \to 503.15\text{ K}$)** | ${{ process_thermal_duties.syngas_preheat_duty_MW }}\text{ MW}$ | High-pressure syngas feed preheating |
-| **Cyclohexane Vaporization & Preheating ($300\text{ K} \to 485\text{ K}$)** | ${{ process_thermal_duties.cyclohexane_vaporization_and_preheat_duty_MW }}\text{ MW}$ | Includes liquid preheat, latent vaporization ($\Delta H_{\text{vap}} = 30.1\text{ kJ/mol}$), and vapor preheat |
-| **Total Upstream Feed Conditioning Duty** | **${{ process_thermal_duties.total_feed_preheat_duty_MW }}\text{ MW}$** | Required external thermal input for feed preparation |
-| **Reaction Zone External Cooling Utility** | **$0.0\text{ kW}$** | 100% autothermal *in situ* heat integration |
-| **Downstream Reformate Condensation Cooling** | $\approx {{ separation_duties.reformate_condenser_duty_MW }}\text{ MW}$ | Cooling reformate to $310\text{ K}$ for flash phase separation |
-| **Downstream Extractive Distillation Reboiler Duty** | ${{ separation_duties.extractive_distillation_duty_MW }}\text{ MW}$ | Benzene–cyclohexane azeotrope separation ($Q_{\text{sep}} \approx 18.0\text{ MJ/kg}_{\text{benzene}}$) |
-| **Hydrogen PSA Compression Work** | ${{ separation_duties.psa_power_MW }}\text{ MW}_e$ | Upgrading reformate hydrogen to fuel/chemical grade ($2.0\text{ MJ/kg}_{\text{H}_2}$) |
-| **Net Plant Gross Thermal Input Duty** | **${{ separation_duties.total_plant_thermal_duty_MW }}\text{ MW}$** | Combined upstream preheating and downstream extractive distillation |
+| Thermal Trajectory / Reactor Regime | Pellet $\eta_{\text{exo}}$ | Characteristic Temperature(s) | Net $\text{CO}_x$ Yield (%) | Gross Eq. (28) Yield (%) | Gap to OTP Ceiling (pp) |
+| :--- | :---: | :--- | :---: | :---: | :---: |
+| **Best Isothermal Tube ($T_{\text{iso}}^*$)** | $0.35$ | $T_{\text{iso}}^* = {{ otp.eta035.best_T_iso }}\text{ K}$ | ${{ otp.eta035.best_iso_net }}\%$ | ${{ otp.eta035.best_iso_eq28 }}\%$ | — |
+| **Theoretical 5-Node OTP Ceiling** | $0.35$ | $T(z) = [{{ otp.eta035.otp_nodes_str }}]\text{ K}$ | **${{ otp.eta035.otp_net }}\%$** | **${{ otp.eta035.otp_eq28 }}\%$** | $0.00\text{ pp}$ |
+| **Equal-Throughput Optimized CMR** | $0.35$ | $T_0 = {{ conventional_optimized.T_exo_0 }}\text{ K}$, $T_{\text{cool}} = {{ conventional_optimized.T_coolant }}\text{ K}$ | **${{ conventional_optimized.yield_net_COx }}\%$** | **${{ conventional_optimized.yield_khademi_eq28 }}\%$** | ${{ cmr_opt_vs_otp_eta035_gap_pp }}\text{ pp}$ |
+| **Equal-Throughput NSGA-II TCR Knee** | $0.35$ | $T_{\text{exo},0} = {{ tcr_nsga2_optimum.T_exo_0 }}\text{ K}$, $T_{\text{endo},0} = {{ tcr_nsga2_optimum.T_endo_0 }}\text{ K}$ | **${{ tcr_nsga2_optimum.yield_net_COx }}\%$** | **${{ tcr_nsga2_optimum.yield_khademi_eq28 }}\%$** | ${{ tcr_knee_vs_otp_eta035_gap_pp }}\text{ pp}$ |
+| **Best Isothermal Tube (Intrinsic Limit)** | $1.00$ | $T_{\text{iso}}^* = {{ otp.eta100.best_T_iso }}\text{ K}$ | ${{ otp.eta100.best_iso_net }}\%$ | ${{ otp.eta100.best_iso_eq28 }}\%$ | — |
+| **Theoretical 5-Node OTP Ceiling (Intrinsic)** | $1.00$ | $T(z) = [{{ otp.eta100.otp_nodes_str }}]\text{ K}$ | **${{ otp.eta100.otp_net }}\%$** | **${{ otp.eta100.otp_eq28 }}\%$** | $0.00\text{ pp}$ |
 
-*Honest Framing of Results:*
-- **The Battery-Limit Accounting Reality:** The TCR achieves complete elimination of external cooling utility ($0.0\text{ kW}$) strictly within the reactor core. However, because single-pass cyclohexane conversion is bounded by Le Chatelier equilibrium at ${{ tcr_nsga2_optimum.X_CH }}\%$, the raw shell effluent contains ${{ tcr_nsga2_optimum.outlet_y_CH }}\text{ mol}\%$ unconverted cyclohexane, ${{ tcr_nsga2_optimum.outlet_y_B }}\text{ mol}\%$ benzene, and ${{ tcr_nsga2_optimum.outlet_y_H2 }}\text{ mol}\% \text{ H}_2$. Over $88\%$ of the shell hydrocarbon stream passes through unconverted ($>1100\text{ t/d}$ plant-wide). Because benzene ($T_{\text{bp}} = 80.1^\circ\text{C}$) and cyclohexane ($T_{\text{bp}} = 80.7^\circ\text{C}$) form a minimum-boiling azeotrope ($\Delta T_{\text{bp}} = 0.6\text{ K}$), they cannot be separated by standard distillation. Extractive distillation using polar solvents (sulfolane, NMP) requires an estimated reboiler duty of $Q_{\text{sep}} \approx 18.0\text{ MJ/kg}_{\text{benzene}}$ (${{ separation_duties.extractive_distillation_duty_MW }}\text{ MW}$ at ${{ tcr_nsga2_optimum.daily_benzene_ton }}\text{ t/d}$ benzene).
-- **Hydrogen Coproduction Framing:** The coproduct hydrogen is produced within an $\text{H}_2$-rich reformate stream (${{ tcr_nsga2_optimum.outlet_y_H2 }}\text{ mol}\% \text{ H}_2$). While highly valuable for plant-wide syngas enrichment or merchant chemical supply after PSA purification (${{ separation_duties.psa_power_MW }}\text{ MW}_e$), it originates from fossil hydrocarbon dehydrogenation and is categorized as gray/blue hydrogen unless renewable bio-cyclohexane is employed.
+This ceiling analysis establishes the central scientific conclusion of the paper: at commercial intrapellet diffusion resistance ($\eta_{\text{exo}} = 0.35$), the optimized boiling-water CMR already captures almost the entire thermodynamic and kinetic yield envelope—trailing the unachievable idealized 5-node OTP trajectory by only **${{ cmr_opt_vs_otp_eta035_gap_pp }}\text{ percentage points}$** (and remaining within ${{ cmr_opt_vs_iso_eta035_gap_pp }}\text{ percentage points}$ of the best isothermal tube). Consequently, **thermal coupling with cyclohexane dehydrogenation should not be justified on the basis of superior methanol yield** (where the TCR knee point differs from the optimized CMR by ${{ tcr_vs_cmr_opt_yield_net_delta_pp }}\text{ percentage points}$ net), but must instead be evaluated candidly as a co-production trade-off between methanol output, benzene/hydrogen generation, lost boiling-water steam credit, and downstream azeotropic separation cost.
+
+### 5.2 Equal-Throughput Comparison Across All Five Reactor Regimes
+Table 3 summarizes all five production reactor configurations evaluated at strictly locked syngas feed ($F_{\text{exo},0} = 0.640\text{ mol/s}$ per tube, $\eta_{\text{exo}} = 0.35$, $N_{\text{tubes}} = 2962$). Full axial multiphysics profiles are shown in **Figure 1** (`tcr_multiphysics_profiles.png`), standalone co-current profiles in **Figure 3** (`reactor_results.png`), and direct coupled-versus-conventional comparisons in **Figure 4** (`comparison_coupled_vs_conventional.png`).
+
+| Performance Indicator | CMR Baseline | CMR Optimized | TCR Co-Current Baseline | TCR Counter-Current Baseline | TCR NSGA-II Knee Point |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Tube Inlet Temp $T_{\text{exo},0}$ (K)** | ${{ conventional_baseline.T_exo_0 }}\text{ K}$ | ${{ conventional_optimized.T_exo_0 }}\text{ K}$ | $503.15\text{ K}$ | $503.15\text{ K}$ | ${{ tcr_nsga2_optimum.T_exo_0 }}\text{ K}$ |
+| **Coolant / Shell Inlet Temp (K)** | ${{ conventional_baseline.T_coolant }}\text{ K}$ | ${{ conventional_optimized.T_coolant }}\text{ K}$ | $485.00\text{ K}$ | $485.00\text{ K}$ | ${{ tcr_nsga2_optimum.T_endo_0 }}\text{ K}$ |
+| **Syngas Feed $F_{\text{exo},0}$ (mol/s·tube)** | ${{ conventional_baseline.F_exo_0 }}$ | ${{ conventional_optimized.F_exo_0 }}$ | ${{ cocurrent_baseline.F_exo_0 }}$ | ${{ countercurrent_baseline.F_exo_0 }}$ | ${{ tcr_nsga2_optimum.F_exo_0 }}$ |
+| **Net MeOH Yield ($\text{CO}_x$, %)** | ${{ conventional_baseline.yield_net_COx }}\%$ | ${{ conventional_optimized.yield_net_COx }}\%$ | ${{ cocurrent_baseline.yield_net_COx }}\%$ | ${{ countercurrent_baseline.yield_net_COx }}\%$ | ${{ tcr_nsga2_optimum.yield_net_COx }}\%$ |
+| **Gross MeOH Yield (Eq. 28, %)** | ${{ conventional_baseline.yield_khademi_eq28 }}\%$ | ${{ conventional_optimized.yield_khademi_eq28 }}\%$ | ${{ cocurrent_baseline.yield_khademi_eq28 }}\%$ | ${{ countercurrent_baseline.yield_khademi_eq28 }}\%$ | ${{ tcr_nsga2_optimum.yield_khademi_eq28 }}\%$ |
+| **$\text{CO}_2$ Conversion (%)** | ${{ conventional_baseline.X_CO2 }}\%$ | ${{ conventional_optimized.X_CO2 }}\%$ | ${{ cocurrent_baseline.X_CO2 }}\%$ | ${{ countercurrent_baseline.X_CO2 }}\%$ | ${{ tcr_nsga2_optimum.X_CO2 }}\%$ |
+| **Total $\text{CO}_x$ Conversion (%)** | ${{ conventional_baseline.X_COx }}\%$ | ${{ conventional_optimized.X_COx }}\%$ | ${{ cocurrent_baseline.X_COx }}\%$ | ${{ countercurrent_baseline.X_COx }}\%$ | ${{ tcr_nsga2_optimum.X_COx }}\%$ |
+| **Methanol Production (mol/s)** | ${{ conventional_baseline.MeOH_rate_net_plant }}$ | ${{ conventional_optimized.MeOH_rate_net_plant }}$ | ${{ cocurrent_baseline.MeOH_rate_net_plant }}$ | ${{ countercurrent_baseline.MeOH_rate_net_plant }}$ | ${{ tcr_nsga2_optimum.MeOH_rate_net_plant }}$ |
+| **Methanol Output (t/d)** | ${{ conventional_baseline.daily_meoh_ton }}$ | ${{ conventional_optimized.daily_meoh_ton }}$ | ${{ cocurrent_baseline.daily_meoh_ton }}$ | ${{ countercurrent_baseline.daily_meoh_ton }}$ | ${{ tcr_nsga2_optimum.daily_meoh_ton }}$ |
+| **Cyclohexane Conversion (%)** | $0.00\%$ | $0.00\%$ | ${{ cocurrent_baseline.X_CH }}\%$ | ${{ countercurrent_baseline.X_CH }}\%$ | ${{ tcr_nsga2_optimum.X_CH }}\%$ |
+| **Co-Produced Benzene (t/d)** | $0.00$ | $0.00$ | ${{ cocurrent_baseline.daily_benzene_ton }}$ | ${{ countercurrent_baseline.daily_benzene_ton }}$ | ${{ tcr_nsga2_optimum.daily_benzene_ton }}$ |
+| **Coproduced $\text{H}_2$ in Reformate (t/d)** | $0.00$ | $0.00$ | ${{ cocurrent_baseline.daily_h2_ton }}$ | ${{ countercurrent_baseline.daily_h2_ton }}$ | ${{ tcr_nsga2_optimum.daily_h2_ton }}$ |
+| **Shell Outlet $y_{\text{CH}} / y_{\text{B}} / y_{\text{H}_2}$ (mol%)** | — | — | ${{ cocurrent_baseline.outlet_y_CH }} / {{ cocurrent_baseline.outlet_y_B }} / {{ cocurrent_baseline.outlet_y_H2 }}$ | ${{ countercurrent_baseline.outlet_y_CH }} / {{ countercurrent_baseline.outlet_y_B }} / {{ countercurrent_baseline.outlet_y_H2 }}$ | ${{ tcr_nsga2_optimum.outlet_y_CH }} / {{ tcr_nsga2_optimum.outlet_y_B }} / {{ tcr_nsga2_optimum.outlet_y_H2 }}$ |
+| **Peak Bulk Temp $T_{\text{max,exo}}$ (K)** | ${{ conventional_baseline.T_max_exo }}\text{ K}$ | ${{ conventional_optimized.T_max_exo }}\text{ K}$ | ${{ cocurrent_baseline.T_max_exo }}\text{ K}$ | ${{ countercurrent_baseline.T_max_exo }}\text{ K}$ | ${{ tcr_nsga2_optimum.T_max_exo }}\text{ K}$ |
+| **Peak Centerline Temp $T_{\text{cl,max}}$ (K)** | ${{ conventional_baseline.T_centerline_max }}\text{ K}$ | ${{ conventional_optimized.T_centerline_max }}\text{ K}$ | ${{ cocurrent_baseline.T_centerline_max }}\text{ K}$ | ${{ countercurrent_baseline.T_centerline_max }}\text{ K}$ | ${{ tcr_nsga2_optimum.T_centerline_max }}\text{ K}$ |
+| **Mean Dynamic $k_{er}$ (W/(m·K))** | ${{ conventional_baseline.k_er_mean }}$ | ${{ conventional_optimized.k_er_mean }}$ | ${{ cocurrent_baseline.k_er_mean }}$ | ${{ countercurrent_baseline.k_er_mean }}$ | ${{ tcr_nsga2_optimum.k_er_mean }}$ |
+| **Tube Pressure Drop $\Delta P_{\text{tube}}$ (bar)** | ${{ conventional_baseline.dP_tube }}$ | ${{ conventional_optimized.dP_tube }}$ | ${{ cocurrent_baseline.dP_tube }}$ | ${{ countercurrent_baseline.dP_tube }}$ | ${{ tcr_nsga2_optimum.dP_tube }}$ |
+| **Shell Pressure Drop $\Delta P_{\text{shell}}$ (bar)** | — | — | ${{ cocurrent_baseline.dP_shell }}$ | ${{ countercurrent_baseline.dP_shell }}$ | ${{ tcr_nsga2_optimum.dP_shell }}$ |
+| **Shell Exit Pressure $P_{\text{shell,out}}$ (bar)** | — | — | ${{ cocurrent_baseline.P_shell_out }}$ | ${{ countercurrent_baseline.P_shell_out }}$ | ${{ tcr_nsga2_optimum.P_shell_out }}$ |
+| **Bed-Lifting Ratio $\Delta P_{\text{shell}}/P_{\text{bed}}$** | — | — | ${{ cocurrent_baseline.bed_lifting_ratio }}$ | ${{ countercurrent_baseline.bed_lifting_ratio }}$ | ${{ tcr_nsga2_optimum.bed_lifting_ratio }}$ |
+| **Wall Heat Transfer $Q_{\text{wall}}$ (MW)** | ${{ conventional_baseline.Q_wall_total_MW }}\text{ MW}$ | ${{ conventional_optimized.Q_wall_total_MW }}\text{ MW}$ | ${{ cocurrent_baseline.Q_wall_total_MW }}\text{ MW}$ | ${{ countercurrent_baseline.Q_wall_total_MW }}\text{ MW}$ | ${{ tcr_nsga2_optimum.Q_wall_total_MW }}\text{ MW}$ |
+| **CMR Steam Generation Credit (MW)** | ${{ conventional_baseline.cmr_steam_credit_MW }}\text{ MW}$ | ${{ conventional_optimized.cmr_steam_credit_MW }}\text{ MW}$ | $0.00\text{ MW}$ | $0.00\text{ MW}$ | $0.00\text{ MW}$ |
+| **Tube Enthalpy Closure Error (%)** | ${{ conventional_baseline.enthalpy_err_tube_pct }}\%$ | ${{ conventional_optimized.enthalpy_err_tube_pct }}\%$ | ${{ cocurrent_baseline.enthalpy_err_tube_pct }}\%$ | ${{ countercurrent_baseline.enthalpy_err_tube_pct }}\%$ | ${{ tcr_nsga2_optimum.enthalpy_err_tube_pct }}\%$ |
+
+![Figure 1: Multiphysics Axial Profiles](tcr_multiphysics_profiles.png)
+
+![Figure 4: Coupled vs. Conventional Comparison](comparison_coupled_vs_conventional.png)
+
+### 5.3 Multi-Objective Pareto Trade-Offs, Centerline Sintering Margin & Shell Hydraulics
+The NSGA-II Pareto frontier (**Figure 2**, `nsga2_pareto_front.png`) quantifies the intrinsic conflict between methanol synthesis yield, benzene/hydrogen co-production, and thermal safety under locked syngas throughput ($0.640\text{ mol/s}$). Simply optimizing the conventional reactor over $(T_{\text{exo},0}, T_{\text{coolant}})$ raises net methanol yield from ${{ conventional_baseline.yield_net_COx }}\%$ to ${{ conventional_optimized.yield_net_COx }}\%$ ($+{{ delta_cmr_yield_net_pct }}\%$ relative gain; gross Eq. 28 from ${{ conventional_baseline.yield_khademi_eq28 }}\%$ to ${{ conventional_optimized.yield_khademi_eq28 }}\%$, $+{{ delta_cmr_yield_eq28_pct }}\%$), with dynamic radial conductivity $k_{er,\text{mean}} = {{ conventional_optimized.k_er_mean }}\text{ W/(m}\cdot\text{K)}$ keeping the radial centerline rise to ${{ cmr_opt_delta_T_radial_K }}\text{ K}$ ($T_{\text{cl,max}} = {{ conventional_optimized.T_centerline_max }}\text{ K} \le 535.0\text{ K}$).
+
+At the NSGA-II TCR knee point ($T_{\text{exo},0} = {{ tcr_nsga2_optimum.T_exo_0 }}\text{ K}$, $T_{\text{endo},0} = {{ tcr_nsga2_optimum.T_endo_0 }}\text{ K}$, $F_{\text{endo},0} = {{ tcr_nsga2_optimum.F_endo_0 }}\text{ mol/s}$, $P_{\text{endo},0} = {{ tcr_nsga2_optimum.P_endo_0 }}\text{ bar}$):
+- **Thermal Safety:** Unified dynamic Bauer–Schlünder dispersion ($k_{er,\text{mean}} = {{ tcr_nsga2_optimum.k_er_mean }}\text{ W/(m}\cdot\text{K)}$) bounds the centerline temperature to ${{ tcr_nsga2_optimum.T_centerline_max }}\text{ K}$ (bulk peak ${{ tcr_nsga2_optimum.T_max_exo }}\text{ K}$, radial overshoot ${{ tcr_knee_delta_T_radial_K }}\text{ K}$), strictly satisfying the $535.0\text{ K}$ copper sintering ceiling.
+- **Shell Hydraulics & Bed-Lifting Engineering:** Pressurizing the shell inlet to ${{ tcr_nsga2_optimum.P_endo_0 }}\text{ bar}$ guarantees positive effluent discharge at $P_{\text{shell,out}} = {{ tcr_nsga2_optimum.P_shell_out }}\text{ bar} \ge 1.15\text{ bar}$ ($\Delta P_{\text{shell}} = {{ tcr_nsga2_optimum.dP_shell }}\text{ bar}$). Auditing $\Delta P_{\text{shell}}$ against the static $\text{Pt/Al}_2\text{O}_3$ bed weight ($P_{\text{bed}} = {{ tcr_nsga2_optimum.bed_weight_bar }}\text{ bar}$) yields a bed-lifting ratio of **${{ tcr_nsga2_optimum.bed_lifting_ratio }}$** (${{ tcr_knee_hold_down_status }}$; co-current baseline $\mathcal{R}_{\text{lift}} = {{ cocurrent_baseline.bed_lifting_ratio }}$: ${{ co_hold_down_status }}$; counter-current baseline $\mathcal{R}_{\text{lift}} = {{ countercurrent_baseline.bed_lifting_ratio }}$: ${{ counter_hold_down_status }}$). Any vertical upward-flow implementation operating near or above $\mathcal{R}_{\text{lift}} = 0.85$ therefore requires either a mechanical top hold-down grid or downward shell-side gas flow.
+
+![Figure 2: NSGA-II Pareto Frontier](nsga2_pareto_front.png)
+
+![Figure 3: Standalone Co-Current TCR Profiles](reactor_results.png)
+
+### 5.4 Real-Gas Peng–Robinson EOS vs. Ideal-Gas Audit
+To isolate high-pressure non-ideality at $76.98\text{ bar}$ without confounding shell-coupling variables, Table 4 compares the VBF CMR ($T_0 = {{ eos.T0_K }}\text{ K}$, $T_{\text{cool}} = {{ eos.T_cool_K }}\text{ K}$, $\eta_{\text{exo}} = {{ eos.eta_exo }}$) solved with ideal-gas partial pressures ($\phi_i = 1$) versus full Peng–Robinson EOS fugacities ($f_i = \phi_i y_i P$).
+
+| Thermodynamic State Formulation | Tube Inlet $T_0$ (K) | Coolant $T_{\text{cool}}$ (K) | Net $\text{CO}_x$ Methanol Yield (%) | Peak Bulk Temp $T_{\text{max}}$ (K) | Shift vs. Ideal Gas (pp) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Ideal-Gas Kinetics ($\phi_i \equiv 1$)** | ${{ eos.T0_K }}\text{ K}$ | ${{ eos.T_cool_K }}\text{ K}$ | ${{ eos.yield_net_ideal }}\%$ | ${{ eos.T_max_ideal }}\text{ K}$ | $0.00\text{ pp}$ |
+| **Full Peng–Robinson EOS ($f_i = \phi_i y_i P$)** | ${{ eos.T0_K }}\text{ K}$ | ${{ eos.T_cool_K }}\text{ K}$ | **${{ eos.yield_net_real_eos }}\%$** | ${{ eos.T_max_real_eos }}\text{ K}$ | **${{ eos.diff_pct_points }}\text{ pp}$** |
+
+Crucially, enabling full Peng–Robinson real-gas fugacities produces a small **negative** shift (${{ eos.diff_pct_points }}\text{ percentage points}$) in single-pass methanol yield. Although the sub-unity methanol and water fugacity coefficients ($\phi_{\text{CH}_3\text{OH}}, \phi_{\text{H}_2\text{O}} < 1$) slightly relax the thermodynamic equilibrium limit of methanol synthesis ($K_\phi < 1$), commercial fixed-bed operation at $\eta_{\text{exo}} = 0.35$ is strongly kinetically controlled over most of the bed. In the PR-EOS formulation, depressed water fugacity shifts the RWGS reaction forward and lowers reactant driving activities relative to water adsorption terms in the VBF denominator, intensifying **kinetic water inhibition** ($K_{\text{ad},1} f_{\text{H}_2\text{O}}/f_{\text{H}_2} + K_{\text{ad},3} f_{\text{H}_2\text{O}}$) on the $\text{Cu/ZnO/Al}_2\text{O}_3$ surface. This mechanistic finding corrects the common simplification that real-gas corrections uniformly boost single-pass methanol reactor conversion.
+
+### 5.5 Parametric Sensitivity: Effectiveness Factor ($\eta_{\text{exo}}$) & $\text{H}_2$ Co-Feed
+Sensitivity sweeps (**Figure 5**, `sensitivity_analysis.png`) with `use_dynamic_thiele = False` isolate the governing role of catalyst pellet effectiveness factor $\eta_{\text{exo}} \in [0.20, 1.00]$ on co-current TCR performance (Table 5), alongside the effect of $5\text{ mol}\%$ $\text{H}_2$ co-feed on shell conversion (Table 6).
+
+{{ table_eta_sweep }}
+
+{{ table_h2_cofeed }}
+
+![Figure 5: Parametric Sensitivity Analysis](sensitivity_analysis.png)
 
 ---
 
-## 7. Khademi et al. (2009) Benchmark Reproduction & Typo Proof
+## 6. Plant Battery-Limit Energy & Separation Accounting
 
-To validate the modeling framework against literature, the benchmark conditions of Khademi et al. (2009) Table 9 (Graaf et al. kinetics, Itoh kinetics, 10% cyclohexane / 90% argon shell feed) were cross-compared against our thermodynamically consistent formulations and production VBF models:
+A rigorous techno-economic comparison must evaluate **all** energy streams crossing the plant battery limits, explicitly crediting the conventional reactor for its boiling-water steam generation while debiting the coupled reactor for shell-side feed conditioning and azeotropic product recovery (Table 7).
 
-| Model Specification | Tube Kinetics & $\eta_{\text{exo}}$ | Shell Feed & Kinetics | Methanol Yield (%) | $\text{CO}_2$ Conv. (%) | $\text{C}_6\text{H}_{12}$ Conv. (%) | Peak Temp $T_{\text{max}}$ (K) |
-| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
-| **Khademi Published Benchmark (Table 9)** | Graaf (1988), $\eta = 1.0$ | 10% CH / 90% Ar, $1.013\text{ bar}$, Itoh | ${{ benchmark.khademi_published.tcr_yield }}\%$ | — | ${{ benchmark.khademi_published.X_CH }}\%$ | ${{ benchmark.khademi_published.T_max }}\text{ K}$ |
-| **Khademi Literal Table 4 Model** | Graaf (1988), $\eta = 1.0$ | 10% CH / 90% Ar, Literal Table 4 $K_p$ | ${{ benchmark.simulation_tcr_literal.yield }}\%$ | ${{ benchmark.simulation_tcr_literal.X_CO2 }}\%$ | ${{ benchmark.simulation_tcr_literal.X_CH }}\%$ | ${{ benchmark.simulation_tcr_literal.T_max }}\text{ K}$ |
-| **Kirchhoff-Corrected $K_p$ Benchmark** | Graaf (1988), $\eta = 1.0$ | 10% CH / 90% Ar, $1.013\text{ bar}$, Thermo $K_p$ | ${{ benchmark.simulation_tcr.yield }}\%$ | ${{ benchmark.simulation_tcr.X_CO2 }}\%$ | ${{ benchmark.simulation_tcr.X_CH }}\%$ | ${{ benchmark.simulation_tcr.T_max }}\text{ K}$ |
-| **Production VBF Baseline (Co-Current)** | VBF (1996), $\eta = 0.35$ | 95% CH / 5% H2, $2.50\text{ bar}$, Reversible LHHW | ${{ cocurrent_baseline.yield_khademi_eq28 }}\%$ | ${{ cocurrent_baseline.X_CO2 }}\%$ | ${{ cocurrent_baseline.X_CH }}\%$ | ${{ cocurrent_baseline.T_max_exo }}\text{ K}$ |
-| **Production VBF NSGA-II Optimum** | VBF (1996), $\eta = 0.35$ | 95% CH / 5% H2, $2.50\text{ bar}$, Reversible LHHW | ${{ tcr_nsga2_optimum.yield_khademi_eq28 }}\%$ | ${{ tcr_nsga2_optimum.X_CO2 }}\%$ | ${{ tcr_nsga2_optimum.X_CH }}\%$ | ${{ tcr_nsga2_optimum.T_max_exo }}\text{ K}$ |
+| Battery-Limit Energy / Utility Stream | Optimized CMR (MW) | TCR NSGA-II Knee Point (MW) | Engineering Basis & Impact |
+| :--- | :---: | :---: | :--- |
+| **Syngas Sensible Preheating ($298.15\text{ K} \to T_{\text{exo},0}$)** | ${{ conventional_optimized.syngas_preheat_duty_MW }}\text{ MW}$ | ${{ tcr_nsga2_optimum.syngas_preheat_duty_MW }}\text{ MW}$ | High-pressure syngas feed preheating |
+| **Cyclohexane Vaporization & Preheating** | $0.00\text{ MW}$ | ${{ tcr_nsga2_optimum.cyclohexane_vaporization_and_preheat_duty_MW }}\text{ MW}$ | Liquid preheat + $\Delta H_{\text{vap}} = 30.1\text{ kJ/mol}$ + superheat |
+| **Total Upstream Feed Conditioning Duty** | **${{ conventional_optimized.syngas_preheat_duty_MW }}\text{ MW}$** | **${{ tcr_nsga2_optimum.total_feed_preheat_duty_MW }}\text{ MW}$** | External feed thermal input (baseline TCR: ${{ process_thermal_duties.total_feed_preheat_duty_MW }}\text{ MW}$) |
+| **Reaction-Zone External Cooling Utility** | ${{ conventional_optimized.Q_wall_total_MW }}\text{ MW}$ (jacket) | **$0.0\text{ kW}$** (${{ tcr_nsga2_optimum.Q_wall_total_MW }}\text{ MW}$ *in situ*) | Core heat transfer across $2962$ tube walls |
+| **CMR Boiling-Water Steam Generation Credit** | **$-{{ conventional_optimized.cmr_steam_credit_MW }}\text{ MW}$** | $0.00\text{ MW}$ | Exportable MP steam credit (baseline CMR: ${{ conventional_baseline.cmr_steam_credit_MW }}\text{ MW}$) |
+| **Downstream Extractive Distillation Reboiler** | $0.00\text{ MW}$ | **${{ tcr_nsga2_optimum.Q_reboiler_sep_MW }}\text{ MW}$** | Benzene–cyclohexane azeotrope separation ($18.0\text{ MJ/kg}_{\text{C}_6\text{H}_6}$) |
+| **Downstream Reformate / Shell Flash Condenser** | $0.00\text{ MW}$ | ${{ tcr_nsga2_optimum.Q_flash_condenser_shell_MW }}\text{ MW}$ | Cooling shell reformate to $308.15\text{ K}$ for phase split |
+| **Downstream Methanol Tube Flash Condenser** | ${{ conventional_optimized.Q_flash_condenser_MW }}\text{ MW}$ | ${{ tcr_nsga2_optimum.Q_flash_condenser_tube_MW }}\text{ MW}$ | Cooling tube effluent to $308.15\text{ K}$ |
+| **Hydrogen PSA Purification Work** | $0.00\text{ MW}_e$ | **${{ tcr_nsga2_optimum.W_psa_H2_MW }}\text{ MW}_e$** | Upgrading $\text{H}_2$-rich reformate ($2.0\text{ MJ/kg}_{\text{H}_2}$) |
+| **Net Battery-Limit Thermal Input (Feed + Reboiler $-$ Steam Credit)** | **${{ cmr_opt_net_thermal_demand_MW }}\text{ MW}$** | **${{ tcr_nsga2_optimum.total_plant_thermal_input_MW }}\text{ MW}$** | Net TCR thermal penalty vs. CMR: **${{ tcr_vs_cmr_net_thermal_penalty_MW }}\text{ MW}$** |
 
-### Mathematical Proof of Khademi Table 4 Typographical Error
-Khademi Table 4 explicitly reports:
-$$K_p = 4.89 \times 10^{35} \exp\left(-\frac{3190}{T}\right) \quad [\text{Pa}^3]$$
-The exponent implies $-\Delta H / R = -3190\text{ K}$, corresponding to an apparent reaction enthalpy of $\Delta H \approx +26.5\text{ kJ/mol}$. However, the true thermodynamic enthalpy of cyclohexane dehydrogenation is $\Delta H = +205.4\text{ kJ/mol}$, which requires $-\Delta H / R \approx -24704\text{ K}$. Khademi's published correlation underpredicts temperature sensitivity by a factor of $7.7\times$, suppressing the true thermodynamic equilibrium feedback.
-
----
-
-## 8. Conclusions
-1. Direct reaction-reaction thermal coupling between methanol synthesis and cyclohexane dehydrogenation achieves 100% *in situ* heat integration in the reaction zone ($0.0\text{ kW}$ cooling utility).
-2. Elevating shell inlet pressure ($P_{\text{endo},0} \in [2.0, 3.0]\text{ bar}$) guarantees that shell effluents discharge above atmospheric pressure across all operational regimes (${{ tcr_nsga2_optimum.P_shell_out }}\text{ bar} \ge 1.10\text{ bar}$), resolving prior unphysical negative pressure artifacts.
-3. When evaluated fairly under equal syngas feed throughput ($0.640\text{ mol/s}$ per tube) against an optimized conventional reactor (CMR, yield ${{ conventional_optimized.yield_khademi_eq28 }}\%$), the TCR knee-point produces ${{ tcr_nsga2_optimum.daily_meoh_ton }}\text{ t/d}$ methanol (yield ${{ tcr_nsga2_optimum.yield_khademi_eq28 }}\%$), ${{ tcr_nsga2_optimum.daily_benzene_ton }}\text{ t/d}$ of co-produced benzene, and ${{ tcr_nsga2_optimum.daily_h2_ton }}\text{ t/d}$ of hydrogen within an $\text{H}_2$-rich reformate stream (${{ tcr_nsga2_optimum.outlet_y_H2 }}\text{ mol}\% \text{ H}_2$).
-4. Transport and thermal safety are strictly satisfied: peak bulk temperature is ${{ tcr_nsga2_optimum.T_max_exo }}\text{ K}$ and peak centerline temperature is ${{ tcr_nsga2_optimum.T_centerline_max }}\text{ K}$, both remaining below the $535.0\text{ K}$ copper sintering limit.
-5. Rigorous battery-limit accounting reveals that plant-wide thermal duties include ${{ process_thermal_duties.total_feed_preheat_duty_MW }}\text{ MW}$ for upstream feed preparation and ${{ separation_duties.extractive_distillation_duty_MW }}\text{ MW}$ for downstream extractive distillation of the benzene–cyclohexane azeotrope, dispelling the misconception of zero-energy operation.
-6. The results presented herein constitute a conceptual reactor design and plant-wide battery-limit engineering study. While grounded in rigorous transport phenomena, thermodynamic equilibrium, and peer-reviewed kinetics, commercial deployment will require pilot-scale experimental validation to confirm long-term catalyst stability, multi-tube flow distribution, and dynamic controllability.
+### Candid Techno-Economic Framing
+1. **The Steam-Credit vs. Azeotrope Penalty:** Because single-pass cyclohexane dehydrogenation at $485\text{–}535\text{ K}$ and ${{ tcr_nsga2_optimum.P_endo_0 }}\text{ bar}$ is strictly bounded by Le Chatelier equilibrium at $X_{\text{CH}} = {{ tcr_nsga2_optimum.X_CH }}\%$, **${{ tcr_knee_unconverted_ch_pct }}\%$** of the shell cyclohexane passes through unconverted. Separating co-produced benzene ($T_{\text{bp}} = 80.1^\circ\text{C}$) from unconverted cyclohexane ($T_{\text{bp}} = 80.7^\circ\text{C}$) requires breaking a close-boiling azeotrope ($\Delta T_{\text{bp}} = 0.6\text{ K}$) via extractive distillation (sulfolane/NMP), consuming ${{ tcr_nsga2_optimum.Q_reboiler_sep_MW }}\text{ MW}$ of reboiler heat. Combined with ${{ tcr_nsga2_optimum.cyclohexane_vaporization_and_preheat_duty_MW }}\text{ MW}$ of cyclohexane vaporization/preheating and the forfeiture of ${{ conventional_optimized.cmr_steam_credit_MW }}\text{ MW}$ of CMR medium-pressure steam credit, the TCR incurs a net battery-limit thermal penalty of ${{ tcr_vs_cmr_net_thermal_penalty_MW }}\text{ MW}$ (plus ${{ tcr_nsga2_optimum.W_psa_H2_MW }}\text{ MW}_e$ PSA electricity) relative to the optimized CMR.
+2. **Co-Product Valuation Requirement:** Consequently, methanol–cyclohexane thermal coupling is economically viable *only* when the market premium for co-produced benzene (${{ tcr_nsga2_optimum.daily_benzene_ton }}\text{ t/d}$) and reformate-derived hydrogen (${{ tcr_nsga2_optimum.daily_h2_ton }}\text{ t/d}$ within an $\text{H}_2$-rich reformate stream containing ${{ tcr_nsga2_optimum.outlet_y_H2 }}\text{ mol}\% \text{ H}_2$) outweighs the lost steam credit, extractive distillation opex/capex, and added shell-and-tube mechanical complexity. Note that this coproduct hydrogen originates from hydrocarbon dehydrogenation and represents fossil/LOHC-carrier hydrogen rather than renewable electrolytic hydrogen unless bio-derived cyclohexane is sourced.
 
 ---
 
-## 9. References
+## 7. Conclusions
+
+1. **Benchmark Forensics Resolve Published Discrepancies:** Re-examining Khademi et al. (2009) uncovers critical typographical errors in printed Table 1 methanol kinetic parameters ($E_{a,1}$ off by $50\text{ kJ/mol}$, RWGS pre-exponential off by $10^5$) and Table 4 cyclohexane equilibrium temperature sensitivity (printed $B = +3190\text{ K}$ vs. NIST-anchored van 't Hoff slope ${{ benchmark.table4_typo.true_dH_over_R }}\text{ K}$), alongside a $+3.57\text{ percentage-point}$ gross-yield offset in Eq. (28). Transparent dual reporting of gross and net $\text{CO}_x$ yields is essential for reproducible benchmarking.
+2. **Optimized Conventional Reactors Already Approach the Theoretical OTP Ceiling:** Under commercial intrapellet diffusion resistance ($\eta_{\text{exo}} = 0.35$) and equal throughput ($0.640\text{ mol/s}$), the 5-node L-BFGS-B Optimal Temperature Profile establishes a strict single-pass net yield ceiling of ${{ otp.eta035.otp_net }}\%$. A properly optimized boiling-water CMR already achieves ${{ conventional_optimized.yield_net_COx }}\%$ net yield (${{ conventional_optimized.daily_meoh_ton }}\text{ t/d}$)—within ${{ cmr_opt_vs_otp_eta035_gap_pp }}\text{ percentage points}$ of the theoretical optimum—leaving negligible headroom for yield-driven claims of TCR superiority.
+3. **Battery-Limit Accounting Overturns "Zero-Utility" Claims:** Crediting the optimized CMR with ${{ conventional_optimized.cmr_steam_credit_MW }}\text{ MW}$ of exportable boiling-water steam while charging the NSGA-II TCR knee point for feed conditioning (${{ tcr_nsga2_optimum.total_feed_preheat_duty_MW }}\text{ MW}$), benzene–cyclohexane extractive distillation (${{ tcr_nsga2_optimum.Q_reboiler_sep_MW }}\text{ MW}$), and hydrogen PSA work (${{ tcr_nsga2_optimum.W_psa_H2_MW }}\text{ MW}_e$) reveals a net battery-limit thermal penalty of ${{ tcr_vs_cmr_net_thermal_penalty_MW }}\text{ MW}$. TCR deployment must therefore be justified strictly by co-product arbitrage or dedicated LOHC dehydrogenation integration.
+4. **Unified Dynamic Conduction & Shell Bed-Lifting Safety:** Dynamic Bauer–Schlünder radial conductivity ($k_{er,\text{mean}} = {{ tcr_nsga2_optimum.k_er_mean }}\text{ W/(m}\cdot\text{K)}$) verifies that centerline temperatures stay strictly below the $535.0\text{ K}$ copper sintering ceiling ($T_{\text{cl,max}} = {{ tcr_nsga2_optimum.T_centerline_max }}\text{ K}$). Simultaneously, explicit hydraulic auditing against static bed weight ($P_{\text{bed}} = {{ tcr_nsga2_optimum.bed_weight_bar }}\text{ bar}$) yields $\mathcal{R}_{\text{lift}} = {{ tcr_nsga2_optimum.bed_lifting_ratio }}$ at the knee point, establishing clear design criteria for hold-down grids or downward shell flow.
+5. **Real-Gas Peng–Robinson Kinetics Slightly Depress Single-Pass Yield:** Full PR-EOS fugacity evaluation at $76.98\text{ bar}$ shifts benchmark CMR net yield by ${{ eos.diff_pct_points }}\text{ percentage points}$ (${{ eos.yield_net_ideal }}\% \to {{ eos.yield_net_real_eos }}\%$) because shifted RWGS water formation enhances kinetic water inhibition on $\text{Cu/ZnO/Al}_2\text{O}_3$.
+
+---
+
+## 8. References
+
 1. Vanden Bussche, K. M., & Froment, G. F. (1996). A steady-state kinetic model for synthesis of methanol and the water gas shift reaction on a commercial $\text{Cu/ZnO/Al}_2\text{O}_3$ catalyst. *Journal of Catalysis*, 161(1), 1–10.
 2. Khademi, M. H., Setoodeh, P., Rahimpour, M. R., & Jahanmiri, A. (2009). Optimization of methanol synthesis and cyclohexane dehydrogenation in a thermally coupled reactor using differential evolution (DE) method. *International Journal of Hydrogen Energy*, 34(16), 6930–6944.
-3. Khademi, M. H., Rahimpour, M. R., & Jahanmiri, A. (2012). A comparison of a novel recuperative configuration and conventional methanol synthesis reactor. *Drying Technology*, 30(11-12), 1332–1343.
-4. Graaf, G. H., Stamhuis, E. J., & Beenackers, A. A. C. M. (1988). Kinetics of low-pressure methanol synthesis. *Chemical Engineering Science*, 43(12), 3185–3195.
-5. Itoh, N. (1987). A membrane reactor for dehydrogenation of cyclohexane. *AIChE Journal*, 33(9), 1576–1578.
-6. Deb, K., Pratap, A., Agarwal, S., & Meyarivan, T. (2002). A fast and elitist multiobjective genetic algorithm: NSGA-II. *IEEE Transactions on Evolutionary Computation*, 6(2), 182–197.
-7. Ergun, S. (1952). Fluid flow through packed columns. *Chemical Engineering Progress*, 48, 89–94.
+3. Graaf, G. H., Stamhuis, E. J., & Beenackers, A. A. C. M. (1988). Kinetics of low-pressure methanol synthesis. *Chemical Engineering Science*, 43(12), 3185–3195.
+4. Itoh, N. (1987). A membrane reactor for dehydrogenation of cyclohexane. *AIChE Journal*, 33(9), 1576–1578.
+5. Froment, G. F., Bischoff, K. B., & De Wilde, J. (2011). *Chemical Reactor Analysis and Design* (3rd ed.). John Wiley & Sons.
+6. Peng, D.-Y., & Robinson, D. B. (1976). A new two-constant equation of state. *Industrial & Engineering Chemistry Fundamentals*, 15(1), 59–64.
+7. Bauer, R., & Schlünder, E. U. (1978). Effective radial thermal conductivity of packings in gas flow. Part I & II. *International Chemical Engineering*, 18(2), 181–204.
 8. Dixon, A. G. (1997). Wall and particle-fluid heat transfer in packed beds. *Chemical Engineering and Processing*, 36(4), 283–290.
-9. Eisfeld, B., & Schnitzlein, K. (2001). The influence of wall effects on the pressure drop in packed beds—the Ergun equation revisited. *Chemical Engineering Science*, 56(14), 4323–4329.
-10. American Society of Mechanical Engineers (ASME). (2021). Boiler and Pressure Vessel Code, Section VIII, Division 1: Rules for Construction of Pressure Vessels.
+9. Li, C.-H., & Finlayson, B. A. (1977). Heat transfer in packed beds—a reevaluation. *Chemical Engineering Science*, 32(9), 1055–1066.
+10. Ergun, S. (1952). Fluid flow through packed columns. *Chemical Engineering Progress*, 48, 89–94.
+11. Eisfeld, B., & Schnitzlein, K. (2001). The influence of wall effects on the pressure drop in packed beds—the Ergun equation revisited. *Chemical Engineering Science*, 56(14), 4323–4329.
+12. Deb, K., Pratap, A., Agarwal, S., & Meyarivan, T. (2002). A fast and elitist multiobjective genetic algorithm: NSGA-II. *IEEE Transactions on Evolutionary Computation*, 6(2), 182–197.
+13. NIST Chemistry WebBook, NIST Standard Reference Database Number 69. National Institute of Standards and Technology, Gaithersburg, MD.
+14. American Society of Mechanical Engineers (ASME). (2021). *Boiler and Pressure Vessel Code, Section VIII, Division 1: Rules for Construction of Pressure Vessels*.

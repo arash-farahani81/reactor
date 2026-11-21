@@ -11,6 +11,7 @@ Strict gates for:
 - T11: Local wall heat flux equality Q_wall,tube(z) == Q_wall,shell(z).
 - T13: Exact van 't Hoff numerical derivative R T^2 d(ln K_p)/dT == ΔH_r(T) to <= 1e-8.
 - T14: Equal-throughput optimization, thermal limits, and positive shell exit pressure.
+- T15: Exact 3-to-2 Graaf stoichiometric projection, elemental & Hess's Law equivalence, and Graaf-mode solver C/H/O closure.
 """
 
 import pytest
@@ -28,7 +29,7 @@ from tcr.thermo import (
     calc_cp_species, calc_enthalpy_species, MW
 )
 from tcr.kinetics import (
-    kinetics_vbf_production, kinetics_ch_production
+    kinetics_vbf_production, kinetics_ch_production, kinetics_graaf_benchmark
 )
 from tcr.transport import calc_U_tcr, calc_U_cmr, calc_ergun_dp
 from tcr.solvers import (
@@ -438,3 +439,102 @@ def test_t14_equal_throughput_optimization_and_pressure(cfg):
 
     # 4. Rigorous performance: must achieve high production without feed throttling
     assert knee["daily_meoh_ton"] >= 200.0, f"Daily methanol output {knee['daily_meoh_ton']:.2f} t/d must be >= 200.0 t/d under full feed"
+
+
+def test_t15_graaf_stoichiometry(cfg, geom):
+    """
+    T15: Verify exact 3-to-2 Graaf et al. (1988) stoichiometric projection:
+      r1: CO  + 2 H2 <-> CH3OH
+      r2: CO2 +   H2 <-> CO + H2O   (RWGS)
+      r3: CO2 + 3 H2 <-> CH3OH + H2O
+    Mapped onto the 2-reaction independent VBF stoichiometric basis via:
+      r_meoh = r1 + r3,  r_rwgs = r2 - r1
+    Verifies:
+      1. Finite non-trivial (r1, r2, r3) from kinetics_graaf_benchmark at T = 503.15 K.
+      2. Exact 3-to-2 species production rate equivalence (< 1e-14) for all 5 reacting species.
+      3. Exact C, H, O elemental conservation (< 1e-14).
+      4. Exact Hess's Law enthalpy release equivalence (< 1e-10 * (1 + |r_meoh * dH_meoh|)).
+      5. Fast Graaf-mode solve_conventional run achieving C, H, O mass balance closures < 1e-12.
+    """
+    T_test = 503.15  # K
+    P_test = float(cfg.feed_tube.P0)  # Pa
+    y_test = np.array(cfg.feed_tube.y0, dtype=float)
+
+    # 1. Evaluate 3-reaction Graaf benchmark kinetics
+    r1, r2, r3 = kinetics_graaf_benchmark(T_test, P_test, y_test, eta_exo=1.0)
+    assert np.isfinite(r1) and np.isfinite(r2) and np.isfinite(r3), (
+        f"kinetics_graaf_benchmark returned non-finite rates: {(r1, r2, r3)}"
+    )
+    assert (abs(r1) + abs(r2) + abs(r3)) > 0.0, "Graaf benchmark rates must be non-zero at 503.15 K"
+
+    # 2. Exact 3-to-2 stoichiometric projection equivalence across all 5 reacting species
+    # Direct 3-reaction formation rates [H2, CO2, CO, CH3OH, H2O]
+    R_3rxn = {
+        "H2":    -2.0 * r1 - 1.0 * r2 - 3.0 * r3,
+        "CO2":    0.0 * r1 - 1.0 * r2 - 1.0 * r3,
+        "CO":    -1.0 * r1 + 1.0 * r2 + 0.0 * r3,
+        "CH3OH":  1.0 * r1 + 0.0 * r2 + 1.0 * r3,
+        "H2O":    0.0 * r1 + 1.0 * r2 + 1.0 * r3,
+    }
+
+    r_meoh = r1 + r3
+    r_rwgs = r2 - r1
+    R_2rxn = {
+        "H2":    -3.0 * r_meoh - 1.0 * r_rwgs,
+        "CO2":   -1.0 * r_meoh - 1.0 * r_rwgs,
+        "CO":     1.0 * r_rwgs,
+        "CH3OH":  1.0 * r_meoh,
+        "H2O":    1.0 * r_meoh + 1.0 * r_rwgs,
+    }
+
+    for sp in ("H2", "CO2", "CO", "CH3OH", "H2O"):
+        diff = abs(R_3rxn[sp] - R_2rxn[sp])
+        assert diff < 1e-14, f"3-to-2 stoichiometry mismatch for {sp}: |{R_3rxn[sp]} - {R_2rxn[sp]}| = {diff:.3e}"
+
+    # 3. Exact C, H, O elemental conservation (< 1e-14)
+    c_bal = R_2rxn["CO2"] + R_2rxn["CO"] + R_2rxn["CH3OH"]
+    h_bal = 2.0 * R_2rxn["H2"] + 4.0 * R_2rxn["CH3OH"] + 2.0 * R_2rxn["H2O"]
+    o_bal = 2.0 * R_2rxn["CO2"] + R_2rxn["CO"] + R_2rxn["CH3OH"] + R_2rxn["H2O"]
+    assert abs(c_bal) < 1e-14, f"Carbon conservation violation: {c_bal:.3e}"
+    assert abs(h_bal) < 1e-14, f"Hydrogen conservation violation: {h_bal:.3e}"
+    assert abs(o_bal) < 1e-14, f"Oxygen conservation violation: {o_bal:.3e}"
+
+    # 4. Exact Hess's Law enthalpy equivalence using independent species enthalpies
+    H_H2 = calc_enthalpy_species("H2", T_test)
+    H_CO2 = calc_enthalpy_species("CO2", T_test)
+    H_CO = calc_enthalpy_species("CO", T_test)
+    H_CH3OH = calc_enthalpy_species("CH3OH", T_test)
+    H_H2O = calc_enthalpy_species("H2O", T_test)
+
+    dH_1_direct = H_CH3OH - H_CO - 2.0 * H_H2
+    dH_2_direct = H_CO + H_H2O - H_CO2 - H_H2
+    dH_3_direct = H_CH3OH + H_H2O - H_CO2 - 3.0 * H_H2
+
+    dH_meoh = calc_dH_rxn_meoh(T_test)
+    dH_rwgs = calc_dH_rxn_rwgs(T_test)
+
+    q_rxn_3 = -(dH_1_direct * r1 + dH_2_direct * r2 + dH_3_direct * r3)
+    q_rxn_2 = -(dH_meoh * r_meoh + dH_rwgs * r_rwgs)
+    hess_tol = 1e-10 * (1.0 + abs(r_meoh * dH_meoh))
+    assert abs(q_rxn_3 - q_rxn_2) < hess_tol, (
+        f"Hess's Law enthalpy mismatch: |{q_rxn_3:.6e} - {q_rxn_2:.6e}| = {abs(q_rxn_3 - q_rxn_2):.3e} >= {hess_tol:.3e}"
+    )
+
+    # 5. Fast Graaf-mode solve_conventional run verifying C, H, O mass balance closures < 1e-12
+    sol_fast = copy.deepcopy(cfg.solver)
+    sol_fast.z_points = 80
+    cat_graaf = copy.deepcopy(cfg.cat_tube)
+    cat_graaf.eta = 1.0
+
+    sol_cmr_graaf = solve_conventional(
+        geom, cat_graaf, cfg.transport, sol_fast,
+        cfg.feed_tube.y0, T_test, P_test, cfg.feed_tube.F_total0,
+        T_coolant=515.0, kinetics_mode="benchmark_graaf",
+        use_dynamic_thiele=False
+    )
+    F_in = sol_cmr_graaf.y[0:7, 0]
+    F_out = sol_cmr_graaf.y[0:7, -1]
+    elem_err = check_element_balances(F_in, F_out, ELEM_TUBE)
+    for elem in ("C", "H", "O"):
+        assert elem_err[elem] < 1e-12, f"Graaf-mode CMR {elem} balance error {elem_err[elem]:.3e} >= 1e-12"
+

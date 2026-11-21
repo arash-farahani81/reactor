@@ -53,13 +53,18 @@ def test_t9_no_hardcode_scan():
     with open(template_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Check for presence of essential dynamic placeholders
+    # Check for presence of essential dynamic placeholders (core + Path A)
     assert "{{ conventional_baseline.yield_khademi_eq28 }}" in content
     assert "{{ conventional_optimized.yield_khademi_eq28 }}" in content
     assert "{{ cocurrent_baseline.yield_khademi_eq28 }}" in content
     assert "{{ countercurrent_baseline.yield_khademi_eq28 }}" in content
     assert "{{ tcr_nsga2_optimum.yield_khademi_eq28 }}" in content
     assert "{{ process_thermal_duties.total_feed_preheat_duty_MW }}" in content
+    assert "{{ otp.eta035.otp_net }}" in content
+    assert "{{ eos.yield_net_real_eos }}" in content
+    assert "{{ conventional_optimized.cmr_steam_credit_MW }}" in content
+    assert "{{ tcr_nsga2_optimum.bed_lifting_ratio }}" in content
+    assert "2.45e4" not in content
 
 def test_t10_manuscript_consistency():
     """T10: Manuscript consistency: check_manuscript_consistency passes with 100% numerical match."""
@@ -67,7 +72,7 @@ def test_t10_manuscript_consistency():
     check_consistency()
 
 def test_t12_benchmark_verification(results):
-    """T12: Benchmark verification: Khademi (2009) benchmark, Table 4 typo proof, and sensitivity."""
+    """T12: Benchmark verification: Khademi (2009) benchmark, Table 4 typo proof, OTP/EOS audit, and sensitivity."""
     bench = results.get("benchmark_khademi_2009")
     assert bench is not None, "benchmark_khademi_2009 must be present in simulation_results.json"
 
@@ -84,3 +89,9 @@ def test_t12_benchmark_verification(results):
     assert "eta_0.7" in sens
     assert "eta_0.5" in sens
     assert "eta_0.35" in sens
+
+    # Verify Path A OTP & Real-Gas PR-EOS audit
+    otp_eos = bench.get("otp_and_eos_audit")
+    assert otp_eos is not None, "otp_and_eos_audit must be present in benchmark_khademi_2009"
+    assert "eta_0.35" in otp_eos and "eta_1.0" in otp_eos and "eos_comparison" in otp_eos
+

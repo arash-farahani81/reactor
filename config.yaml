@@ -1,19 +1,32 @@
 # Configuration for Thermally Coupled Reactor (TCR) Simulation & Optimization
 # Every physical parameter includes an explicit 'source' citation.
+# Model provenance summary:
+# - Tube methanol kinetics (production): Vanden Bussche & Froment (1996), eta_exo = 0.35.
+# - Tube methanol kinetics (benchmark): Authentic Graaf et al. (1988), correcting printed
+#   Khademi et al. (2009) Table 1 typographical errors (k1 E_a: 63,000 vs 113,000 J/mol;
+#   RWGS pre-exponential: 9.64e6 vs 9.64e11).
+# - Shell cyclohexane dehydrogenation: NIST Chemistry WebBook standard entropies
+#   (DELTA_S_R_298 = 362.96 J/(mol*K), van 't Hoff slope -dH_r/R = -24,704 K, correcting
+#   Khademi et al. 2009 Table 4 erroneous Kp exponent +3190 K / -3190 K) paired with
+#   Itoh (1987) and Khademi et al. (2009) rate and benzene adsorption parameters.
+# - Transport & hydraulics: Dixon (1997) / Li & Finlayson (1977) wall heat transfer,
+#   unified dynamic Bauer-Schluender effective radial conductivity k_er,
+#   Wassiljewa-Mason-Saxena gas mixture thermal conductivity, and Ergun (1952) /
+#   Eisfeld-Schnitzlein (2001) packed-bed pressure drop.
 
 geometry:
   L:
     value: 7.022
     unit: "m"
-    source: "Khademi et al. (2009), Table 6"
+    source: "Khademi et al. (2009), Table 7 (exothermic methanol synthesis tube length)"
   D_in:
     value: 0.038
     unit: "m"
-    source: "Khademi et al. (2009), Table 6"
+    source: "Khademi et al. (2009), Table 7 (tube inner diameter)"
   D_out:
     value: 0.042
     unit: "m"
-    source: "Khademi et al. (2009), Table 6"
+    source: "Khademi et al. (2009), Table 7 (tube outer diameter)"
   p_t:
     value: 0.05523
     unit: "m"
@@ -21,53 +34,58 @@ geometry:
   D_shell_eff:
     value: 0.058
     unit: "m"
-    source: "Khademi et al. (2009), Table 6 (effective shell diameter per tube: D_shell_eff = pt * sqrt(2*sqrt(3)/pi))"
+    source: "Triangular-pitch production unit-cell effective shell diameter (pt * sqrt(2*sqrt(3)/pi)); benchmark overrides to Khademi et al. (2009) Table 8 exact 0.060 m"
   N_tubes:
     value: 2962
     unit: "-"
-    source: "Khademi et al. (2009), Table 6"
+    source: "Industrial Lurgi methanol reactor tube bundle (Khademi et al. 2009; Rahimpour et al. 2008)"
   Kw:
     value: 48.0
     unit: "W/(m·K)"
-    source: "Incropera & DeWitt (2007), standard carbon steel tube wall"
+    source: "Khademi et al. (2009), Table 7; Incropera & DeWitt (2007), carbon steel tube wall"
 
 catalyst:
   tube:
-    # Methanol synthesis (CuO/ZnO/Al2O3)
+    # Methanol synthesis (CuO/ZnO/Al2O3):
+    # Production uses Vanden Bussche & Froment (1996) with eta = 0.35;
+    # Khademi benchmark uses authentic Graaf et al. (1988) kinetics (correcting Khademi Table 1 typos).
     dp:
       value: 0.00547
       unit: "m"
-      source: "Khademi et al. (2009), Table 6"
+      source: "Khademi et al. (2009), Table 7"
     rho_b:
       value: 1140.0
       unit: "kg/m^3"
-      source: "Khademi et al. (2009), Table 6"
+      source: "Khademi et al. (2009), Table 7"
     eps:
       value: 0.39
       unit: "-"
-      source: "Khademi et al. (2009), Table 6"
+      source: "Khademi et al. (2009), Table 7"
     eta:
       value: 0.35
       unit: "-"
-      source: "Vanden Bussche & Froment (1996); Froment et al. (2011) for 5.5 mm commercial pellets"
+      source: "Vanden Bussche & Froment (1996); Froment, Bischoff & De Wilde (2011) baseline effectiveness factor for 5.47 mm commercial Cu/ZnO/Al2O3 pellets (benchmark uses authentic Graaf 1988 at eta = 1.0)"
   shell:
-    # Cyclohexane dehydrogenation (Pt/Al2O3)
+    # Cyclohexane dehydrogenation (Pt/Al2O3):
+    # Equilibrium Kp from NIST Chemistry WebBook S_298 (DELTA_S_R_298 = 362.96 J/(mol*K),
+    # van 't Hoff slope ~ -24,704 K, correcting Khademi Table 4 erroneous Kp exponent);
+    # Rate and benzene adsorption parameters from Itoh (1987) & Khademi et al. (2009) Table 4.
     dp:
       value: 0.00355
       unit: "m"
-      source: "Khademi et al. (2009), Table 6"
+      source: "Khademi et al. (2009), Table 8 (Markatos et al.)"
     rho_b:
       value: 1077.0
       unit: "kg/m^3"
-      source: "Khademi et al. (2009), Table 6"
+      source: "Pt/Al2O3 packed-bed catalyst bulk density (Itoh 1987; Khademi et al. 2009)"
     eps:
       value: 0.40
       unit: "-"
-      source: "Khademi et al. (2009), Table 6"
+      source: "Production Pt/Al2O3 shell bed void fraction (benchmark overrides to Khademi et al. 2009 Table 8 exact 0.39)"
     eta:
       value: 1.0
       unit: "-"
-      source: "Khademi et al. (2009), Table 6"
+      source: "Itoh (1987) & Khademi et al. (2009) shell Pt/Al2O3 baseline effectiveness factor"
 
 feed:
   production:
@@ -77,15 +95,15 @@ feed:
       T0:
         value: 503.15
         unit: "K"
-        source: "Khademi et al. (2009), Tables 7 & 8"
+        source: "Khademi et al. (2009), Table 7 / industrial Lurgi methanol feed temperature"
       P0:
         value: 76.98e5
         unit: "Pa"
-        source: "Khademi et al. (2009), Tables 7 & 8"
+        source: "Khademi et al. (2009), Table 7"
       F_total0:
         value: 0.640
         unit: "mol/s"
-        source: "Khademi et al. (2009), Tables 7 & 8 (locked strictly at 0.640 mol/s across all baseline and optimized reactors for equal-throughput comparison)"
+        source: "Khademi et al. (2009), Table 7 (locked strictly at 0.640 mol/s across all baseline and optimized reactors for equal-throughput comparison)"
     shell:
       # Components: [C6H12, C6H6, H2, Ar] (4-component shell mixture supporting Ar diluent and 5% H2 co-feed)
       y0: [0.95, 0.0, 0.05, 0.0]
@@ -93,11 +111,11 @@ feed:
       T0:
         value: 485.0
         unit: "K"
-        source: "Feed with 5 mol% H2 co-feed preventing coking and eliminating microscopic reversibility rate singularity"
+        source: "Production shell feed with 5 mol% H2 co-feed preventing Pt/Al2O3 coking and eliminating microscopic reversibility rate singularity"
       P0:
         value: 2.5e5
         unit: "Pa"
-        source: "Elevated baseline inlet pressure (2.5 bar) ensuring shell effluent exits above 1.15 bar across all modes"
+        source: "Elevated baseline inlet pressure (2.5 bar) ensuring positive shell effluent discharge pressure (>= 1.10 bar) across all modes"
       F_total0:
         value: 0.040
         unit: "mol/s"
@@ -109,44 +127,44 @@ feed:
       T0:
         value: 527.8
         unit: "K"
-        source: "Khademi et al. (2009), Tables 7 & 8"
+        source: "Khademi et al. (2009), Table 9 (DE-optimized OTCR tube inlet temperature; CMR benchmark uses 503.15 K)"
       P0:
         value: 76.98e5
         unit: "Pa"
-        source: "Khademi et al. (2009), Tables 7 & 8"
+        source: "Khademi et al. (2009), Table 7"
       F_total0:
         value: 0.640
         unit: "mol/s"
-        source: "Khademi et al. (2009), Tables 7 & 8 (locked strictly at 0.640 mol/s across all baseline and optimized reactors for equal-throughput comparison)"
+        source: "Khademi et al. (2009), Table 7 (locked strictly at 0.640 mol/s across all benchmark and production reactors)"
     shell:
       # Components: [C6H12, C6H6, H2, Ar]
       y0: [0.10, 0.0, 0.0, 0.90]
       T0:
         value: 423.0
         unit: "K"
-        source: "Khademi et al. (2009), Tables 7 & 8"
+        source: "Khademi et al. (2009), Table 9 (DE-optimized OTCR shell inlet temperature)"
       P0:
         value: 1.01325e5
         unit: "Pa"
-        source: "Khademi et al. (2009), Tables 7 & 8"
+        source: "Khademi et al. (2009), Table 8 (Kusakabe et al. atmospheric shell inlet pressure)"
       F_total0:
         value: 0.111
         unit: "mol/s"
-        source: "Khademi et al. (2009), Tables 7 & 8"
+        source: "Khademi et al. (2009), Table 9 (DE-optimized OTCR shell molar flow rate)"
 
 transport:
   conventional:
     h_cool:
       value: 6000.0
       unit: "W/(m^2·K)"
-      source: "Perry's Chemical Engineers' Handbook, Section 5; boiling water film"
+      source: "Perry's Chemical Engineers' Handbook, Section 5; boiling water jacket film coefficient"
     T_coolant:
       value: 503.15
       unit: "K"
-      source: "Lurgi commercial boiling water reactor temperature"
+      source: "Industrial Lurgi commercial boiling-water reactor baseline coolant temperature"
   wall_heat_transfer:
     correlation: "Dixon_Li_Finlayson"
-    source: "Froment, Bischoff, De Wilde (2011), Chemical Reactor Analysis & Design"
+    source: "Dixon (1997) & Li & Finlayson (1977) wall heat transfer; unified dynamic Bauer-Schluender k_er; Wassiljewa-Mason-Saxena mixture conductivity; Ergun (1952) & Eisfeld-Schnitzlein (2001) pressure drop"
     Kg_exo: 0.12
     Kg_endo: 0.04
     mu_exo: 1.8e-5
@@ -179,4 +197,5 @@ optimization:
 
 use_real_gas_eos: true
 use_dynamic_thiele: true
+
 
