@@ -13,7 +13,7 @@ The repository features single-source-of-truth architecture, zero hardcoded manu
 ### Installation
 Ensure Python 3.10+ is installed:
 ```bash
-pip install -r requirements.txt
+pip install -r tcr/requirements.txt
 ```
 
 ### Run Full Simulation Pipeline

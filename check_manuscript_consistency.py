@@ -54,6 +54,15 @@ def _require_key(mapping: dict, key: str, desc: str):
     return mapping[key]
 
 
+FORBIDDEN_PATTERNS = [
+    ("Obsolete equilibrium constant '2.45e4'", r"2\.45e4|2\.45\s*\\times\s*10\^4"),
+    ("Stale constant k_er = 2.20 W/(m*K)", r"k_\{?er\}?\s*[=≈~]\s*2\.20|2\.20\s*\\?text\{?W/\(m"),
+    ("Stale Biot number Bi_h = 3.45 (from k_er=2.20)", r"Bi_h\s*=\s*3\.45"),
+    ("Stale radial overshoot 3.98 K (from k_er=2.20)", r"3\.98\s*\\?text\{?\s*K\}?"),
+    ("Stale ideal-gas underprediction claim (+3-6 pp)", r"\+3[-–]6\s*(?:%|percentage\s+points)|3[-–]6\s*percentage\s+points"),
+]
+
+
 def check_consistency(
     results_path: str = "simulation_results.json",
     manuscript_path: str = "TCR_Methanol_Cyclohexane_Manuscript.md",
@@ -83,13 +92,7 @@ def check_consistency(
     if "chemical-grade benzene" in text_lower:
         errors.append("Forbidden overstated claim 'chemical-grade benzene' found in manuscript (must use 'co-produced benzene').")
 
-    stale_patterns = [
-        ("Obsolete equilibrium constant '2.45e4'", r"2\.45e4|2\.45\s*\\times\s*10\^4"),
-        ("Stale constant k_er = 2.20 W/(m*K)", r"k_\{?er\}?\s*[=≈~]\s*2\.20|2\.20\s*\\?text\{?W/\(m"),
-        ("Stale Biot number Bi_h = 3.45 (from k_er=2.20)", r"Bi_h\s*=\s*3\.45"),
-        ("Stale radial overshoot 3.98 K (from k_er=2.20)", r"3\.98\s*\\?text\{?\s*K\}?"),
-    ]
-    for label, pat in stale_patterns:
+    for label, pat in FORBIDDEN_PATTERNS:
         if re.search(pat, text, flags=re.IGNORECASE):
             errors.append(f"Stale pre-Path-A artifact found in manuscript: {label}.")
 

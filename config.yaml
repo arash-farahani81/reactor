@@ -195,7 +195,7 @@ optimization:
   P_shell_out_min: 1.10
   P_shell_out_knee: 1.15
 
-use_real_gas_eos: true
-use_dynamic_thiele: true
+use_real_gas_eos: false  # All primary ideal-gas/fixed-eta runs use false (matching solver defaults); run_otp_and_eos_audit explicitly enables use_real_gas_eos=True for the PR-EOS comparison
+use_dynamic_thiele: false  # Primary runs lock fixed pellet eta_exo=0.35; dynamic Thiele diagnostics are evaluated separately in benchmark thiele_analysis
 
 

@@ -328,10 +328,18 @@ def plot_sensitivity_analysis(sens_results: dict, out_path="sensitivity_analysis
 
     # (c) Catalyst effectiveness factor sweep
     ax = axes[2]
-    eta_sweep = sens_results.get('eta_sweep', {})
+    eta_sweep = sens_results.get('eta_sweep')
     if eta_sweep:
-        ax.plot(eta_sweep['eta_vals'], eta_sweep['X_CO2'], 'o-', color='#E63946', lw=2, label='CO₂ Conv.')
-        ax.plot(eta_sweep['eta_vals'], eta_sweep['yield_meoh'], '^-', color='#2A9D8F', lw=2, label='MeOH Yield')
+        if isinstance(eta_sweep, list):
+            eta_vals = [r['eta'] for r in eta_sweep]
+            x_co2_vals = [r['X_CO2'] for r in eta_sweep]
+            y_meoh_vals = [r['yield_meoh'] for r in eta_sweep]
+        else:
+            eta_vals = eta_sweep['eta_vals']
+            x_co2_vals = eta_sweep['X_CO2']
+            y_meoh_vals = eta_sweep['yield_meoh']
+        ax.plot(eta_vals, x_co2_vals, 'o-', color='#E63946', lw=2, label='CO₂ Conv.')
+        ax.plot(eta_vals, y_meoh_vals, '^-', color='#2A9D8F', lw=2, label='MeOH Yield')
     ax.set_xlabel('Pellet Effectiveness Factor η_exo (-)', fontsize=11, fontweight='bold')
     ax.set_ylabel('Metric (%)', fontsize=11, fontweight='bold')
     ax.set_title('(c) Effect of Catalyst Effectiveness Factor', fontsize=12, fontweight='bold')

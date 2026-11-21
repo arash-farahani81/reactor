@@ -523,6 +523,8 @@ def test_t15_graaf_stoichiometry(cfg, geom):
     # 5. Fast Graaf-mode solve_conventional run verifying C, H, O mass balance closures < 1e-12
     sol_fast = copy.deepcopy(cfg.solver)
     sol_fast.z_points = 80
+    sol_fast.rtol = 1e-10
+    sol_fast.atol = 1e-13
     cat_graaf = copy.deepcopy(cfg.cat_tube)
     cat_graaf.eta = 1.0
 

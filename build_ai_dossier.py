@@ -570,13 +570,21 @@ def build_section_5():
         for fv, xc, xch in zip(f_sw["F_vals"], f_sw["X_CO2"], f_sw["X_CH"]):
             parts.append(f"| {fv:.4f} | {xc:.2f}% | {xch:.2f}% |")
 
-    e_sw = sens.get("eta_sweep", {})
+    e_sw = sens.get("eta_sweep")
     if e_sw:
         parts.append("\n#### Sweep 3: Effect of Pellet Catalyst Effectiveness Factor ($\\eta_{\\text{exo}}$)")
-        parts.append("| Catalyst Effectiveness $\\eta_{\\text{exo}}$ (-) | CO$_2$ Conversion $X_{\\text{CO}_2}$ (%) | Methanol Yield (%) |")
-        parts.append("|---|---|---|")
-        for ev, xc, ym in zip(e_sw["eta_vals"], e_sw["X_CO2"], e_sw["yield_meoh"]):
-            parts.append(f"| {ev:.2f} | {xc:.2f}% | {ym:.2f}% |")
+        if isinstance(e_sw, list):
+            parts.append("| Catalyst Effectiveness $\\eta_{\\text{exo}}$ (-) | CO$_2$ Conversion $X_{\\text{CO}_2}$ (%) | Cyclohexane Conversion $X_{\\text{CH}}$ (%) | Net Methanol Yield (%) | Peak Temp $T_{\\text{max}}$ (K) |")
+            parts.append("|---|---|---|---|---|")
+            for row in e_sw:
+                parts.append(
+                    f"| {row['eta']:.2f} | {row['X_CO2']:.2f}% | {row.get('X_CH', 0.0):.2f}% | {row['yield_meoh']:.2f}% | {row.get('T_max_exo', 0.0):.1f} |"
+                )
+        else:
+            parts.append("| Catalyst Effectiveness $\\eta_{\\text{exo}}$ (-) | CO$_2$ Conversion $X_{\\text{CO}_2}$ (%) | Methanol Yield (%) |")
+            parts.append("|---|---|---|")
+            for ev, xc, ym in zip(e_sw["eta_vals"], e_sw["X_CO2"], e_sw["yield_meoh"]):
+                parts.append(f"| {ev:.2f} | {xc:.2f}% | {ym:.2f}% |")
 
     parts.append("</numerical_results_and_figure_data_tables>")
     return "\n".join(parts)

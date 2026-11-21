@@ -234,6 +234,11 @@ def main():
         }
     }
 
+    # Export structured eta_sweep list-of-dicts schema in JSON and plotting
+    sens_results_export = dict(sens_results)
+    sens_results_export['eta_sweep'] = eta_sweep_records
+    sens_results_export['eta_sweep_series'] = sens_results['eta_sweep']
+
     # ──────────────────────────────────────────────────────────────────────────
     # Step 7: Plotting & Master Artifact Export
     # ──────────────────────────────────────────────────────────────────────────
@@ -242,11 +247,33 @@ def main():
     plot_pareto_frontier(opt_res, "nsga2_pareto_front.png")
     plot_reactor_results(sol_co_base, geom, "reactor_results.png")
     plot_comparison_coupled_vs_conventional(sol_co_base, sol_cmr_base, "comparison_coupled_vs_conventional.png")
-    plot_sensitivity_analysis(sens_results, "sensitivity_analysis.png")
+    plot_sensitivity_analysis(sens_results_export, "sensitivity_analysis.png")
     print("  ✓ All 5 PNG figures successfully generated.")
 
     # Process thermal duties
     process_duties = calc_process_thermal_duties(cfg, geom, knee_results)
+
+    # Canonical battery-limit energy accounting (12 keys matching build_manuscript.py)
+    cmr_opt_net_thermal_MW = float(res_cmr_opt['syngas_preheat_duty_MW'] - res_cmr_opt['cmr_steam_credit_MW'])
+    tcr_knee_net_thermal_MW = float(knee_results['total_feed_preheat_duty_MW'] + knee_results['Q_reboiler_sep_MW'])
+    battery_limit_energy = {
+        "cmr_optimized": {
+            "syngas_preheat_duty_MW": float(res_cmr_opt['syngas_preheat_duty_MW']),
+            "cmr_steam_credit_MW": float(res_cmr_opt['cmr_steam_credit_MW']),
+            "Q_flash_condenser_MW": float(res_cmr_opt['Q_flash_condenser_MW']),
+            "net_external_thermal_duty_MW": cmr_opt_net_thermal_MW,
+        },
+        "tcr_nsga2_optimum": {
+            "syngas_preheat_duty_MW": float(knee_results['syngas_preheat_duty_MW']),
+            "ch_vaporization_preheat_duty_MW": float(knee_results['cyclohexane_vaporization_and_preheat_duty_MW']),
+            "Q_wall_coupled_MW": float(knee_results['Q_wall_total_MW']),
+            "extractive_distillation_duty_MW": float(knee_results['Q_reboiler_sep_MW']),
+            "psa_compression_power_MW": float(knee_results['W_psa_H2_MW']),
+            "Q_flash_condenser_MW": float(knee_results['Q_flash_condenser_MW']),
+            "net_external_thermal_duty_MW": tcr_knee_net_thermal_MW,
+        },
+        "delta_tcr_minus_cmr_net_thermal_MW": float(tcr_knee_net_thermal_MW - cmr_opt_net_thermal_MW),
+    }
 
     # Attach verified equal-throughput syngas feed rate and shell exit pressures
     res_cmr_base['F_exo_total_0'] = float(cfg.feed_tube.F_total0)
@@ -257,10 +284,9 @@ def main():
     res_co_base['P_shell_out'] = round(float((cfg.feed_shell.P0 / 1e5) - res_co_base['dP_shell']), 4)
     res_ct_base['P_shell_out'] = round(float((cfg.feed_shell.P0 / 1e5) - res_ct_base['dP_shell']), 4)
 
-    # Export structured eta_sweep records in JSON while preserving plotting dict above
-    sens_results_export = dict(sens_results)
-    sens_results_export['eta_sweep'] = eta_sweep_records
-    sens_results_export['eta_sweep_series'] = sens_results['eta_sweep']
+    # Ensure otp_and_eos_audit is attached both inside benchmark_khademi_2009 and top-level
+    otp_audit = bench_data["otp_and_eos_audit"]
+    bench_data["otp_and_eos_audit"] = otp_audit
 
     # Master SSOT data structure
     master_ssot = {
@@ -278,7 +304,9 @@ def main():
         "countercurrent_baseline": res_ct_base,
         "tcr_nsga2_optimum": knee_results,
         "benchmark_khademi_2009": bench_data,
+        "otp_and_eos_audit": otp_audit,
         "process_thermal_duties": process_duties,
+        "battery_limit_energy": battery_limit_energy,
         "sensitivity_analysis": sens_results_export
     }
 
